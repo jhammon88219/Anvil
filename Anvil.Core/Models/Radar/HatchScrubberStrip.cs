@@ -13,6 +13,53 @@ namespace Anvil.Models
 	/// reaches its edge share × that frame's fill (<c>RadarFrameSegment.Fill</c>, 1 only when lit) — a loading frame's
 	/// lines grow out of the edge. The frame ON SCREEN's lines come back apart, so the scrubber draws them bolder.</para>
 	/// </summary>
+	/// <summary>
+	/// The hatch scrubber's OWN look (Settings → Radar Console; separate from Settings → Edges — the user's call,
+	/// 2026-11-01). Defaults = the user's picks from the mock-up: accent, 5 px spacing, 1.0 px lines, 60%. Ranges = the edge's
+	/// (<see cref="EdgeHatchSizes"/>), since both are measured at the edge's 35 px and scaled to the strip.
+	/// </summary>
+	public static class HatchScrubberLook
+	{
+		/// <summary>The colour that means the ACCENT (the "A" chip).</summary>
+		public const string Accent = "";
+
+		public const double DefaultSpacing = 5, DefaultWeight = 1, DefaultOpacity = 60;
+
+		/// <summary>The colour presets in picker order: hex ("" = accent) and a tooltip name.</summary>
+		public static IReadOnlyList<(string Hex, string Name)> Presets { get; } = new[]
+		{
+			(Accent, "Accent (follows Windows)"),
+			("#9CA3AF", "Grey"),
+			("#FFFFFF", "White"),
+			("#22D3EE", "Cyan"),
+			("#FFD60A", "Yellow"),
+			("#FF9F1A", "Orange"),
+			("#FF4FD8", "Magenta"),
+		};
+
+		/// <summary>An upper-case <c>#RRGGBB</c>, or <see cref="Accent"/> for empty / unrecognized.</summary>
+		public static string NormalizeColor(string? token) => ScopeColors.Normalize(token);
+
+		/// <summary>The preset index of a colour; -1 for a custom colour.</summary>
+		public static int IndexOf(string? token)
+		{
+			var hex = NormalizeColor(token);
+			for (int i = 0; i < Presets.Count; i++)
+			{
+				if (Presets[i].Hex == hex) { return i; }
+			}
+			return -1;
+		}
+
+		public static string FromIndex(int index) => Presets[Math.Clamp(index, 0, Presets.Count - 1)].Hex;
+
+		public static double Spacing(double v) => double.IsFinite(v) ? EdgeHatchSizes.Spacing(v) : DefaultSpacing;
+
+		public static double Weight(double v) => double.IsFinite(v) ? EdgeHatchSizes.Weight(v) : DefaultWeight;
+
+		public static double Opacity(double v) => double.IsFinite(v) ? EdgeHatchSizes.Opacity(v) : DefaultOpacity;
+	}
+
 	public static class HatchScrubberStrip
 	{
 		/// <summary>The strip's height, px (the user's pick from the mock-up, 2026-11-01). The console's hit strip is 20;

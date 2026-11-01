@@ -16,9 +16,10 @@
      code-behind fills their Data from Models/Radar/HatchScrubberStrip (pure, tested — a fully loaded strip IS
      EdgeHatchGeometry's lines). A line belongs to the frame its BASE point falls in (equal slots, the host's pointer rule).
      Redrawn once per dispatcher turn however many frames move (a loading loop moves many at once).
-     ⚠️ LOOK = Settings → Edges (Spacing, Weight, Ink, LineOpacity, bound by the host) scaled to 24 px — thinning and
-     fading always on (the scrubber's whole look). Ink "" (the edge's SURFACE colour) would vanish on the bar it sits on,
-     so it means the ACCENT here. The brushes are DATA made in code (hex, or the OS accent read for this element's
+     ⚠️ LOOK = its OWN settings, Settings → Radar Console (RadarViewModel.HatchLook: Spacing, Weight, Ink, LineOpacity,
+     bound by the host — NOT the edge's), measured at the edge's 35 px and scaled to 24 px — thinning and
+     fading always on (the scrubber's whole look). Ink "" = the ACCENT (the "A" chip).
+     The brushes are DATA made in code (hex, or the OS accent read for this element's
      ActualTheme — never a theme brush resolved in C#); they fade to their own clear twin, never through black.
      ⚠️ Not hit-testable: the host (RadarControls.ScrubberHost / ModelConsole) owns the pointer, equal slots. -->
 <UserControl x:Class="Anvil.Controls.Primitives.HatchScrubber"

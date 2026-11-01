@@ -657,6 +657,21 @@ namespace Anvil.Services
 		/// <summary>Also hatch an open temporal pane's map-side edge.</summary>
 		public bool EdgeHatchOnPanes { get => _edgeHatchOnPanes; set => SetProperty(ref _edgeHatchOnPanes, value); }
 
+		// ── HATCH SCRUBBER look (Settings → Radar Console) — its OWN values, not the edge's. Models/Radar/HatchScrubberLook ──
+		private string _hatchScrubberColor = Models.HatchScrubberLook.Accent;
+		/// <summary>A <c>#RRGGBB</c>, or empty = the accent.</summary>
+		public string HatchScrubberColor { get => _hatchScrubberColor; set => SetProperty(ref _hatchScrubberColor, value); }
+
+		private double _hatchScrubberSpacing = Models.HatchScrubberLook.DefaultSpacing;
+		public double HatchScrubberSpacing { get => _hatchScrubberSpacing; set => SetProperty(ref _hatchScrubberSpacing, value); }
+
+		private double _hatchScrubberWeight = Models.HatchScrubberLook.DefaultWeight;
+		public double HatchScrubberWeight { get => _hatchScrubberWeight; set => SetProperty(ref _hatchScrubberWeight, value); }
+
+		private double _hatchScrubberOpacity = Models.HatchScrubberLook.DefaultOpacity;
+		/// <summary>The lines' opacity, percent (the frame on screen is always full).</summary>
+		public double HatchScrubberOpacity { get => _hatchScrubberOpacity; set => SetProperty(ref _hatchScrubberOpacity, value); }
+
 		// ── Temporal panes' ACTIVITY EXPANDER state (Models.ActivityExpanderStates tokens), one per window ──
 		private string _nowCastActivity = Models.ActivityExpanderStates.Hidden;
 		/// <summary>The NowCast window's activity expander: hidden / min-up / full / min-down.</summary>

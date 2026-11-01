@@ -133,6 +133,11 @@ namespace Anvil.ViewModels
 		/// <summary>The console draws the hatch scrubber (Primitives/HatchScrubber — the edge hatch's language).</summary>
 		public bool IsHatchScrubber => ScrubberStyleIndex == 2;
 
+		private HatchScrubberLookViewModel? _hatchLook;
+
+		/// <summary>The hatch scrubber's own colour / spacing / weight / opacity (Settings → Radar Console), apart from the edge's.</summary>
+		public HatchScrubberLookViewModel HatchLook => _hatchLook ??= new HatchScrubberLookViewModel(_settings.Settings);
+
 		/// <summary>Called by the coordinator whenever the user-location marker is placed, dragged, re-located
 		/// or removed (null = no marker).</summary>
 		public void SetRulerLocation(double? latitude, double? longitude)

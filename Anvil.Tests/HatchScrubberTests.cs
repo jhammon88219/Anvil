@@ -72,6 +72,38 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void The_scrubber_look_is_its_own_not_the_edges()
+		{
+			var s = new Anvil.Services.AppSettings();
+			var look = new Anvil.ViewModels.HatchScrubberLookViewModel(s);
+			var edge = new Anvil.ViewModels.EdgeHatchViewModel(s);
+
+			// Defaults = the user's mock-up picks, not the edge's.
+			Assert.Equal(HatchScrubberLook.Accent, look.ColorHex);
+			Assert.Equal(5, look.Spacing);
+			Assert.Equal(1, look.Weight);
+			Assert.Equal(60, look.Opacity);
+
+			look.ColorHex = "#22d3ee";
+			look.Spacing = 8;
+			look.Weight = 1.5;
+			look.Opacity = 40;
+			Assert.Equal("#22D3EE", s.HatchScrubberColor);
+			Assert.Equal(3, look.ColorIndex);
+			Assert.Equal(0.4, look.LineOpacity, 9);
+
+			// The edge never moved.
+			Assert.Equal(EdgeHatchColors.Surface, edge.ColorHex);
+			Assert.Equal(EdgeHatchSizes.DefaultSpacing, edge.Spacing);
+			Assert.Equal(EdgeHatchSizes.DefaultWeight, edge.Weight);
+			Assert.Equal(EdgeHatchSizes.DefaultOpacity, edge.Opacity);
+
+			look.RestoreDefaults();
+			Assert.Equal(HatchScrubberLook.Accent, s.HatchScrubberColor);
+			Assert.Equal(60, look.Opacity);
+		}
+
+		[Fact]
 		public void Spacing_scales_with_the_strip_depth() =>
 			Assert.Equal(5.0 * 24 / EdgeHatchSizes.DefaultWidth, HatchScrubberStrip.Scaled(5, 24), 9);
 	}

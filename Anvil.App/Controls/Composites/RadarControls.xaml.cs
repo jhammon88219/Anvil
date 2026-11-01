@@ -43,16 +43,6 @@ namespace Anvil.Controls.Composites
 			DependencyProperty.Register(nameof(ViewModel), typeof(RadarViewModel), typeof(RadarControls),
 				new PropertyMetadata(null));
 
-		/// <summary>Settings → Edges — the hatch scrubber draws in the edge's spacing, weight, colour and opacity.</summary>
-		public EdgeHatchViewModel? EdgeHatch
-		{
-			get => (EdgeHatchViewModel?)GetValue(EdgeHatchProperty);
-			set => SetValue(EdgeHatchProperty, value);
-		}
-
-		public static readonly DependencyProperty EdgeHatchProperty =
-			DependencyProperty.Register(nameof(EdgeHatch), typeof(EdgeHatchViewModel), typeof(RadarControls), new PropertyMetadata(null));
-
 		// Play/stop button: while playing, Stop (halt + return to newest); otherwise Play/resume. Mirrors
 		// the old dial's center button so the single-button "play + stop in one" behavior is unchanged.
 		private void OnPlayStopClick(object sender, RoutedEventArgs e)

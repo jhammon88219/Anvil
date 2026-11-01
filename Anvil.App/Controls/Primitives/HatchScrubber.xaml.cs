@@ -56,7 +56,7 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(CurrentIndex), typeof(double), typeof(HatchScrubber),
 				new PropertyMetadata(0.0, (d, _) => ((HatchScrubber)d).QueueDraw()));
 
-		/// <summary>The EDGE's line spacing (Settings → Edges), px — scaled to the strip.</summary>
+		/// <summary>The line spacing (Settings → Radar Console), px at the edge's 35 px — scaled to the strip.</summary>
 		public double Spacing
 		{
 			get => (double)GetValue(SpacingProperty);
@@ -65,9 +65,9 @@ namespace Anvil.Controls.Primitives
 
 		public static readonly DependencyProperty SpacingProperty =
 			DependencyProperty.Register(nameof(Spacing), typeof(double), typeof(HatchScrubber),
-				new PropertyMetadata(EdgeHatchSizes.DefaultSpacing, (d, _) => ((HatchScrubber)d).QueueDraw()));
+				new PropertyMetadata(HatchScrubberLook.DefaultSpacing, (d, _) => ((HatchScrubber)d).QueueDraw()));
 
-		/// <summary>The EDGE's line weight (Settings → Edges), px — scaled to the strip.</summary>
+		/// <summary>The line weight (Settings → Radar Console), px at the edge's 35 px — scaled to the strip.</summary>
 		public double Weight
 		{
 			get => (double)GetValue(WeightProperty);
@@ -75,9 +75,9 @@ namespace Anvil.Controls.Primitives
 		}
 
 		public static readonly DependencyProperty WeightProperty =
-			DependencyProperty.Register(nameof(Weight), typeof(double), typeof(HatchScrubber), new PropertyMetadata(EdgeHatchSizes.DefaultWeight));
+			DependencyProperty.Register(nameof(Weight), typeof(double), typeof(HatchScrubber), new PropertyMetadata(HatchScrubberLook.DefaultWeight));
 
-		/// <summary>The EDGE's line colour (Settings → Edges): <c>#RRGGBB</c>, or "" (the edge's surface colour) = the accent here.</summary>
+		/// <summary>The line colour (Settings → Radar Console): <c>#RRGGBB</c>, or "" = the accent.</summary>
 		public string Ink
 		{
 			get => (string)GetValue(InkProperty);
@@ -86,9 +86,9 @@ namespace Anvil.Controls.Primitives
 
 		public static readonly DependencyProperty InkProperty =
 			DependencyProperty.Register(nameof(Ink), typeof(string), typeof(HatchScrubber),
-				new PropertyMetadata(EdgeHatchColors.Surface, (d, _) => ((HatchScrubber)d).ApplyInk()));
+				new PropertyMetadata(HatchScrubberLook.Accent, (d, _) => ((HatchScrubber)d).ApplyInk()));
 
-		/// <summary>The EDGE's line opacity, 0–1 (Settings → Edges); the current frame's lines are always full.</summary>
+		/// <summary>The line opacity, 0–1 (Settings → Radar Console); the current frame's lines are always full.</summary>
 		public double LineOpacity
 		{
 			get => (double)GetValue(LineOpacityProperty);
@@ -96,7 +96,7 @@ namespace Anvil.Controls.Primitives
 		}
 
 		public static readonly DependencyProperty LineOpacityProperty =
-			DependencyProperty.Register(nameof(LineOpacity), typeof(double), typeof(HatchScrubber), new PropertyMetadata(1.0));
+			DependencyProperty.Register(nameof(LineOpacity), typeof(double), typeof(HatchScrubber), new PropertyMetadata(HatchScrubberLook.DefaultOpacity / 100));
 
 		public double LineWeight(double weight) => HatchScrubberStrip.Scaled(weight, Depth);
 
@@ -106,9 +106,9 @@ namespace Anvil.Controls.Primitives
 
 		private void ApplyInk()
 		{
-			var hex = EdgeHatchColors.Normalize(Ink);
+			var hex = HatchScrubberLook.NormalizeColor(Ink);
 			Color ink;
-			if (hex == EdgeHatchColors.Surface)
+			if (hex == HatchScrubberLook.Accent)
 			{
 				// The ACCENT, as DATA: the OS accent shade AccentFillColorDefaultBrush uses for this element's theme (Light2
 				// on dark, Dark1 on light), read from UISettings — a theme brush can't be resolved here, and the fade needs

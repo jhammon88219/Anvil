@@ -458,7 +458,6 @@
                                             VerticalAlignment="Center"
                                             Opacity="{x:Bind RadarConsoleOpacity(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
                                             IsHitTestVisible="{x:Bind IsRadarConsoleLive(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
-                                            EdgeHatch="{x:Bind ViewModel.EdgeHatch}"
                                             ViewModel="{x:Bind ViewModel.Radar}"/>
                         <comp:ModelConsole x:Name="ModelConsole"
                                            Grid.Column="1"
@@ -467,7 +466,7 @@
                                            Visibility="{x:Bind ModelConsoleVisibility(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
                                            UseDotMatrix="{x:Bind ViewModel.Radar.IsDotMatrixScrubber, Mode=OneWay}"
                                            UseHatch="{x:Bind ViewModel.Radar.IsHatchScrubber, Mode=OneWay}"
-                                           EdgeHatch="{x:Bind ViewModel.EdgeHatch}"
+                                           HatchLook="{x:Bind ViewModel.Radar.HatchLook}"
                                            ViewModel="{x:Bind ViewModel.ShortRange.Playback}"/>
 
                         <!-- ===== GLOBAL CLUSTER =====
