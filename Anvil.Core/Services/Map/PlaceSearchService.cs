@@ -50,7 +50,7 @@ namespace Anvil.Services
 		public PlaceSearchService(ILogger<PlaceSearchService> logger)
 			: this(ReadEmbeddedCatalog, null, logger)
 		{
-			// Parse off the UI thread at startup so the first keystroke doesn't pay for ~30k rows.
+			// Parse off the UI thread at startup so the first keystroke doesn't pay for ~170k rows (every US populated place).
 			_ = Task.Run(() => _entries.Value);
 		}
 
@@ -64,7 +64,7 @@ namespace Anvil.Services
 
 		public bool HasOfflineCatalog => _entries.Value.Length > 0;
 
-		// A straight scan of ~30k rows by squared, longitude-shrunk degrees — called once per location fix.
+		// A straight scan of ~170k rows by squared, longitude-shrunk degrees — called once per location fix.
 		public PlaceResult? NearestPlace(double latitude, double longitude)
 		{
 			var cos = Math.Cos(latitude * Math.PI / 180);
