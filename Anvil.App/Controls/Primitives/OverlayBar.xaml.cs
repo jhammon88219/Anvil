@@ -184,6 +184,39 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(EdgeStyle), typeof(BarEdgeStyle), typeof(OverlayBar),
 				new PropertyMetadata(BarEdgeStyle.Hairline, OnChromeChanged));
 
+		/// <summary>
+		/// FLOATING: attached to no edge (the pane selectors, 2026-11-01) — every corner rounds and, without a
+		/// shadow, the hairline closes all four sides. Implies an island's three-sided cast; <see cref="Edge"/> still
+		/// picks which way the outward band falls.
+		/// </summary>
+		public bool IsFloating
+		{
+			get => (bool)GetValue(IsFloatingProperty);
+			set => SetValue(IsFloatingProperty, value);
+		}
+
+		public static readonly DependencyProperty IsFloatingProperty =
+			DependencyProperty.Register(nameof(IsFloating), typeof(bool), typeof(OverlayBar),
+				new PropertyMetadata(false, OnChromeChanged));
+
+		/// <summary>The noun on this bar's own tab ("Menu"); empty = the verb. See <see cref="OverlayBarTab.Target"/>.</summary>
+		public string TabTarget
+		{
+			get => (string)GetValue(TabTargetProperty);
+			set => SetValue(TabTargetProperty, value);
+		}
+
+		public static readonly DependencyProperty TabTargetProperty =
+			DependencyProperty.Register(nameof(TabTarget), typeof(string), typeof(OverlayBar),
+				new PropertyMetadata(string.Empty, OnChromeChanged));
+
+		/// <summary>The surface's height without the tab — 0 while hidden. MainWindow lays the temporal panes and the
+		/// caption band off the top bar's.</summary>
+		public double SurfaceHeight => BarBorder.Visibility == Visibility.Visible ? BarBorder.ActualHeight : 0;
+
+		/// <summary>This bar's own tab (MainWindow punches an input hole for it while the top bar is hidden).</summary>
+		public FrameworkElement TabElement => Tab;
+
 		private static void OnChromeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
 			((OverlayBar)d).ApplyChrome();
 
@@ -210,16 +243,21 @@ namespace Anvil.Controls.Primitives
 		private void ApplyChrome()
 		{
 			bool top = Edge == BarEdge.Top;
-			bool island = IsIsland;
+			bool floating = IsFloating;
+			bool island = IsIsland || floating;
 			bool shadowed = EdgeStyle != BarEdgeStyle.Hairline;
 			bool lit = IsOverlayBarVisible;
 
 			VisualStateManager.GoToState(this, top ? "TopEdge" : "BottomEdge", false);
-			VisualStateManager.GoToState(this, !island ? "SquareCorners" : top ? "IslandTopCorners" : "IslandBottomCorners", false);
+			VisualStateManager.GoToState(this, floating ? "FloatingCorners"
+				: !island ? "SquareCorners" : top ? "IslandTopCorners" : "IslandBottomCorners", false);
 			VisualStateManager.GoToState(this, shadowed ? "NoRule"
+				: floating ? "RuleFloating"
 				: top ? (island ? "RuleTopIsland" : "RuleTopFull")
 				: (island ? "RuleBottomIsland" : "RuleBottomFull"), false);
-			VisualStateManager.GoToState(this, island ? "IslandPadding" : IsRaised ? "RaisedPadding" : "GroundPadding", false);
+			VisualStateManager.GoToState(this, island ? "IslandPadding"
+				: top ? "TopBarPadding"
+				: IsRaised ? "RaisedPadding" : "GroundPadding", false);
 			VisualStateManager.GoToState(this, !lit ? "NoShadow"
 				: EdgeStyle == BarEdgeStyle.CastShadow ? (island ? "CastShadowIsland" : "CastShadowEdge")
 				: EdgeStyle == BarEdgeStyle.InsetShadow ? "InsetShadowEdge"
@@ -232,6 +270,7 @@ namespace Anvil.Controls.Primitives
 			Tab.Edge = Edge;
 			Tab.Raised = IsRaised;
 			Tab.ShowLabel = ShowTabLabel;
+			Tab.Target = TabTarget;
 			Tab.Visibility = ShowTab ? Visibility.Visible : Visibility.Collapsed;
 		}
 

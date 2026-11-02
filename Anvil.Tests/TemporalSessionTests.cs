@@ -74,6 +74,71 @@ namespace Anvil.Tests
 			Assert.True(vm.IsPaneShown(TemporalMode.Past) == vm.IsPastPaneShown);
 		}
 
+		// ── HIDDEN: a running mode's pane hidden from the View menu (MapViewModel.TogglePane) ──
+
+		[Fact]
+		public void View_hides_a_running_pane_and_keeps_the_mode()
+		{
+			var s = new AppSettings();
+			var vm = New(s);
+			vm.RestoreTemporalSession();
+			vm.ToggleTemporalMode(TemporalMode.Now);
+			vm.ToggleTemporalMode(TemporalMode.Fore);
+
+			vm.TogglePane(TemporalMode.Now);
+			Assert.True(vm.IsNowCast);                       // the mode runs on
+			Assert.False(vm.IsNowPaneShown);
+			Assert.True(vm.IsNowPaneHidden);                 // the key's dot
+			Assert.True(vm.IsForePaneShown);                 // each pane hides on its own
+			Assert.True(s.NowCastPaneHidden);
+
+			vm.TogglePane(TemporalMode.Now);
+			Assert.True(vm.IsNowPaneShown);
+			Assert.False(vm.IsNowPaneHidden);
+		}
+
+		[Fact]
+		public void View_on_a_mode_that_is_off_turns_it_on_with_its_pane()
+		{
+			var vm = New(new AppSettings());
+			vm.RestoreTemporalSession();
+
+			vm.TogglePane(TemporalMode.Fore);
+			Assert.True(vm.IsForeCast);
+			Assert.True(vm.IsForePaneShown);
+
+			vm.TogglePane(TemporalMode.Past);                // Past is still alone
+			Assert.True(vm.IsPastCast && vm.IsPastPaneShown);
+			Assert.False(vm.IsForeCast || vm.IsForePaneShown);
+		}
+
+		[Fact]
+		public void Turning_a_mode_off_and_on_opens_its_hidden_pane()
+		{
+			var vm = New(new AppSettings());
+			vm.RestoreTemporalSession();
+			vm.ToggleTemporalMode(TemporalMode.Now);
+			vm.TogglePane(TemporalMode.Now);
+			Assert.False(vm.IsNowPaneShown);
+
+			vm.ToggleTemporalMode(TemporalMode.Now);         // off: closed, no dot
+			Assert.False(vm.IsNowPaneShown || vm.IsNowPaneHidden);
+			vm.ToggleTemporalMode(TemporalMode.Now);         // on: open again
+			Assert.True(vm.IsNowPaneShown);
+		}
+
+		[Fact]
+		public void A_hidden_pane_comes_back_hidden_with_its_session()
+		{
+			var vm = New(new AppSettings { NowCastOn = true, ForeCastOn = true, ForeCastPaneHidden = true });
+			vm.RestoreTemporalSession();
+
+			Assert.True(vm.IsForeCast);
+			Assert.False(vm.IsForePaneShown);
+			Assert.True(vm.IsForePaneHidden);
+			Assert.True(vm.IsNowPaneShown);
+		}
+
 		// ── LAUNCH WINDOWS: the first pane at once, the rest after the home radar's first frame, one at a time
 		//    (MapViewModel.ShowLaunchPanesAsync) ──
 

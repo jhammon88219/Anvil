@@ -613,6 +613,21 @@ namespace Anvil.Services
 		private bool _foreCastOn;
 		public bool ForeCastOn { get => _foreCastOn; set => SetProperty(ref _foreCastOn, value); }
 
+		// ── A running mode's pane HIDDEN from the top bar's View menu (MapViewModel "The three temporal panes") ──
+		// Only means something while the mode runs: turning a mode ON opens its pane again (clears this).
+		private bool _pastCastPaneHidden;
+		public bool PastCastPaneHidden { get => _pastCastPaneHidden; set => SetProperty(ref _pastCastPaneHidden, value); }
+		private bool _nowCastPaneHidden;
+		public bool NowCastPaneHidden { get => _nowCastPaneHidden; set => SetProperty(ref _nowCastPaneHidden, value); }
+		private bool _foreCastPaneHidden;
+		public bool ForeCastPaneHidden { get => _foreCastPaneHidden; set => SetProperty(ref _foreCastPaneHidden, value); }
+
+		// ── The TOP BAR (MainWindow's menu bar) and the floating pane selectors (View → Pane selectors) ──
+		private bool _menuBarVisible = true;
+		public bool MenuBarVisible { get => _menuBarVisible; set => SetProperty(ref _menuBarVisible, value); }
+		private bool _paneSelectorsVisible = true;
+		public bool PaneSelectorsVisible { get => _paneSelectorsVisible; set => SetProperty(ref _paneSelectorsVisible, value); }
+
 		// (The per-window pin + lock settings are gone: the temporal panes are in-window overlays, 2026-10-29. An older
 		// file's PastWindowOnTop / …Locked keys are simply ignored on load.)
 

@@ -554,6 +554,8 @@ namespace Anvil.ViewModels
 		// panels were tabs of one window; then each key was SPLIT into a mode square + a window side car. The panes
 		// replaced all of that: a pane is open exactly while its mode is on (the user's call, 2026-10-30 — a collapse
 		// rail + docking were built and removed; more ideas to come from this starting point).
+		// ⚠️ 2026-11-01: a running mode's pane can now be HIDDEN from the top bar's View menu (the key shows a dot) —
+		// see "The three temporal panes". Turning a mode on still opens its pane; off still closes it.
 
 		/// <summary>PastCast (historical replay). Projection of <see cref="RadarViewModel.IsPastEventMode"/>:
 		/// on enters replay (clearing any live loop), off exits replay to a blank basemap. Turning it on
@@ -731,16 +733,119 @@ namespace Anvil.ViewModels
 		}
 
 		// ===== The three temporal panes (one per mode) ===================================================
-		// A pane (TemporalPanes/TemporalPane, in MainWindow's map band) SHOWS WHILE ITS MODE RUNS — nothing else opens or
-		// closes it (Temporal Panes spec, 2026-10-28). Two things hold a running mode's pane back for a while:
+		// A pane (TemporalPanes/TemporalPane, in MainWindow's map band) has THREE states (the user's call, 2026-11-01):
+		// OFF (mode off, pane closed) · ON + OPEN · ON + HIDDEN. A pane never shows while its mode is off:
+		//   • turning a mode ON opens its pane (clears HIDDEN — OnTemporalModesChanged, any path: key, site click, View);
+		//   • turning it OFF closes it; the top bar's View menu (TogglePane) HIDES / SHOWS a running mode's pane, and on a
+		//     mode that is off it turns the mode on (which opens it). HIDDEN is persisted per mode.
+		// Two things still hold an open pane back for a while:
 		//   • the LAUNCH order: restored modes' panes come up one at a time (LAUNCH WINDOWS below — the first pane build
 		//     froze the UI ~1-2 s at launch);
 		//   • the LOOP HOLDING GATE: every pane steps aside while a PastCast loop loads (Loading screen below).
-		// So IsXPaneShown = mode on AND not held by either — READ-ONLY, recomputed by RefreshPanes.
+		// So IsXPaneShown = mode on AND not hidden AND not held — READ-ONLY, recomputed by RefreshPanes.
 
 		private bool _isPastPaneShown;
 		private bool _isNowPaneShown;
 		private bool _isForePaneShown;
+
+		// HIDDEN by the user (View menu) — meaningful only while the mode runs. Loaded at the session restore.
+		private (bool Past, bool Now, bool Fore) _paneHidden;
+		// The modes OnTemporalModesChanged last saw, so it can tell a mode that just turned ON (→ its pane opens).
+		private (bool Past, bool Now, bool Fore) _modesSeen;
+
+		private bool _isPastPaneOpen, _isNowPaneOpen, _isForePaneOpen;
+		private bool _isPastPaneHidden, _isNowPaneHidden, _isForePaneHidden;
+
+		/// <summary>View menu tick: PastCast runs and its pane is NOT hidden (launch/loading holds don't untick it).</summary>
+		public bool IsPastPaneOpen { get => _isPastPaneOpen; private set => SetProperty(ref _isPastPaneOpen, value); }
+		public bool IsNowPaneOpen { get => _isNowPaneOpen; private set => SetProperty(ref _isNowPaneOpen, value); }
+		public bool IsForePaneOpen { get => _isForePaneOpen; private set => SetProperty(ref _isForePaneOpen, value); }
+
+		/// <summary>PastCast runs with its pane HIDDEN — the temporal key's dot.</summary>
+		public bool IsPastPaneHidden { get => _isPastPaneHidden; private set => SetProperty(ref _isPastPaneHidden, value); }
+		public bool IsNowPaneHidden { get => _isNowPaneHidden; private set => SetProperty(ref _isNowPaneHidden, value); }
+		public bool IsForePaneHidden { get => _isForePaneHidden; private set => SetProperty(ref _isForePaneHidden, value); }
+
+		/// <summary>The View menu's pane item: a mode that is off turns ON (its pane opens with it); a running mode's
+		/// pane flips between open and hidden. The mode itself is never turned off here.</summary>
+		public void TogglePane(TemporalMode which)
+		{
+			if (!IsModeOn(which))
+			{
+				ToggleTemporalMode(which);
+			}
+			else
+			{
+				SetPaneHidden(which, !IsHiddenFlag(which));
+			}
+			// Re-asserted: the menu item has already flipped its own tick (same trap as the bar keys).
+			OnPropertyChanged(which switch
+			{
+				TemporalMode.Past => nameof(IsPastPaneOpen),
+				TemporalMode.Now => nameof(IsNowPaneOpen),
+				_ => nameof(IsForePaneOpen),
+			});
+		}
+
+		private bool IsModeOn(TemporalMode which) => which switch
+		{
+			TemporalMode.Past => IsPastCast,
+			TemporalMode.Now => IsNowCast,
+			_ => IsForeCast,
+		};
+
+		private bool IsHiddenFlag(TemporalMode which) => which switch
+		{
+			TemporalMode.Past => _paneHidden.Past,
+			TemporalMode.Now => _paneHidden.Now,
+			_ => _paneHidden.Fore,
+		};
+
+		private void SetPaneHidden(TemporalMode which, bool hidden)
+		{
+			if (IsHiddenFlag(which) == hidden) { return; }
+			var (past, now, fore) = _paneHidden;
+			_paneHidden = which switch
+			{
+				TemporalMode.Past => (hidden, now, fore),
+				TemporalMode.Now => (past, hidden, fore),
+				_ => (past, now, hidden),
+			};
+			// Saved like the modes: only after the session restore, never while closing.
+			if (_sessionRestored && !_shuttingDown)
+			{
+				var s = _settingsService.Settings;
+				s.PastCastPaneHidden = _paneHidden.Past;
+				s.NowCastPaneHidden = _paneHidden.Now;
+				s.ForeCastPaneHidden = _paneHidden.Fore;
+			}
+			RefreshPanes();
+		}
+
+		// ===== TOP BAR (MainWindow's menu bar) =====
+		/// <summary>The top menu bar is showing (its centred tab hides it). Persisted.</summary>
+		public bool IsMenuBarVisible
+		{
+			get => _settingsService.Settings.MenuBarVisible;
+			set
+			{
+				if (_settingsService.Settings.MenuBarVisible == value) { return; }
+				_settingsService.Settings.MenuBarVisible = value;
+				OnPropertyChanged();
+			}
+		}
+
+		/// <summary>View → Pane selectors: the floating product / legend / tilt boxes over each map pane. Persisted.</summary>
+		public bool ArePaneSelectorsVisible
+		{
+			get => _settingsService.Settings.PaneSelectorsVisible;
+			set
+			{
+				if (_settingsService.Settings.PaneSelectorsVisible == value) { return; }
+				_settingsService.Settings.PaneSelectorsVisible = value;
+				OnPropertyChanged();
+			}
+		}
 
 		/// <summary>The PastCast pane is up (PastCast runs, not held — see the region note).</summary>
 		public bool IsPastPaneShown { get => _isPastPaneShown; private set => SetProperty(ref _isPastPaneShown, value); }
@@ -761,9 +866,28 @@ namespace Anvil.ViewModels
 
 		private void RefreshPanes()
 		{
-			IsPastPaneShown = IsPastCast && !_panesHeldForLoad && !_launchHeld.Past;
-			IsNowPaneShown = IsNowCast && !_panesHeldForLoad && !_launchHeld.Now;
-			IsForePaneShown = IsForeCast && !_panesHeldForLoad && !_launchHeld.Fore;
+			IsPastPaneOpen = IsPastCast && !_paneHidden.Past;
+			IsNowPaneOpen = IsNowCast && !_paneHidden.Now;
+			IsForePaneOpen = IsForeCast && !_paneHidden.Fore;
+			IsPastPaneHidden = IsPastCast && _paneHidden.Past;
+			IsNowPaneHidden = IsNowCast && _paneHidden.Now;
+			IsForePaneHidden = IsForeCast && _paneHidden.Fore;
+			IsPastPaneShown = IsPastPaneOpen && !_panesHeldForLoad && !_launchHeld.Past;
+			IsNowPaneShown = IsNowPaneOpen && !_panesHeldForLoad && !_launchHeld.Now;
+			IsForePaneShown = IsForePaneOpen && !_panesHeldForLoad && !_launchHeld.Fore;
+		}
+
+		// A mode that just turned ON opens its pane (clears HIDDEN) — except while the session restores, which brings the
+		// saved HIDDEN back with the modes.
+		private void OpenPanesOfModesTurnedOn()
+		{
+			var now = (IsPastCast, IsNowCast, IsForeCast);
+			var was = _modesSeen;
+			_modesSeen = now;
+			if (_restoringSession) { return; }
+			if (now.IsPastCast && !was.Past) { SetPaneHidden(TemporalMode.Past, false); }
+			if (now.IsNowCast && !was.Now) { SetPaneHidden(TemporalMode.Now, false); }
+			if (now.IsForeCast && !was.Fore) { SetPaneHidden(TemporalMode.Fore, false); }
 		}
 
 		/// <summary>
@@ -773,6 +897,7 @@ namespace Anvil.ViewModels
 		/// </summary>
 		private void OnTemporalModesChanged()
 		{
+			OpenPanesOfModesTurnedOn();
 			RefreshPanes();
 			// The discussion window reads the outlook of whichever outlook mode runs; with neither, it has none.
 			if (!IsPastCast && !IsForeCast) { IsOutlookDiscussionOpen = false; }
@@ -999,6 +1124,8 @@ namespace Anvil.ViewModels
 			if (s.StartupResume)
 			{
 				past = s.PastCastOn; now = s.NowCastOn; fore = s.ForeCastOn;
+				// A pane the user hid comes back hidden with its mode (a fixed start opens every pane it starts).
+				_paneHidden = (s.PastCastPaneHidden, s.NowCastPaneHidden, s.ForeCastPaneHidden);
 			}
 			else
 			{
@@ -1009,8 +1136,12 @@ namespace Anvil.ViewModels
 			}
 
 			// At launch the panes are HELD for ShowLaunchPanesAsync (LAUNCH WINDOWS above) — set BEFORE the modes come
-			// back, or each would show (and build) the moment its mode turns on.
-			if (deferPanes) { _launchHeld = (past, now && !past, fore && !past); }
+			// back, or each would show (and build) the moment its mode turns on. A HIDDEN pane isn't held: it isn't
+			// coming up, and the launch must not wait for it to draw.
+			if (deferPanes)
+			{
+				_launchHeld = (past && !_paneHidden.Past, now && !past && !_paneHidden.Now, fore && !past && !_paneHidden.Fore);
+			}
 
 			_restoringSession = true;
 			try

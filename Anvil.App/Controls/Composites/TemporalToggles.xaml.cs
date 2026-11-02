@@ -54,6 +54,9 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalToggles), new PropertyMetadata(null));
 
+		/// <summary>x:Bind function: the hidden-pane dot shows while the mode runs with its pane hidden.</summary>
+		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+
 		// Each key routes here (IsChecked is OneWay to the mode projection, so the click drives the VM, not the reverse),
 		// then the key is re-asserted from the VM's answer — the ToggleButton has already flipped itself.
 		private void OnPastClick(object sender, RoutedEventArgs e) => Toggle(TemporalMode.Past, PastKey);

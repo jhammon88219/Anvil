@@ -130,8 +130,87 @@ namespace Anvil
 		{
 			var opaque = BottomChrome.ActualHeight - BottomChrome.RowDefinitions[0].ActualHeight;
 			LoopGate.ContentBottomInset = opaque;
-			TemporalPaneLayer.Margin = new Thickness(0, 0, 0, opaque);
+			_bottomOpaque = opaque;
+			ApplyPaneLayerMargin();
 			EdgeHatchBottomChrome.Margin = new Thickness(0, 0, 0, opaque); // EDGE-HATCH: the band sits ON the tier's top
+		}
+
+		private double _bottomOpaque;
+
+		// The temporal panes run from the TOP BAR's foot (the window top while it's hidden) to the tools tier's top.
+		private void ApplyPaneLayerMargin() =>
+			TemporalPaneLayer.Margin = new Thickness(0, TopChrome.SurfaceHeight, 0, _bottomOpaque);
+
+		// ===== TOP MENU BAR (2026-11-01) =====
+		// Its height moves the temporal panes' top, the floating selectors (single / two across sit under its tab) and
+		// the caption band (the bar IS the caption now).
+		private void OnTopChromeSizeChanged(object sender, SizeChangedEventArgs e)
+		{
+			ApplyPaneLayerMargin();
+			PlacePaneSelectors();
+			UpdateCaptionBand();
+			UpdateNotchInputRegions();
+		}
+
+		// View menu → the pane items (ToggleMenuFlyoutItem IsChecked is ONE-WAY to the VM's "open" tick; the item has
+		// already flipped itself by Click, so it is re-asserted from the VM's answer — the bar keys' rule).
+		private void OnViewPastPaneClick(object sender, RoutedEventArgs e) => TogglePaneFromMenu(TemporalMode.Past, ViewPastPaneItem);
+		private void OnViewNowPaneClick(object sender, RoutedEventArgs e) => TogglePaneFromMenu(TemporalMode.Now, ViewNowPaneItem);
+		private void OnViewForePaneClick(object sender, RoutedEventArgs e) => TogglePaneFromMenu(TemporalMode.Fore, ViewForePaneItem);
+
+		private void TogglePaneFromMenu(TemporalMode mode, ToggleMenuFlyoutItem item)
+		{
+			ViewModel.TogglePane(mode);
+			item.IsChecked = mode switch
+			{
+				TemporalMode.Past => ViewModel.IsPastPaneOpen,
+				TemporalMode.Now => ViewModel.IsNowPaneOpen,
+				_ => ViewModel.IsForePaneOpen,
+			};
+		}
+
+		// ===== FLOATING PANE SELECTORS — where each sits in its pane's cell (the user's call, 2026-11-01) =====
+		// SINGLE: centred, just under the top bar's tab. TWO ACROSS: against the divider on each side, same height.
+		// QUAD: all four at the CROSSING, each in its pane's inner corner — the top row hangs its shadow UP (Edge Bottom).
+		// In CODE because the top offset is the top bar's MEASURED height (bar + tab, or the tab alone while hidden);
+		// the elements are declared in XAML (Notch0…3), this only sets their alignment, margin and shadow edge.
+		private const double SelectorGap = 8;
+
+		private void PlacePaneSelectors()
+		{
+			var layout = ViewModel.Radar.PaneLayout;
+			var top = TopChrome.ActualHeight + SelectorGap;
+			var notches = new[] { Notch0, Notch1, Notch2, Notch3 };
+			for (var i = 0; i < notches.Length; i++)
+			{
+				var notch = notches[i];
+				var cell = layout.CellOf(i);
+				var leftColumn = cell.Column == 0;
+				switch (layout)
+				{
+					case PaneLayout.Single:
+						notch.HorizontalAlignment = HorizontalAlignment.Center;
+						notch.VerticalAlignment = VerticalAlignment.Top;
+						notch.Edge = BarEdge.Top;
+						notch.Margin = new Thickness(0, top, 0, 0);
+						break;
+					case PaneLayout.TwoAcross:
+						notch.HorizontalAlignment = leftColumn ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+						notch.VerticalAlignment = VerticalAlignment.Top;
+						notch.Edge = BarEdge.Top;
+						notch.Margin = leftColumn ? new Thickness(0, top, SelectorGap, 0) : new Thickness(SelectorGap, top, 0, 0);
+						break;
+					default: // Quad
+						var topRow = cell.Row == 0;
+						notch.HorizontalAlignment = leftColumn ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+						notch.VerticalAlignment = topRow ? VerticalAlignment.Bottom : VerticalAlignment.Top;
+						notch.Edge = topRow ? BarEdge.Bottom : BarEdge.Top;
+						notch.Margin = new Thickness(
+							leftColumn ? 0 : SelectorGap, topRow ? 0 : SelectorGap,
+							leftColumn ? SelectorGap : 0, topRow ? SelectorGap : 0);
+						break;
+				}
+			}
 		}
 
 		// ===== The tools tier's centre ↔ the console =====
@@ -224,8 +303,8 @@ namespace Anvil
 		/// instead — dimmed, with its controls disabled (see PaneNotchContent.IsDormant) — which says
 		/// "this is yours once you pick a site" in a way an absent control cannot.</para>
 		/// </summary>
-		public Visibility NotchVisibility(bool paneVisible) =>
-			paneVisible ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility NotchVisibility(bool selectorsVisible, bool paneVisible) =>
+			selectorsVisible && paneVisible ? Visibility.Visible : Visibility.Collapsed;
 
 		/// <summary>A temporal pane shows while its pane flag is set (MapViewModel; never past its mode).</summary>
 		public Visibility PaneVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
@@ -289,19 +368,15 @@ namespace Anvil
 			UpdateNotchInputRegions();
 		}
 
-		// ===== CAPTION BAND (no system caption buttons) =====
-		// The system minimize/maximize/close are HIDDEN (TitleBarHeightOption.Collapsed, set in the ctor):
-		// the right-edge ForeCast window sat on top of them. They live on the bar now as
-		// Primitives/WindowCaptionKey, and OnCaption* below drive the presenter.
+		// ===== CAPTION BAND = THE TOP MENU BAR (2026-11-01) =====
+		// The system minimize/maximize/close stay HIDDEN (TitleBarHeightOption.Collapsed, set in the ctor): the top
+		// bar draws its own (Primitives/WindowCaptionKey, at its right end), and OnCaption* below drive the presenter.
 		//
-		// ⚠️ ONLY THE BUTTONS WENT. The top band is still the window's caption — drag, double-click to
-		// maximize/restore, Alt+Space, snap — because it is declared EXPLICITLY here as a Caption region: the
-		// full width × the standard 32 epx title-bar height, the same band WinUI's default drag region covered.
-		// Collapsing the title bar is not trusted to leave that default in place, so the band is re-asserted on
-		// every layout pass and size change (only written when the system's copy differs). The pane notches'
-		// Passthrough holes still win over it, exactly as they did over the default.
-		private const double CaptionBandHeight = 32;
-
+		// The window's caption — drag, double-click to maximize/restore, Alt+Space, snap — is declared EXPLICITLY
+		// here as a Caption region: the top bar's whole surface (its View button and caption key are Passthrough
+		// holes, UpdateNotchInputRegions). Collapsing the title bar is not trusted to leave a default in place, so
+		// the band is re-asserted on every layout pass and size change (only written when the system's copy differs).
+		// ⚠️ TOP BAR HIDDEN = NO CAPTION BAND (accepted for now, the user's call): only the tab remains.
 		private void UpdateCaptionBand()
 		{
 			if (_isClosed || Content?.XamlRoot is not { } root)
@@ -309,16 +384,25 @@ namespace Anvil
 				return;
 			}
 
-			var band = new RectInt32(0, 0, AppWindow.Size.Width,
-				(int)Math.Ceiling(CaptionBandHeight * root.RasterizationScale));
+			var height = (int)Math.Ceiling(TopChrome.SurfaceHeight * root.RasterizationScale);
+			var bands = height > 0
+				? new[] { new RectInt32(0, 0, AppWindow.Size.Width, height) }
+				: Array.Empty<RectInt32>();
 
 			var source = InputNonClientPointerSource.GetForWindowId(AppWindow.Id);
-			if (SameRegions(source.GetRegionRects(NonClientRegionKind.Caption), new[] { band }))
+			if (SameRegions(source.GetRegionRects(NonClientRegionKind.Caption), bands))
 			{
 				return;
 			}
 
-			source.SetRegionRects(NonClientRegionKind.Caption, new[] { band });
+			if (bands.Length == 0)
+			{
+				source.ClearRegionRects(NonClientRegionKind.Caption);
+			}
+			else
+			{
+				source.SetRegionRects(NonClientRegionKind.Caption, bands);
+			}
 		}
 
 		private void OnCaptionMinimize(object? sender, EventArgs e) =>
@@ -370,10 +454,12 @@ namespace Anvil
 			var captionLeft = AppWindow.TitleBar.LeftInset;
 			var captionRight = AppWindow.Size.Width - AppWindow.TitleBar.RightInset;
 
-			// The TEMPORAL PANES reach the window top too (flush), so each visible one gets the same hole.
-			var rects = new List<RectInt32>(PaneLayoutInfo.MaxPanes + 3);
+			// The TOP BAR's controls sit IN the caption band (it is the bar), so they are the holes that matter now; the
+			// tab, selectors and panes are listed too so nothing interactive can ever end up under a caption rect.
+			var rects = new List<RectInt32>(PaneLayoutInfo.MaxPanes + 6);
 			foreach (var notch in new FrameworkElement[]
-				{ Notch0, Notch1, Notch2, Notch3, TemporalPanePastCast, TemporalPaneNowCast, TemporalPaneForeCast })
+				{ MenuBarMenus, CaptionKey, TopChrome.TabElement,
+				  Notch0, Notch1, Notch2, Notch3, TemporalPanePastCast, TemporalPaneNowCast, TemporalPaneForeCast })
 			{
 				if (notch.Visibility != Visibility.Visible || notch.ActualWidth <= 0 || notch.ActualHeight <= 0)
 				{
@@ -718,6 +804,13 @@ namespace Anvil
 			};
 
 			ApplyRailSeating();
+
+			// FLOATING PANE SELECTORS: re-placed whenever the pane layout changes (and when the top bar does — its SizeChanged).
+			ViewModel.Radar.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(RadarViewModel.PaneLayout)) PlacePaneSelectors();
+			};
+			PlacePaneSelectors();
 
 			// The tools tier's centre section is edge-aligned to the console (see AlignCentreSection), and both
 			// tiers' side sections end on the temporal panes' inner edges (see AlignSideSections). The window

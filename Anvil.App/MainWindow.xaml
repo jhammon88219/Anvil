@@ -1,24 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MainWindow — the app shell. The map fills the whole window; the UI is ONE bar overlaid on its bottom
-     edge, plus a small hideable NOTCH at the top of each map pane.
+<!-- MainWindow — the app shell. The map fills the whole window; the UI is a MENU BAR over its top edge, the
+     bottom chrome over its bottom edge, and a small FLOATING pane selector per map pane.
 
-       ┌──────────────┬──────────────┬──────────────┬──────────────┐
-       │       ┌──────┴──────┐       │       ┌──────┴──────┐       │  pane NOTCHES — top-centre of each
-       │       │Ref˅│▓▒░▒▓│0.5°˅     │       │Vel˅│▓▒░▒▓│0.5°˅     │  pane: product, colour-ramp legend,
-       │       └──╮ ˄ Hide ╭──┘      │       └──╮ ˄ Hide ╭──┘      │  tilt. Quad shown; single/two
-       │        map pane 2           │        map pane 3           │  collapse to fewer cells. The tab
-       ├─────────────────────────────┼─────────────────────────────┤  hides one notch, independently.
-       │       ┌─────────────┐       │       ┌─────────────┐       │
-       │       │SRV˅│▓▒░▒▓│0.5°˅     │       │CC ˅│▓▒░▒▓│0.5°˅     │
-       │       └──╮ ˄ Hide ╭──┘      │       └──╮ ˄ Hide ╭──┘      │
-       │    map pane 0  (MAIN)       │        map pane 1           │
+       ┌ View ─────────────────────── drag ────────────────────── – □ ✕ ┐  TOP MENU BAR (hideable, "Menu" tab)
+       ├───────────────────────────╮ ˄ Menu ╭──────────────────────────┤
+       │                              ┃                              │  FLOATING PANE SELECTORS — product,
+       │                   ╭─────────╮┃╭─────────╮                   │  colour-ramp legend, tilt. Quad shown:
+       │    map pane 2     │SRV ▓▒░  │┃│CC  ▓▒░  │   map pane 3      │  all four at the CROSSING; two across =
+       ├━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┤  against the divider under the tab;
+       │                   │Ref ▓▒░  │┃│Vel ▓▒░  │                   │  single = centred under the tab.
+       │                   ╰─────────╯┃╰─────────╯                   │  View → Pane selectors hides all.
+       │    map pane 0  (MAIN)        ┃        map pane 1            │
        ├─────────────────────────────┴─────────────────────────────┤
        │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  …thrown UP onto the map
        │                 ╭ ˅ Tools ╮ ╭ ˅ Bar ╮                     │  ONE rail, one tab per tier
        │ [Search ✕⌕] ⁙⁙⁙ ▣ ⊚┇   ╎◗▴ ⁙⁙⁙ [⌂ KTLX Oklahoma City ˅] ⁙⁙⁙ ⌕ ◎▴┆   ┇▥▴ ⁙⁙ ⌘⛶ ─ ▥▴ [Isolate ▾]│  TOOLS tier
        │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┇▒▒▒╎▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┆▒▒▒┇▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒│  ╎ = console tools' left = console's
        │                     ┇   ╎1:07 PM ═══ scrubber ═══ VCP:  212┆   ┇                       │  ┆ = radar tools' right = scan text's
-       │ ↺   ⁙⁙⁙⁙⁙ ((•))  ☁   ┇   ╎     3/10  ◀ ▶ ▶  ↺  Mode: precip┆   ┇📡  ⚙   ⁙⁙⁙⁙⁙⁙   –│□│✕│  ┇ = a temporal pane's INNER edge
+       │ ↺   ⁙⁙⁙⁙⁙ ((•))  ☁   ┇   ╎     3/10  ◀ ▶ ▶  ↺  Mode: precip┆   ┇📡  ⚙   ⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙│  ┇ = a temporal pane's INNER edge
        │ PastCast  NowCast ForeCast┇ ╎2 min ago       Rescans: SAILS ×1┆   ┇Atlas Settings          │  ⁙⁙⁙ = the STRETCHING dot spacers;
        └─────────────────────┴───┴───────── ↑ bar midpoint ─────────┴───┴─────────────────────────┘  the blank runs ┇…╎ / ┆…┇ give way first
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
@@ -99,10 +98,17 @@
      instance attributes are what put ~40 duplicated values in this file before.
      The transport buttons in RadarControls are the one cluster still on the old stock look.
 
-     There is no top BAR — the notches are islands, not a strip. A full-width top bar existed once, to hold
-     the controls that must not repeat per pane; that distinction now lives inside the one bottom bar, and
-     a second full band of chrome was pure cost (a stripe of map covered at the top AND the bottom). A
-     notch costs a pane only the few hundred pixels it actually occupies, and hides. -->
+     ⚠️ THE TOP BAR IS BACK (the user's call, 2026-11-01) — as a MENU bar this time (View menu, the window's caption
+     drag run, – □ ✕), with its own centred "Menu" tab to hide it, so the stripe of map it covers is the user's
+     choice. (A full-width top bar existed once to hold per-window controls, and went because the band was pure cost.)
+     The pane notches are now FLOATING pane selectors — see the PANE NOTCHES block. -->
+     <!-- TOP OF WINDOW (2026-11-01):
+       ┌ View ──────────────────────── drag ───────────────────────── – □ ✕ ┐
+       ├──────────┬─────────────────╮ ˄ Menu ╭────────────────┬──────────┤
+       │ PastCast │      ╭────────────────╮                    │ ForeCast │  temporal panes under the bar,
+       │ /NowCast │      │Ref˅│▓▒░▒▓│0.5°│  a floating pane    │          │  selectors floating (see below)
+       │          │      ╰────────────────╯  selector           │          │
+     -->
 <Window
     x:Class="Anvil.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -169,18 +175,22 @@
             </FlyoutBase.AttachedFlyout>
         </controls:WebView2>
 
-        <!-- ===== PANE NOTCHES =====
-             One per pane: a small hideable island of chrome at the TOP of that pane, holding everything
-             that describes THAT pane — its product, its colour-ramp legend, its tilt. It is the only thing
-             drawn inside a pane.
+        <!-- ===== PANE NOTCHES — now FLOATING PANE SELECTORS (the user's call, 2026-11-01) =====
+             One per pane: a small FLOATING box holding everything that describes THAT pane — its product, its
+             colour-ramp legend, its tilt. Attached to nothing (OverlayBar IsFloating: every corner rounded), no tab
+             of its own: the top bar's View → Pane selectors shows / hides all four (ArePaneSelectorsVisible).
+             PLACEMENT is MainWindow.PlacePaneSelectors (code: it depends on the top bar's measured height), 8 px gaps:
 
-               ┌─ pane ──────────────────────────────────────┐
-               │              ┌──────────────────┐           │  the notch: centred on the PANE, not on
-               │              │ Ref ˅│▓▒░▒▓│0.5°˅│           │  the window, so in multi-pane each one
-               │              └─────╮ ˄ ╭───────┘            │  sits over the field it describes
-               │                    ╰───╯                    │
-               │            …the pane's map…                 │
-               └─────────────────────────────────────────────┘
+             SINGLE                         TWO ACROSS                       QUAD
+             ════════ top bar ════════      ════════ top bar ════════        ═════════ top bar ═════════
+                     ╰ ˄ Menu ╯                    ╰ ˄ Menu ╯                         ╰ ˄ Menu ╯
+                 ╭───────────────╮          ╭──────────╮┃╭──────────╮        ┃         ┃
+                 │Ref˅│▓▒░▒▓│0.5°│          │Ref ▓▒░ 0.5°│┃│Vel ▓▒░ 0.5°│     ╭──────╮┃╭──────╮
+                 ╰───────────────╯          ╰──────────╯┃╰──────────╯        │ SRV  │┃│  CC  │   top row: hangs
+                 centred, under the tab     against the divider, under      ━━━━━━━━━━╋━━━━━━━━━━   UP (Edge Bottom)
+                                            the tab's foot                   │ Ref  │┃│ Vel  │   bottom row: DOWN
+                                                                             ╰──────╯┃╰──────╯   all at the crossing
+             The selectors move up with the tab when the top bar is hidden.
 
              ⚠️ THE WATERMARK IS GONE. Each pane used to carry a big ghosted product label in its top-left
              corner, because every control lived in the bottom bar and the pane had no other way to say what
@@ -192,8 +202,8 @@
              SAME OVERLAY GRID AS THE WATERMARKS USED: a 3x3 [*, gutter, *] laid over EXACTLY the WebView's
              rect (Row 0 + RowSpan 2, matching the WebView above), so its cells coincide with the page's
              pane rects — both sides split the same area the same way, both using PaneLayoutInfo.GutterPx.
-             Each notch is placed by PaneLayoutInfo.CellOf via the x:Bind functions below and self-aligns to
-             the TOP CENTRE of its cell.
+             Each notch is placed in its cell by PaneLayoutInfo.CellOf via the x:Bind functions below; WHERE in
+             the cell (alignment, margin, shadow edge) is PlacePaneSelectors' (the sketch above).
 
              ⚠️ The pane ARRANGEMENT (pane 0 = main = bottom-left) is expressed twice: here through CellOf,
              and in map.js paneRects() which lays out the real maps. Same rule, opposite sides of the WebView
@@ -204,9 +214,8 @@
              through to the map — only the notches themselves catch the pointer. Declared BEFORE the bottom
              bar so the bar draws over it and stays clickable where the two overlap.
 
-             ⚠️ Four notches, four INDEPENDENT hide toggles, and no view-model state for any of them: the
-             show/hide flag is view state on each OverlayBar. Hiding the notch over the storm you are
-             watching while the other three keep their legends is the case that actually comes up. -->
+             ⚠️ ONE show/hide for all four now (View → Pane selectors, persisted) — the per-notch tabs went with
+             the attachment (2026-11-01). They used to be four independent view-state toggles. -->
         <!-- ⚠️ THE SITE CHECK TOAST IS GONE from the map band: the announced site check now shows in the NowCast
              window's ACTIVITY EXPANDER (TemporalPaneActivityExpander, fed by BarActivityViewModel.WatchSiteCheck). Don't re-add it here. -->
 
@@ -235,13 +244,13 @@
             </Grid.RowDefinitions>
 
             <ctl:OverlayBar x:Name="Notch0" Edge="Top"
-                            IsIsland="True"
-                            ShowTabLabel="True"
+                            IsFloating="True"
+                            ShowTab="False"
                             EdgeStyle="CastShadow"
                             IsRaised="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
-                            Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane0.IsVisible), Mode=OneWay}"
+                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane0.IsVisible), Mode=OneWay}"
                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
@@ -255,13 +264,13 @@
             </ctl:OverlayBar>
 
             <ctl:OverlayBar x:Name="Notch1" Edge="Top"
-                            IsIsland="True"
-                            ShowTabLabel="True"
+                            IsFloating="True"
+                            ShowTab="False"
                             EdgeStyle="CastShadow"
                             IsRaised="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
-                            Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane1.IsVisible), Mode=OneWay}"
+                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane1.IsVisible), Mode=OneWay}"
                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
@@ -275,13 +284,13 @@
             </ctl:OverlayBar>
 
             <ctl:OverlayBar x:Name="Notch2" Edge="Top"
-                            IsIsland="True"
-                            ShowTabLabel="True"
+                            IsFloating="True"
+                            ShowTab="False"
                             EdgeStyle="CastShadow"
                             IsRaised="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
-                            Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane2.IsVisible), Mode=OneWay}"
+                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane2.IsVisible), Mode=OneWay}"
                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
@@ -295,13 +304,13 @@
             </ctl:OverlayBar>
 
             <ctl:OverlayBar x:Name="Notch3" Edge="Top"
-                            IsIsland="True"
-                            ShowTabLabel="True"
+                            IsFloating="True"
+                            ShowTab="False"
                             EdgeStyle="CastShadow"
                             IsRaised="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
-                            Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane3.IsVisible), Mode=OneWay}"
+                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane3.IsVisible), Mode=OneWay}"
                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
@@ -489,8 +498,7 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/> <!-- Radar Atlas -->
                                 <ColumnDefinition Width="Auto"/> <!-- settings -->
-                                <ColumnDefinition Width="Auto"/> <!-- RightClusterSpacer (stretches) -->
-                                <ColumnDefinition Width="Auto"/> <!-- window caption (min / max / close) -->
+                                <ColumnDefinition Width="Auto"/> <!-- RightClusterSpacer (stretches to the window edge) -->
                             </Grid.ColumnDefinitions>
 
                             <!-- ⚠️ THE PANE-LAYOUT KEY AND THE LOCATION KEY ARE GONE from this cluster — both
@@ -580,24 +588,17 @@
                                                    HorizontalAlignment="Center"/>
                                     </Grid>
                                 </ToggleButton>
-                                <!-- THE WINDOW'S OWN CAPTION BUTTONS, moved here: the system min/max/close are hidden
-                                     (the right-edge ForeCast window covered them) — see the CAPTION BAND block in
-                                     MainWindow.xaml.cs. Last in the cluster, so it is the bar's far-right key.
-                                     ⚠️ SET APART by RightClusterSpacer (it was a fixed 42 px gap, the user's call
-                                     2026-09-30), so the window's own buttons don't read as a third app key. -->
+                                <!-- ⚠️ THE WINDOW'S CAPTION BUTTONS LEFT THIS CLUSTER (2026-11-01): min/max/close are back
+                                     at the top-right, on the TOP MENU BAR (CaptionKey there). -->
                                 <!-- RIGHT CLUSTER SPACER — a stretching dot grid sized so ATLAS's left edge lands on the
                                      ForeCast pane's INNER edge (MainWindow.AlignSideSections, the user's call
-                                     2026-10-22). Width SET IN CODE; 10 is only the pre-layout value. -->
+                                     2026-10-22); it now runs on to the bar's right end, where the caption key was.
+                                     Width SET IN CODE; 10 is only the pre-layout value. -->
                                 <ctl:MapControlsStripSeparator x:Name="RightClusterSpacer"
                                                                Grid.Column="2"
                                                                Margin="8,0"
                                                                FillWidth="True"
                                                                Width="10"/>
-                                <ctl:WindowCaptionKey x:Name="CaptionKey"
-                                                      Grid.Column="3"
-                                                      MinimizeRequested="OnCaptionMinimize"
-                                                      MaximizeRestoreRequested="OnCaptionMaximizeRestore"
-                                                      CloseRequested="OnCaptionClose"/>
                         </Grid>
 
                         <!-- ⚠️ NO ACTIVITY SLOT (removed 2026-10-16, the user's call): what Anvil is working on shows in
@@ -644,21 +645,114 @@
             </StackPanel>
         </Grid>
 
+        <!-- ===== TOP MENU BAR (the user's call, 2026-11-01) =====
+
+               ┌ View ─────────────────────── drag band ─────────────────────────── – □ ✕ ┐  32 tall, full width
+               └─────────────────────────────╮ ˄ Menu ╭───────────────────────────────────┘  centred tab hides it
+                 ░░░ light cast shadow ░░░░░░╰────────╯░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    (IsMenuBarVisible, saved)
+
+             An OverlayBar (Edge Top, full width) over the map — like the bottom chrome it never resizes the map.
+             • View: the three temporal panes (TogglePane: off → mode on + pane open; on → pane open ⇄ hidden),
+               then Pane selectors. Ctrl+1/2/3 = the panes.
+             • The EMPTY run is the window's CAPTION (drag, double-click maximize, snap) — MainWindow.UpdateCaptionBand
+               sets the bar's rect as the Caption region; the View button and the caption key are Passthrough holes.
+               Hidden, there is NO caption band (accepted for now): only the tab remains.
+             • The caption key (– □ ✕) is back where Windows puts it (it was the bottom bar's far-right key).
+             ⚠️ DECLARED AFTER THE BOTTOM CHROME + LOOP GATE (stays live over the frost) and BEFORE the temporal panes, which
+             start at its bottom edge (OnTopChromeSizeChanged) and so cover its shadow over their own width.
+             ⚠️ Every flyout here is ShouldConstrainToRootBounds="False" (windowed), like the strip's — else the owned
+             panel windows paint over it. -->
+        <ctl:OverlayBar x:Name="TopChrome"
+                        Grid.Row="0" Grid.RowSpan="2"
+                        VerticalAlignment="Top"
+                        Edge="Top"
+                        ShowTab="True"
+                        ShowTabLabel="True"
+                        TabTarget="Menu"
+                        EdgeStyle="CastShadow"
+                        IsOverlayBarVisible="{x:Bind ViewModel.IsMenuBarVisible, Mode=TwoWay}"
+                        SizeChanged="OnTopChromeSizeChanged">
+            <ctl:OverlayBar.BarContent>
+                <Grid x:Name="MenuBarContent" Height="32">
+                    <Grid.Resources>
+                        <!-- A menu title: flat text button, full bar height, the stock hover. -->
+                        <Style x:Key="MenuBarTitleButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Padding" Value="12,0"/>
+                            <Setter Property="CornerRadius" Value="4"/>
+                            <Setter Property="VerticalAlignment" Value="Stretch"/>
+                            <Setter Property="Margin" Value="0,3"/>
+                            <Setter Property="FontSize" Value="13"/>
+                        </Style>
+                    </Grid.Resources>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/> <!-- menus -->
+                        <ColumnDefinition Width="*"/>    <!-- the caption (drag) run -->
+                        <ColumnDefinition Width="Auto"/> <!-- – □ ✕ -->
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel x:Name="MenuBarMenus" Orientation="Horizontal">
+                        <Button x:Name="ViewMenuButton" Content="View" Style="{StaticResource MenuBarTitleButtonStyle}">
+                            <Button.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False">
+                                    <ToggleMenuFlyoutItem x:Name="ViewPastPaneItem" Text="PastCast pane"
+                                                          IsChecked="{x:Bind ViewModel.IsPastPaneOpen, Mode=OneWay}"
+                                                          Click="OnViewPastPaneClick">
+                                        <ToggleMenuFlyoutItem.KeyboardAccelerators>
+                                            <KeyboardAccelerator Modifiers="Control" Key="Number1"/>
+                                        </ToggleMenuFlyoutItem.KeyboardAccelerators>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="ViewNowPaneItem" Text="NowCast pane"
+                                                          IsChecked="{x:Bind ViewModel.IsNowPaneOpen, Mode=OneWay}"
+                                                          Click="OnViewNowPaneClick">
+                                        <ToggleMenuFlyoutItem.KeyboardAccelerators>
+                                            <KeyboardAccelerator Modifiers="Control" Key="Number2"/>
+                                        </ToggleMenuFlyoutItem.KeyboardAccelerators>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="ViewForePaneItem" Text="ForeCast pane"
+                                                          IsChecked="{x:Bind ViewModel.IsForePaneOpen, Mode=OneWay}"
+                                                          Click="OnViewForePaneClick">
+                                        <ToggleMenuFlyoutItem.KeyboardAccelerators>
+                                            <KeyboardAccelerator Modifiers="Control" Key="Number3"/>
+                                        </ToggleMenuFlyoutItem.KeyboardAccelerators>
+                                    </ToggleMenuFlyoutItem>
+                                    <MenuFlyoutSeparator/>
+                                    <ToggleMenuFlyoutItem x:Name="ViewPaneSelectorsItem" Text="Pane selectors"
+                                                          IsChecked="{x:Bind ViewModel.ArePaneSelectorsVisible, Mode=TwoWay}"/>
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
+                    </StackPanel>
+
+                    <ctl:WindowCaptionKey x:Name="CaptionKey"
+                                          Grid.Column="2"
+                                          MinimizeRequested="OnCaptionMinimize"
+                                          MaximizeRestoreRequested="OnCaptionMaximizeRestore"
+                                          CloseRequested="OnCaptionClose"/>
+                </Grid>
+            </ctl:OverlayBar.BarContent>
+        </ctl:OverlayBar>
+
         <!-- ===== TEMPORAL PANES ===== (TemporalPanes/TemporalPane — one class, three declarations, Mode set here ONCE)
 
-               ┌──────────┬───────────────────────────────────────────┬──────────┐
+               ┌─────────────────────────── top menu bar ────────────────────────┐
+               ├──────────┬───────────────────────────────────────────┬──────────┤
                │ PastCast │                                           │ ForeCast │  each 480 wide (Styles.xaml
                │    or    │              …the map…                    │          │  TemporalPaneWidth), flush to
-               │ NowCast  │                                           │          │  its edge and the window top,
-               │ (left)   │                                           │ (right)  │  down to the tools tier's top
+               │ NowCast  │                                           │          │  its edge and the TOP BAR's foot
+               │ (left)   │                                           │ (right)  │  (window top while it's hidden),
+               │          │                                           │          │  down to the tools tier's top
                │          │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│          │  ← the top tier's cast shadow:
                ├──────────┴───────────────────────────────────────────┴──────────┤    over the MAP only, never
                │                       bottom chrome                             │    over an open pane
                └─────────────────────────────────────────────────────────────────┘
 
              OVERLAYS, not OS windows: they never resize or push the map. Past and Now share the LEFT edge, safe only
-             because Past excludes Now. Each shows WHILE ITS MODE RUNS (MapViewModel.Is{Past,Now,Fore}PaneShown — held
-             back only by the launch order and the loop holding gate) and builds its body on first show (see TemporalPane). The layer's BOTTOM MARGIN is the opaque
+             because Past excludes Now. Each shows while its mode runs AND it isn't HIDDEN from the top bar's View menu
+             (MapViewModel.Is{Past,Now,Fore}PaneShown — also held back by the launch order and the loop holding gate) and
+             builds its body on first show (see TemporalPane). The layer's TOP margin is the top bar's surface height
+             (OnTopChromeSizeChanged); its BOTTOM MARGIN is the opaque
              tiers' height (OnBottomChromeSizeChanged) — the same inset the loop holding gate centres on — so a pane
              ends on the tools tier's top in every tier state. The grid has no Background: between the panes the map
              still takes the pointer. Declared after the notches (a pane covers a notch it overlaps, as the windows
@@ -669,8 +763,7 @@
              the map between panes keeps it. No code: it follows the panes as they show and hide. Safe because a pane
              never overlaps the chrome itself (it ends on the tier's top) or the rail's tabs (centred, and a pane is
              480 from an edge). Don't move this block back above BottomChrome — the shadow would darken every pane's foot.
-             ⚠️ The top 32 px is the window's CAPTION band — UpdateNotchInputRegions punches a Passthrough hole for
-             each visible pane, as for the notches, or its top would look alive and swallow clicks. -->
+             (The panes no longer reach into the caption band: the TOP BAR is the caption now, and they start below it.) -->
         <Grid x:Name="TemporalPaneLayer" Grid.Row="0" Grid.RowSpan="2">
             <tp:TemporalPane x:Name="TemporalPanePastCast" Mode="Past"
                              Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left"

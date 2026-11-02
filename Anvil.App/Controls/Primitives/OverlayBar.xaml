@@ -48,6 +48,19 @@
      each still draw their own tab and own their own state, which is what gives them four
      independent toggles with no view-model plumbing at all.
 
+       Edge=Top, IsIsland=False — THE TOP MENU BAR (MainWindow, 2026-11-01)
+
+       ┌ View ─────────────────── drag band ─────────────────────── – □ ✕ ┐  TopBarPadding: no vertical padding
+       └────────────────────────╮ ˄ Menu ╭────────────────────────────────┘  tab centred, TabTarget = its noun
+         ░░░░░░░░░░░░░░░░░░░░░░░╰────────╯░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    light 14 px cast shadow
+
+       IsFloating=True — A PANE SELECTOR (attached to nothing; ShowTab False)
+
+              ░╭─────────────────────────╮░    every corner rounded, a hairline all round when not shadowed;
+              ░│  BarContent (the slot)  │░    Edge still picks which way its cast shadow falls
+              ░╰─────────────────────────╯░
+               ░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
      Hidden, only the tab remains (it reads "Show") and the bar Border collapses — the map is
      never resized either way, in either shape.
 
@@ -127,6 +140,12 @@
                         <Setter Target="BarBorder.CornerRadius" Value="0,0,8,8"/>
                     </VisualState.Setters>
                 </VisualState>
+                <!-- FLOATING (the pane selectors, 2026-11-01): attached to nothing, so every corner rounds. -->
+                <VisualState x:Name="FloatingCorners">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.CornerRadius" Value="8"/>
+                    </VisualState.Setters>
+                </VisualState>
             </VisualStateGroup>
 
             <!-- THE RULE: the hairline always runs along the edge FACING THE TAB (still the right edge with no
@@ -155,6 +174,11 @@
                         <Setter Target="BarBorder.BorderThickness" Value="0"/>
                     </VisualState.Setters>
                 </VisualState>
+                <VisualState x:Name="RuleFloating">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.BorderThickness" Value="1"/>
+                    </VisualState.Setters>
+                </VisualState>
             </VisualStateGroup>
 
             <!-- PADDING: three, and each answers a different question. An island sits over the map with a pane's
@@ -172,6 +196,13 @@
                 <VisualState x:Name="IslandPadding">
                     <VisualState.Setters>
                         <Setter Target="BarBorder.Padding" Value="12,6,12,6"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <!-- A full-width TOP bar (MainWindow's menu bar, 2026-11-01): a slim caption-height strip — its menus
+                     and caption buttons fill its height themselves, so it carries no vertical padding. -->
+                <VisualState x:Name="TopBarPadding">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.Padding" Value="4,0,0,0"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
