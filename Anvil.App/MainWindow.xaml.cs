@@ -201,6 +201,22 @@ namespace Anvil
 		public double DimWhen(bool other) => other ? 0.45 : 1.0;
 		public double DimWhenEither(bool a, bool b) => DimWhen(a || b);
 
+		// A dimmed mode item reads as DISABLED at rest, so it lifts to full strength under the pointer or keyboard focus
+		// and settles back to the rule's dim after. (Opacity is x:Bind OneWay; this local value lasts until the next
+		// mode change re-binds it, which yields the same rule anyway.)
+		private void OnModeItemLift(object sender, RoutedEventArgs e) => ((UIElement)sender).Opacity = 1.0;
+
+		private void OnModeItemSettle(object sender, RoutedEventArgs e) =>
+			((UIElement)sender).Opacity = sender == TemporalPastCastItem
+				? DimWhenEither(ViewModel.IsNowCast, ViewModel.IsForeCast)
+				: DimWhen(ViewModel.IsPastCast);
+
+		// View's pane items: the shortcut while enabled; while disabled, what to do first (a disabled item shows no
+		// tooltip in WinUI, so the hint sits in the shortcut column where it is always visible).
+		public string PastPaneAccel(bool canPick) => canPick ? "Ctrl+1" : "Turn on PastCast first";
+		public string NowPaneAccel(bool canPick) => canPick ? "Ctrl+2" : "Turn on NowCast first";
+		public string ForePaneAccel(bool canPick) => canPick ? "Ctrl+3" : "Turn on ForeCast first";
+
 		// The mode runs but View hid its pane — shown in the item's right column.
 		public string PaneHiddenTag(bool hidden) => hidden ? "pane hidden" : "";
 

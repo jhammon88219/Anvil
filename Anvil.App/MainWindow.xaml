@@ -524,8 +524,9 @@
              An OverlayBar (Edge Top, full width) over the map — like the bottom chrome it never resizes the map.
              • Atlas / Settings: plain items, a click opens or closes that window (they were the bottom bar's keys).
              • Temporal Mode (right-most): NowCast, ForeCast ─ PastCast; toggles the MODE (was the bar's three keys).
-             • View: the three temporal panes (TogglePane: off → mode on + pane open; on → pane open ⇄ hidden),
-               then Pane selectors. Ctrl+1/2/3 = the panes.
+             • View: the three temporal panes (TogglePane: a running mode's pane open ⇄ hidden; while Now OR Fore runs, the
+               other's item turns that mode on), then Pane selectors. Ctrl+1/2/3 = the panes. An item that can't act is
+               DISABLED (CanPick*Pane) with "Turn on X first" in its shortcut column.
              • The EMPTY run is the window's CAPTION (drag, double-click maximize, snap) — MainWindow.UpdateCaptionBand
                sets the bar's rect as the Caption region; the menu items (MenuBarMenus) and the caption key are Passthrough holes.
                Hidden, there is NO caption band (accepted for now): only the tab remains.
@@ -577,6 +578,8 @@
                                 <MenuFlyout Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False">
                                     <ToggleMenuFlyoutItem x:Name="ViewPastPaneItem" Text="PastCast pane"
                                                           IsChecked="{x:Bind ViewModel.IsPastPaneOpen, Mode=OneWay}"
+                                                          IsEnabled="{x:Bind ViewModel.CanPickPastPane, Mode=OneWay}"
+                                                          KeyboardAcceleratorTextOverride="{x:Bind PastPaneAccel(ViewModel.CanPickPastPane), Mode=OneWay}"
                                                           Click="OnViewPastPaneClick">
                                         <ToggleMenuFlyoutItem.KeyboardAccelerators>
                                             <KeyboardAccelerator Modifiers="Control" Key="Number1"/>
@@ -584,6 +587,8 @@
                                     </ToggleMenuFlyoutItem>
                                     <ToggleMenuFlyoutItem x:Name="ViewNowPaneItem" Text="NowCast pane"
                                                           IsChecked="{x:Bind ViewModel.IsNowPaneOpen, Mode=OneWay}"
+                                                          IsEnabled="{x:Bind ViewModel.CanPickNowPane, Mode=OneWay}"
+                                                          KeyboardAcceleratorTextOverride="{x:Bind NowPaneAccel(ViewModel.CanPickNowPane), Mode=OneWay}"
                                                           Click="OnViewNowPaneClick">
                                         <ToggleMenuFlyoutItem.KeyboardAccelerators>
                                             <KeyboardAccelerator Modifiers="Control" Key="Number2"/>
@@ -591,6 +596,8 @@
                                     </ToggleMenuFlyoutItem>
                                     <ToggleMenuFlyoutItem x:Name="ViewForePaneItem" Text="ForeCast pane"
                                                           IsChecked="{x:Bind ViewModel.IsForePaneOpen, Mode=OneWay}"
+                                                          IsEnabled="{x:Bind ViewModel.CanPickForePane, Mode=OneWay}"
+                                                          KeyboardAcceleratorTextOverride="{x:Bind ForePaneAccel(ViewModel.CanPickForePane), Mode=OneWay}"
                                                           Click="OnViewForePaneClick">
                                         <ToggleMenuFlyoutItem.KeyboardAccelerators>
                                             <KeyboardAccelerator Modifiers="Control" Key="Number3"/>
@@ -615,7 +622,10 @@
                                │   Turns NowCast and ForeCast off   …and this greyed line says what clicking it does
                                └─────────────────────────────┘
                              A click toggles THAT MODE only (MapViewModel.ToggleTemporalMode); its pane follows the mode. The
-                             dimmed side still works — dimming warns, it never blocks. -->
+                             dimmed side still works — dimming warns, it never blocks — and LIFTS to full strength under the
+                             pointer / keyboard focus (OnModeItemLift / Settle) so it reads as clickable, not disabled.
+                             ⚠️ THIS is the only place a mode turns on/off (2026-11-03); View's pane items only hide/show
+                             (one looser case: Now ⇄ Fore, MapViewModel.TogglePane). -->
                         <Button x:Name="TemporalModeMenuButton" Style="{StaticResource MenuBarTitleButtonStyle}"
                                 Content="{x:Bind TemporalModeTitle(ViewModel.IsNowCast, ViewModel.IsForeCast, ViewModel.IsPastCast), Mode=OneWay}">
                             <Button.Flyout>
@@ -624,18 +634,24 @@
                                                           IsChecked="{x:Bind ViewModel.IsNowCast, Mode=OneWay}"
                                                           Opacity="{x:Bind DimWhen(ViewModel.IsPastCast), Mode=OneWay}"
                                                           KeyboardAcceleratorTextOverride="{x:Bind PaneHiddenTag(ViewModel.IsNowPaneHidden), Mode=OneWay}"
-                                                          Click="OnTemporalNowCastClick"/>
+                                                          Click="OnTemporalNowCastClick"
+                                                          PointerEntered="OnModeItemLift" PointerExited="OnModeItemSettle"
+                                                          GotFocus="OnModeItemLift" LostFocus="OnModeItemSettle"/>
                                     <ToggleMenuFlyoutItem x:Name="TemporalForeCastItem" Text="ForeCast"
                                                           IsChecked="{x:Bind ViewModel.IsForeCast, Mode=OneWay}"
                                                           Opacity="{x:Bind DimWhen(ViewModel.IsPastCast), Mode=OneWay}"
                                                           KeyboardAcceleratorTextOverride="{x:Bind PaneHiddenTag(ViewModel.IsForePaneHidden), Mode=OneWay}"
-                                                          Click="OnTemporalForeCastClick"/>
+                                                          Click="OnTemporalForeCastClick"
+                                                          PointerEntered="OnModeItemLift" PointerExited="OnModeItemSettle"
+                                                          GotFocus="OnModeItemLift" LostFocus="OnModeItemSettle"/>
                                     <MenuFlyoutSeparator/>
                                     <ToggleMenuFlyoutItem x:Name="TemporalPastCastItem" Text="PastCast"
                                                           IsChecked="{x:Bind ViewModel.IsPastCast, Mode=OneWay}"
                                                           Opacity="{x:Bind DimWhenEither(ViewModel.IsNowCast, ViewModel.IsForeCast), Mode=OneWay}"
                                                           KeyboardAcceleratorTextOverride="{x:Bind PaneHiddenTag(ViewModel.IsPastPaneHidden), Mode=OneWay}"
-                                                          Click="OnTemporalPastCastClick"/>
+                                                          Click="OnTemporalPastCastClick"
+                                                          PointerEntered="OnModeItemLift" PointerExited="OnModeItemSettle"
+                                                          GotFocus="OnModeItemLift" LostFocus="OnModeItemSettle"/>
                                     <MenuFlyoutItem x:Name="TemporalModeHintItem" IsEnabled="False"
                                                     Text="{x:Bind TemporalModeHint(ViewModel.IsNowCast, ViewModel.IsForeCast, ViewModel.IsPastCast), Mode=OneWay}"
                                                     Visibility="{x:Bind TemporalModeHintVisibility(ViewModel.IsNowCast, ViewModel.IsForeCast, ViewModel.IsPastCast), Mode=OneWay}"/>

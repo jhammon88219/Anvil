@@ -97,19 +97,50 @@ namespace Anvil.Tests
 			Assert.False(vm.IsNowPaneHidden);
 		}
 
+		// ONLY Temporal Mode turns modes on (2026-11-03): with nothing running, View's pane items do nothing (and are disabled).
 		[Fact]
-		public void View_on_a_mode_that_is_off_turns_it_on_with_its_pane()
+		public void View_never_turns_a_mode_on_from_nothing()
 		{
 			var vm = New(new AppSettings());
 			vm.RestoreTemporalSession();
+			Assert.False(vm.CanPickPastPane || vm.CanPickNowPane || vm.CanPickForePane);
 
 			vm.TogglePane(TemporalMode.Fore);
-			Assert.True(vm.IsForeCast);
-			Assert.True(vm.IsForePaneShown);
+			vm.TogglePane(TemporalMode.Now);
+			vm.TogglePane(TemporalMode.Past);
+			Assert.False(vm.IsForeCast || vm.IsNowCast || vm.IsPastCast);
+		}
 
-			vm.TogglePane(TemporalMode.Past);                // Past is still alone
-			Assert.True(vm.IsPastCast && vm.IsPastPaneShown);
-			Assert.False(vm.IsForeCast || vm.IsForePaneShown);
+		// The one looser case: while NowCast or ForeCast runs, View on the other's pane turns that mode on with its pane.
+		[Fact]
+		public void View_on_the_other_live_pane_turns_that_mode_on()
+		{
+			var vm = New(new AppSettings());
+			vm.RestoreTemporalSession();
+			vm.ToggleTemporalMode(TemporalMode.Now);
+			Assert.True(vm.CanPickForePane);
+
+			vm.TogglePane(TemporalMode.Fore);
+			Assert.True(vm.IsForeCast && vm.IsForePaneShown);
+			Assert.True(vm.IsNowCast);                       // they coexist
+		}
+
+		// PastCast's pane item needs PastCast on — View never switches Now/Fore over to Past.
+		[Fact]
+		public void View_never_turns_PastCast_on()
+		{
+			var vm = New(new AppSettings());
+			vm.RestoreTemporalSession();
+			vm.ToggleTemporalMode(TemporalMode.Now);
+			Assert.False(vm.CanPickPastPane);
+
+			vm.TogglePane(TemporalMode.Past);
+			Assert.False(vm.IsPastCast);
+			Assert.True(vm.IsNowCast && vm.IsNowPaneShown);
+
+			vm.ToggleTemporalMode(TemporalMode.Past);
+			Assert.True(vm.CanPickPastPane);
+			Assert.False(vm.CanPickNowPane || vm.CanPickForePane); // Past runs alone: View can't start Now/Fore
 		}
 
 		[Fact]

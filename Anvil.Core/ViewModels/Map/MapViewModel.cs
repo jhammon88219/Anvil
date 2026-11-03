@@ -736,8 +736,11 @@ namespace Anvil.ViewModels
 		// A pane (TemporalPanes/TemporalPane, in MainWindow's map band) has THREE states (the user's call, 2026-11-01):
 		// OFF (mode off, pane closed) · ON + OPEN · ON + HIDDEN. A pane never shows while its mode is off:
 		//   • turning a mode ON opens its pane (clears HIDDEN — OnTemporalModesChanged, any path: key, site click, View);
-		//   • turning it OFF closes it; the top bar's View menu (TogglePane) HIDES / SHOWS a running mode's pane, and on a
-		//     mode that is off it turns the mode on (which opens it). HIDDEN is persisted per mode.
+		//   • turning it OFF closes it; the top bar's View menu (TogglePane) HIDES / SHOWS a running mode's pane. HIDDEN is
+		//     persisted per mode.
+		//   • ONLY the Temporal Mode menu turns modes on/off (the user's call, 2026-11-03), with ONE looser case: while
+		//     NowCast OR ForeCast runs, View on the OTHER one's pane turns that mode on too (they coexist). View's PastCast
+		//     pane needs PastCast on; with nothing (or Past) running, Now/Fore's are disabled too — CanPick*Pane.
 		// Two things still hold an open pane back for a while:
 		//   • the LAUNCH order: restored modes' panes come up one at a time (LAUNCH WINDOWS below — the first pane build
 		//     froze the UI ~1-2 s at launch);
@@ -766,17 +769,27 @@ namespace Anvil.ViewModels
 		public bool IsNowPaneHidden { get => _isNowPaneHidden; private set => SetProperty(ref _isNowPaneHidden, value); }
 		public bool IsForePaneHidden { get => _isForePaneHidden; private set => SetProperty(ref _isForePaneHidden, value); }
 
-		/// <summary>The View menu's pane item: a mode that is off turns ON (its pane opens with it); a running mode's
-		/// pane flips between open and hidden. The mode itself is never turned off here.</summary>
+		private bool _canPickPastPane, _canPickNowPane, _canPickForePane;
+
+		/// <summary>View's PastCast pane item is enabled: PastCast runs (only Temporal Mode turns it on).</summary>
+		public bool CanPickPastPane { get => _canPickPastPane; private set => SetProperty(ref _canPickPastPane, value); }
+		/// <summary>View's NowCast pane item is enabled: NowCast OR ForeCast runs (picking it then turns NowCast on).</summary>
+		public bool CanPickNowPane { get => _canPickNowPane; private set => SetProperty(ref _canPickNowPane, value); }
+		/// <summary>View's ForeCast pane item is enabled: NowCast OR ForeCast runs (picking it then turns ForeCast on).</summary>
+		public bool CanPickForePane { get => _canPickForePane; private set => SetProperty(ref _canPickForePane, value); }
+
+		/// <summary>The View menu's pane item: a running mode's pane flips between open and hidden. While NowCast or ForeCast
+		/// runs, the other one's item turns that mode ON (its pane opens with it). Nothing else here changes a mode — a
+		/// disabled item (see CanPick*Pane) does nothing.</summary>
 		public void TogglePane(TemporalMode which)
 		{
-			if (!IsModeOn(which))
-			{
-				ToggleTemporalMode(which);
-			}
-			else
+			if (IsModeOn(which))
 			{
 				SetPaneHidden(which, !IsHiddenFlag(which));
+			}
+			else if (which != TemporalMode.Past && (IsNowCast || IsForeCast))
+			{
+				ToggleTemporalMode(which);
 			}
 			// Re-asserted: the menu item has already flipped its own tick (same trap as the bar keys).
 			OnPropertyChanged(which switch
@@ -872,6 +885,8 @@ namespace Anvil.ViewModels
 			IsPastPaneHidden = IsPastCast && _paneHidden.Past;
 			IsNowPaneHidden = IsNowCast && _paneHidden.Now;
 			IsForePaneHidden = IsForeCast && _paneHidden.Fore;
+			CanPickPastPane = IsPastCast;
+			CanPickNowPane = CanPickForePane = IsNowCast || IsForeCast;
 			IsPastPaneShown = IsPastPaneOpen && !_panesHeldForLoad && !_launchHeld.Past;
 			IsNowPaneShown = IsNowPaneOpen && !_panesHeldForLoad && !_launchHeld.Now;
 			IsForePaneShown = IsForePaneOpen && !_panesHeldForLoad && !_launchHeld.Fore;
