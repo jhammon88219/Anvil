@@ -9,8 +9,8 @@
          ░│ 1:07 PM ═══ scrubber ═══  ◀ ▶ ▶ ↺        VCP: 212        │░  ← the console (MainWindow ConsoleIsland)
          ░╰──────────────────────────────────────────────────────────╯░
 
-     ⚠️ The tab overlaps the console's top hairline by 1 px (the host's -1 bottom margin) and draws no bottom line, so
-     tab and console read as ONE plate. It is declared AFTER the console in the host so it paints over that hairline.
+     ⚠️ The tab reaches 3 px INTO the console (the host's -3 bottom margin; its foot padding is +2 to match) and draws no
+     bottom line, so the console's top hairline is hidden under it at any display scale and tab and console read as ONE plate. It is declared AFTER the console in the host so it paints over that hairline.
      Same face as the console (OverlayBarSurfaceBrush, the ground) and the same hairline brush.
      Centred on the console = on its play button = the window's midpoint (RadarControls.CentreOnPlay).
 
@@ -101,7 +101,7 @@
                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                 BorderThickness="1,1,1,0"
                 CornerRadius="8,8,0,0"
-                Padding="8,6,8,4">
+                Padding="8,6,8,6">
             <!-- The wrapper carries the tooltip (a disabled control shows none); Transparent so it hit-tests. -->
             <Grid Background="Transparent"
                   ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">

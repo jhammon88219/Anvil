@@ -647,8 +647,10 @@
              the tools strip's alignment measures it (AlignCentreSection), and ModelConsole has its exact widths.
              ⚠️ CENTRED ONLY BECAUSE IT IS A FIXED WIDTH: the clock reserves a two-digit hour (RadarControls). -->
         <!-- The host: the SITE TAB (row 0, Composites/RadarConsoleSiteTab, centred) standing on the console (row 1).
-             ⚠️ The tab is declared AFTER the console so it paints over the console's top hairline (its -1 bottom margin
-             is that overlap); its own halo stops at its foot, so neither shadow crosses the other plate. -->
+             ⚠️ The tab is declared AFTER the console so it paints over the console's top hairline: its -3 bottom margin
+             reaches 3 px INTO the console (not 1 — at a display scale above 100% the hairline lands on fractional pixels and
+             a 1 px overlap let it show as a line under the tab); the tab pads +2 at its foot so its content doesn't move.
+             Its own halo stops at its foot, so neither shadow crosses the other plate. -->
         <Grid x:Name="ConsoleIslandHost"
               Grid.Row="0" Grid.RowSpan="2"
               HorizontalAlignment="Center"
@@ -686,7 +688,7 @@
         <comp:RadarConsoleSiteTab x:Name="RadarConsoleSiteTab"
                                   Grid.Row="0"
                                   HorizontalAlignment="Center"
-                                  Margin="0,0,0,-1"
+                                  Margin="0,0,0,-3"
                                   ViewModel="{x:Bind ViewModel}"/>
         </Grid>
     </Grid>
