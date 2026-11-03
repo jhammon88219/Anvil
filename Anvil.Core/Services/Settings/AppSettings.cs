@@ -627,6 +627,9 @@ namespace Anvil.Services
 		public bool MenuBarVisible { get => _menuBarVisible; set => SetProperty(ref _menuBarVisible, value); }
 		private bool _paneSelectorsVisible = true;
 		public bool PaneSelectorsVisible { get => _paneSelectorsVisible; set => SetProperty(ref _paneSelectorsVisible, value); }
+		// View → Radar console: the floating radar console over the tools strip (2026-11-03).
+		private bool _radarConsoleVisible = true;
+		public bool RadarConsoleVisible { get => _radarConsoleVisible; set => SetProperty(ref _radarConsoleVisible, value); }
 
 		// (The per-window pin + lock settings are gone: the temporal panes are in-window overlays, 2026-10-29. An older
 		// file's PastWindowOnTop / …Locked keys are simply ignored on load.)

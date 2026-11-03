@@ -12,32 +12,24 @@
        │                   ╰─────────╯┃╰─────────╯                   │  View → Pane selectors hides all.
        │    map pane 0  (MAIN)        ┃        map pane 1            │
        ├─────────────────────────────┴─────────────────────────────┤
-       │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  …thrown UP onto the map
-       │                 ╭ ˅ Tools ╮ ╭ ˅ Bar ╮                     │  ONE rail, one tab per tier
-       │ [Search ✕⌕] ⁙⁙⁙ ▣ ⊚┇   ╎◗▴ ⁙⁙⁙ [⌂ KTLX Oklahoma City ˅] ⁙⁙⁙ ⌕ ◎▴┆   ┇▥▴ ⁙⁙ ⌘⛶ ─ ▥▴ [Isolate ▾]│  TOOLS tier
-       │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┇▒▒▒╎▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┆▒▒▒┇▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒│  ╎ = console tools' left = console's
-       │                     ┇   ╎1:07 PM ═══ scrubber ═══ VCP:  212┆   ┇                       │  ┆ = radar tools' right = scan text's
-       │  (blank — the mode   ┇   ╎     3/10  ◀ ▶ ▶  ↺  Mode: precip┆   ┇                       │  ┇ = a temporal pane's INNER edge
-       │   keys: menu bar)    ┇ ╎2 min ago       Rescans: SAILS ×1┆   ┇  (blank — Atlas and    │  ⁙⁙⁙ = the STRETCHING dot spacers;
-       │                           ┇ ╎                                ┆   ┇   Settings: menu bar)  │  bar height PINNED at BarKeySide (72)
-       └─────────────────────┴───┴───────── ↑ bar midpoint ─────────┴───┴─────────────────────────┘  the blank runs ┇…╎ / ┆…┇ give way first
-          ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
-            is drawn by whichever side owns it: the tools tier throws its own up
-            onto the map, and the BAR draws the band it receives from the tier
-            above it. Same treatment on all four pane notches, on three sides.
-            OverlayBar.EdgeStyle picks per instance, because only the host knows
-            what is beyond a given edge. ⚠️ The bar's value MOVES at runtime: hide
-            the tools tier and the bar is suddenly the top of the stack, so it
-            starts casting instead of receiving — and both tabs drop to the bar's own
-            face at the same moment, because a tab wears the plate it stands on.
-            Both facts are MainWindow.ApplyRailSeating's: one rule, one method.
-          ↑ TWO TIERS, ONE RAIL. Both tabs wear the plate they STAND ON, not the
-            tier they toggle, so they move together with the stack. They are
-            named because that is what tells them apart — two lozenges both
-            reading "Hide" name no difference. The arrow points the way the tier moves.
-            The rail is shared because it must be: an OverlayBar draws its tab
-            in row 0 of its own grid, so the lower tier's tab would land in the
-            seam between the two. Both tiers run ShowTab=False.
+       │        ╭──────────────────────────────────────────╮       │  FLOATING RADAR CONSOLE (2026-11-03) —
+       │        │ 1:07 PM ═══ scrubber ═══ ◀ ▶ ▶ ↺  VCP: 212 │       │  the old bar's console, unchanged, rounded,
+       │        │ 2 min ago      3/10        Mode: precip   │       │  centred (play = the midpoint), SelectorGap
+       │        ╰──────────────────────────────────────────╯       │  above the chrome. View → Radar console.
+       │  ░░░░░░░░░░░░░░░░░░░░╭ ˅ Tools ╮░░░░░░░░░░░░░░░░░░░░░░░░  │  …the strip's shadow thrown UP onto the map
+       │ [Search ✕⌕] ⁙⁙⁙ ▣ ⊚┇   ╎◗▴ ⁙⁙⁙ [⌂ KTLX Oklahoma City ˅] ⁙⁙⁙ ⌕ ◎▴┆   ┇▥▴ ⁙⁙ ⌘⛶ ─ ▥▴ [Isolate ▾]│  TOOLS strip = the ONE bottom bar
+       └─────────────────────┴───┴───────── ↑ window midpoint ──────┴───┴─────────────────────────┘  ╎ ┆ = the console's clock-left / scan-text-right;
+                                                                                                    ┇ = a temporal pane's INNER edge; ⁙⁙⁙ = stretching spacers
+          ↑ THE MIRROR (2026-11-03, the user's canvas option C): top = menu bar · ˄ Menu tab · floating pane selectors;
+            bottom = tools strip · ˅ Tools tab · floating radar console. The bar tier that held only the console is GONE
+            (and its "Bar" tab), so the temporal panes run down to the strip's top. The console never shrinks; in a
+            narrow window it overlaps the panes' bottoms (it is declared after them).
+          ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, drawn by whichever side owns it: the tools strip throws
+            its own up onto the map; the floating selectors and console cast theirs. OverlayBar.EdgeStyle picks per
+            instance, because only the host knows what is beyond a given edge. The Tools tab wears the plate it stands on
+            (raised on the strip, ground at the window bottom) — MainWindow.ApplyRailSeating.
+          ↑ ONE TAB, ON A RAIL above the strip (an OverlayBar draws its tab in row 0 of its own grid; the strip runs
+            ShowTab=False and the rail is declared last so the strip's shadow passes behind the tab).
           ↑ THE CONSOLE ⇄ TEMPORAL SWAP (2026-10-06, mock-up A): the time module holds the bar's MIDPOINT and
             the temporal keys sit at the LEFT edge, so the bar reads mode → time → windows. The tools tier
             follows: its centre section spans the console's edges with the site picker on ▶ — the bar's
@@ -408,8 +400,7 @@
         <Grid x:Name="BottomChrome" Grid.Row="1" VerticalAlignment="Bottom" SizeChanged="OnBottomChromeSizeChanged">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- the shared rail (declared LAST, see above) -->
-                <RowDefinition Height="Auto"/> <!-- upper tier: the map tools -->
-                <RowDefinition Height="Auto"/> <!-- the bar -->
+                <RowDefinition Height="Auto"/> <!-- the tools tier: the ONE bottom bar since 2026-11-03 -->
             </Grid.RowDefinitions>
 
             <!-- The UPPER TIER: the map's camera tools, on the raised surface. Its visibility is PERSISTED
@@ -427,69 +418,9 @@
                 </ctl:OverlayBar.BarContent>
             </ctl:OverlayBar>
 
-            <!-- ⚠️ EdgeStyle IS DYNAMIC HERE, and it is the only place in the app that it moves.
-                 With the tools tier showing, the bar RECEIVES that tier's shadow. Hide the tier and the
-                 bar becomes the top of the assembly, with the map above it - so it has to start CASTING
-                 instead. MainWindow.ApplyRailSeating owns the swap; a fixed value is wrong in one of
-                 the two states whichever one you pick. -->
-            <ctl:OverlayBar x:Name="BottomBar" Grid.Row="2" ShowTab="False" EdgeStyle="InsetShadow">
-                <ctl:OverlayBar.BarContent>
-                    <!-- ⚠️ MinHeight = BarKeySide PINS the bar at its old height: the temporal keys made it that tall, and
-                         without them it would shrink to the console's height and drop the whole bottom chrome. -->
-                    <Grid x:Name="BarGrid" ColumnSpacing="16" MinHeight="{StaticResource BarKeySide}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>    <!-- blank (the temporal keys moved up) ┐ equal stars: -->
-                            <ColumnDefinition Width="Auto"/> <!-- radar console, DEAD CENTER         │ the Auto     -->
-                            <ColumnDefinition Width="*"/>    <!-- blank (Atlas + Settings moved up)  ┘ sits centered-->
-                        </Grid.ColumnDefinitions>
-
-                        <!-- ===== CENTERPIECE: the time module, alone =====
-                             Everything here is about READING the radar that is loaded, in time.
-                             ⚠️ SWAPPED WITH THE TEMPORAL KEYS (2026-10-06, the user's mock-up A): the console was the
-                             LEFT cluster and the keys held the midpoint. Now the bar reads mode → time → windows. The
-                             tools tier's centre section spans its edges, picker on play (MainWindow.AlignCentreSection), and
-                             the activity slot runs from its right edge to Atlas.
-                             ⚠️ THE PLAY BUTTON IS THE BAR'S MIDPOINT, not the module's middle: RadarControls pads its
-                             short side (CentreOnPlay) so its centre IS play's.
-                             ⚠️ CENTRED ONLY BECAUSE IT IS A FIXED WIDTH: the clock reserves a two-digit hour
-                             (RadarControls), so 9:59 → 10:00 can't re-centre the module and slide the scrubber.
-                             ⚠️ INSPECT, the markers key and the Home key all left for the tools tier earlier
-                             (MapControlsStrip). Don't re-add any here. -->
-                        <!-- ⚠️ MODEL MODE: while ForeCast's Short Range draws (NowCast is off then), ModelConsole plays the
-                             model run IN THIS SAME CELL, over RadarControls — NOT while comparing with radar
-                             (ShortRange.IsModelConsoleShown): then radar's console runs and the model follows it. RadarControls stays LAID OUT underneath
-                             (Opacity 0, not hit-testable — never Collapsed): the tools tier's alignment measures it
-                             (AlignCentreSection), and ModelConsole has its exact widths, so nothing on the bar moves. -->
-                        <comp:RadarControls x:Name="TimeModule"
-                                            Grid.Column="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            Opacity="{x:Bind RadarConsoleOpacity(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
-                                            IsHitTestVisible="{x:Bind IsRadarConsoleLive(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
-                                            ViewModel="{x:Bind ViewModel.Radar}"/>
-                        <comp:ModelConsole x:Name="ModelConsole"
-                                           Grid.Column="1"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"
-                                           Visibility="{x:Bind ModelConsoleVisibility(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
-                                           UseDotMatrix="{x:Bind ViewModel.Radar.IsDotMatrixScrubber, Mode=OneWay}"
-                                           UseHatch="{x:Bind ViewModel.Radar.IsHatchScrubber, Mode=OneWay}"
-                                           HatchLook="{x:Bind ViewModel.Radar.HatchLook}"
-                                           ViewModel="{x:Bind ViewModel.ShortRange.Playback}"/>
-
-                        <!-- ⚠️ NO RIGHT CLUSTER (2026-11-03, the user's call): Atlas and Settings left this bar for the TOP
-                             MENU BAR (Atlas · View · Settings), as the caption key did before them. Column 2 is a BLANK run
-                             now. Don't re-add window latches here — a new window opens from the menu bar. -->
-
-                        <!-- ⚠️ NO ACTIVITY SLOT (removed 2026-10-16, the user's call): what Anvil is working on shows in
-                             each temporal pane's ACTIVITY EXPANDER (TemporalPanes/TemporalPaneActivityExpander), per mode. The run
-                             between the console and Atlas is a permanent BLANK run (the section rules allow it). -->
-
-                        <!-- ⚠️ NO TEMPORAL KEYS (2026-11-03, the user's call): the three mode keys became the TOP MENU BAR's
-                             Temporal Mode menu (Composites/TemporalToggles deleted). Column 0 is a BLANK run now. -->
-                    </Grid>
-                </ctl:OverlayBar.BarContent>
-            </ctl:OverlayBar>
+            <!-- ⚠️ NO BAR TIER (2026-11-03, the user's call — canvas option C): the bar's only content, the radar console,
+                 FLOATS above this strip now (ConsoleIsland, declared after the temporal panes). The tools tier is the ONE
+                 bottom bar, mirroring the top menu bar: bar · tab · a floating control beside it. -->
 
             <!-- ⚠️ THE RAIL IS ROW 0 BUT DECLARED LAST — see the ⚠⚠ at the top of this Grid. It has to
                  paint AFTER the tools tier, because that tier's cast shadow hangs up into this row and
@@ -510,8 +441,7 @@
                         Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
                 <ctl:OverlayBarTab x:Name="ToolsTab" Target="Tools"
                                    IsShown="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=TwoWay}"/>
-                <ctl:OverlayBarTab x:Name="BarTab" Target="Bar"
-                                   IsShown="{x:Bind BottomBar.IsOverlayBarVisible, Mode=TwoWay}"/>
+                <!-- (The "Bar" tab went with the bar tier, 2026-11-03 — the console floats; View → Radar console hides it.) -->
             </StackPanel>
         </Grid>
 
@@ -606,6 +536,8 @@
                                     <MenuFlyoutSeparator/>
                                     <ToggleMenuFlyoutItem x:Name="ViewPaneSelectorsItem" Text="Pane selectors"
                                                           IsChecked="{x:Bind ViewModel.ArePaneSelectorsVisible, Mode=TwoWay}"/>
+                                    <ToggleMenuFlyoutItem x:Name="ViewRadarConsoleItem" Text="Radar console"
+                                                          IsChecked="{x:Bind ViewModel.IsRadarConsoleVisible, Mode=TwoWay}"/>
                                 </MenuFlyout>
                             </Button.Flyout>
                         </Button>
@@ -713,5 +645,58 @@
                              Visibility="{x:Bind PaneVisibility(ViewModel.IsForePaneShown), Mode=OneWay}"
                              ViewModel="{x:Bind ViewModel}"/>
         </Grid>
+
+        <!-- ===== THE FLOATING RADAR CONSOLE (the user's call, 2026-11-03 — canvas option C, "mirror") =====
+
+                 ┌ Menu bar ──────────────────────────╮ ˄ Menu ╭───────────────────────────────────┐
+                                                ╭──────────────────╮   ← floating pane selector(s)
+                                    ...map...
+                     ╭──────────────────────────────────────────────────────────╮
+                     │ 1:07 PM  ▮▮▮▮▮▮▮▮▮▮ scrubber ▮▮▮▮▮▮▮▮▮  ◀ ▶ ▶ ↺  VCP: 212    │  ← THIS: the console exactly as it
+                     │ 2 min ago                              3/10      Mode: precip │    was on the bar, rounded, floating
+                     ╰──────────────────────────────────────────────────────────╯
+                                                ╭ ˅ Tools ╮                  ← the tools strip's tab
+               [Search] ⁙⁙⁙ ▣ ⊚ ┇ ◗ ⁙ [⌂ KTLX ˅] ⁙ ⌕ ◎ ┇ ▥ ⁙⁙ ↑N ⛶ Map Isolate   ← the tools strip, the ONE bottom bar
+
+             The top and bottom MIRROR each other: bar · tab · a floating control. Centred on the window (play = the
+             midpoint, RadarControls.CentreOnPlay), SelectorGap above the bottom chrome (the strip + its tab, or the tab
+             alone while the strip is hidden) — PlaceConsoleIsland. Same look as the bar it came from: the GROUND
+             surface, NOT raised (the selectors are raised). It never shrinks: in a window too narrow for both edge panes
+             it overlaps their bottoms — DECLARED AFTER the temporal panes so it paints over them and stays clickable,
+             and after the loop holding gate, so it stays live over the frost like the bar did. View → Radar console
+             hides it (IsRadarConsoleVisible, persisted).
+             ⚠️ MODEL MODE: while ForeCast's Short Range draws, ModelConsole plays the run IN THIS SAME CELL, over
+             RadarControls — NOT while comparing with radar (ShortRange.IsModelConsoleShown): then radar's console runs and
+             the model follows it. RadarControls stays LAID OUT underneath (Opacity 0, not hit-testable — never Collapsed):
+             the tools strip's alignment measures it (AlignCentreSection), and ModelConsole has its exact widths.
+             ⚠️ CENTRED ONLY BECAUSE IT IS A FIXED WIDTH: the clock reserves a two-digit hour (RadarControls). -->
+        <ctl:OverlayBar x:Name="ConsoleIsland"
+                        Grid.Row="0" Grid.RowSpan="2"
+                        Edge="Bottom"
+                        IsFloating="True"
+                        ShowTab="False"
+                        EdgeStyle="CastShadow"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Bottom"
+                        Visibility="{x:Bind PaneVisibility(ViewModel.IsRadarConsoleVisible), Mode=OneWay}">
+            <ctl:OverlayBar.BarContent>
+                <Grid x:Name="ConsoleIslandContent">
+                    <comp:RadarControls x:Name="TimeModule"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Opacity="{x:Bind RadarConsoleOpacity(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
+                                        IsHitTestVisible="{x:Bind IsRadarConsoleLive(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
+                                        ViewModel="{x:Bind ViewModel.Radar}"/>
+                    <comp:ModelConsole x:Name="ModelConsole"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Visibility="{x:Bind ModelConsoleVisibility(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
+                                       UseDotMatrix="{x:Bind ViewModel.Radar.IsDotMatrixScrubber, Mode=OneWay}"
+                                       UseHatch="{x:Bind ViewModel.Radar.IsHatchScrubber, Mode=OneWay}"
+                                       HatchLook="{x:Bind ViewModel.Radar.HatchLook}"
+                                       ViewModel="{x:Bind ViewModel.ShortRange.Playback}"/>
+                </Grid>
+            </ctl:OverlayBar.BarContent>
+        </ctl:OverlayBar>
     </Grid>
 </Window>

@@ -42,33 +42,23 @@ namespace Anvil
 		// pull-tab by a negative margin, so the tab could rise through a notch cut in its underside; it is a
 		// full-width tier now and the tabs sit on a rail above both tiers. docs/ui-bottom-bar.md.
 
-		// ⚠️ EVERYTHING THAT DEPENDS ON *WHAT THE RAIL IS SITTING ON* IS DECIDED HERE, TOGETHER. The
-		// map-tools tier comes and goes, and two separate things answer to that one fact:
-		//
-		//   the TABS' FACE - a tab wears the plate it stands on, so both go raised while the tier is up
-		//                    and both drop to the ground once the rail comes to rest on the bar.
-		//   the BAR'S EDGE - with the tier showing the bar sits UNDER it and RECEIVES its shadow; hide the
-		//                    tier and the bar is the top of the assembly with the map above it, so it has
-		//                    to CAST instead.
-		//
-		// ⚠️ They are one method because they are one rule. Split them and the tabs can end up lit for a
-		// plate the shadow says is not there. ⚠️ Nothing else in the app moves EdgeStyle at runtime, and
-		// getting it wrong is not subtle either way: an inset band with nothing above it is a smudge along
-		// the bar's top edge, and a cast band under a tier pushes the two apart and shows map through the
-		// gap.
+		// WHAT THE RAIL IS SITTING ON: the Tools tab wears the plate it stands on — raised while the tools strip is up, the
+		// map's ground once it is hidden and the tab sits at the window bottom. (The bar tier under the strip, whose edge
+		// used to flip between receiving and casting here, became the floating console, 2026-11-03.)
 		private void ApplyRailSeating()
 		{
 			bool onTools = ViewModel.IsMapControlsStripVisible;
 
 			ToolsTab.Raised = onTools;
-			BarTab.Raised = onTools;
-			// EDGE-HATCH (bolt-on): while the hatch draws (EdgeHatchBottomChrome), the TOP tier casts no shadow — a hairline
-			// instead. The bar under a showing tools tier keeps receiving its inset shade (that seam is between two tiers).
-			bool hatch = ViewModel.EdgeHatch.IsHatch;
-			var cast = hatch ? BarEdgeStyle.Hairline : BarEdgeStyle.CastShadow;
-			MapControlsTier.EdgeStyle = cast;
-			BottomBar.EdgeStyle = onTools ? BarEdgeStyle.InsetShadow : cast;
+			// EDGE-HATCH (bolt-on): while the hatch draws (EdgeHatchBottomChrome), the strip casts no shadow — a hairline instead.
+			MapControlsTier.EdgeStyle = ViewModel.EdgeHatch.IsHatch ? BarEdgeStyle.Hairline : BarEdgeStyle.CastShadow;
 		}
+
+		// ===== THE FLOATING RADAR CONSOLE (2026-11-03, canvas option C) =====
+		// Centred (XAML), SelectorGap above the bottom chrome — the tools strip + its tab, or the tab alone while the strip
+		// is hidden — so it mirrors the pane selectors under the top bar. In CODE because that height is MEASURED.
+		private void PlaceConsoleIsland() =>
+			ConsoleIsland.Margin = new Thickness(0, 0, 0, BottomChrome.ActualHeight + SelectorGap);
 
 		// ── SITE MENU ── the menu a map site key's chevron opens. Its items are DECLARED in MainWindow.xaml
 		// (SiteMenu); RadarSiteMenu describes one open (labels, icons, enabled) and does what the items do.
@@ -133,6 +123,7 @@ namespace Anvil
 			_bottomOpaque = opaque;
 			ApplyPaneLayerMargin();
 			EdgeHatchBottomChrome.Margin = new Thickness(0, 0, 0, opaque); // EDGE-HATCH: the band sits ON the tier's top
+			PlaceConsoleIsland();
 		}
 
 		private double _bottomOpaque;
@@ -284,14 +275,13 @@ namespace Anvil
 		{
 			if (Content is UIElement root)
 			{
-				// The picker is as wide as the rail's two tabs (Tools + Bar, gap included) — the user's call, 2026-10-06.
-				// MODEL MODE: the right end follows the VISIBLE console's text (ModelConsole's lines differ from radar's);
+				// The picker KEEPS its declared width (260 ≈ the rail's old Tools + Bar pair; the Bar tab went with the bar
+				// tier 2026-11-03, so 0 = "don't resize"). MODEL MODE: the right end follows the VISIBLE console's text (ModelConsole's lines differ from radar's);
 				// left edge + play are the same in both (ModelConsole copies radar's widths), so they stay on TimeModule.
 				var scanRight = ModelConsole.Visibility == Visibility.Visible
 					? ModelConsole.ScanTextRight(root)
 					: TimeModule.ScanTextRight(root);
-				ToolsStrip.AlignToConsole(TimeModule.ConsoleLeft(root), TimeModule.PlayCentre(root), scanRight,
-					RailTabs.ActualWidth, root);
+				ToolsStrip.AlignToConsole(TimeModule.ConsoleLeft(root), TimeModule.PlayCentre(root), scanRight, 0, root);
 			}
 		}
 
@@ -503,9 +493,9 @@ namespace Anvil
 
 			// The TOP BAR's controls sit IN the caption band (it is the bar), so they are the holes that matter now; the
 			// tab, selectors and panes are listed too so nothing interactive can ever end up under a caption rect.
-			var rects = new List<RectInt32>(PaneLayoutInfo.MaxPanes + 6);
+			var rects = new List<RectInt32>(PaneLayoutInfo.MaxPanes + 7);
 			foreach (var notch in new FrameworkElement[]
-				{ MenuBarMenus, CaptionKey, TopChrome.TabElement,
+				{ MenuBarMenus, CaptionKey, TopChrome.TabElement, ConsoleIsland,
 				  Notch0, Notch1, Notch2, Notch3, TemporalPanePastCast, TemporalPaneNowCast, TemporalPaneForeCast })
 			{
 				if (notch.Visibility != Visibility.Visible || notch.ActualWidth <= 0 || notch.ActualHeight <= 0)
@@ -880,7 +870,7 @@ namespace Anvil
 			// window (multi-monitor). The manager watches the coordinator VM's open flags and opens/closes a window
 			// to match; content is a fresh section instance bound to this same VM, rendered headerless (the
 			// window caption is the chrome). Each flag is INDEPENDENT — any combination may be open at once.
-			// The radar console (Row 1, the bottom bar) is deliberately NOT here.
+			// The radar console (the floating ConsoleIsland) is deliberately NOT here.
 			// ⚠️ The panels' usable band ends at the top of the MAP TOOLS TIER, which is the top of the bottom
 			// chrome in every state: hidden, the tier collapses to zero height ON the bar's top edge, and with
 			// the bar hidden too it sits at the window bottom. (Its cast shadow hangs on a negative margin and

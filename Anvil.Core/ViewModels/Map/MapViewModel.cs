@@ -860,6 +860,19 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		/// <summary>View → Radar console: the FLOATING radar console (the old bottom bar's only content) over the tools strip.
+		/// Persisted.</summary>
+		public bool IsRadarConsoleVisible
+		{
+			get => _settingsService.Settings.RadarConsoleVisible;
+			set
+			{
+				if (_settingsService.Settings.RadarConsoleVisible == value) { return; }
+				_settingsService.Settings.RadarConsoleVisible = value;
+				OnPropertyChanged();
+			}
+		}
+
 		/// <summary>The PastCast pane is up (PastCast runs, not held — see the region note).</summary>
 		public bool IsPastPaneShown { get => _isPastPaneShown; private set => SetProperty(ref _isPastPaneShown, value); }
 
