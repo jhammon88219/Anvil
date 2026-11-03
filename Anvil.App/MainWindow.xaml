@@ -2,7 +2,7 @@
 <!-- MainWindow — the app shell. The map fills the whole window; the UI is a MENU BAR over its top edge, the
      bottom chrome over its bottom edge, and a small FLOATING pane selector per map pane.
 
-       ┌ View ─────────────────────── drag ────────────────────── – □ ✕ ┐  TOP MENU BAR (hideable, "Menu" tab)
+       ┌ Atlas View Settings ─────────── drag ──────────────────── – □ ✕ ┐  TOP MENU BAR (hideable, "Menu" tab)
        ├───────────────────────────╮ ˄ Menu ╭──────────────────────────┤
        │                              ┃                              │  FLOATING PANE SELECTORS — product,
        │                   ╭─────────╮┃╭─────────╮                   │  colour-ramp legend, tilt. Quad shown:
@@ -17,8 +17,9 @@
        │ [Search ✕⌕] ⁙⁙⁙ ▣ ⊚┇   ╎◗▴ ⁙⁙⁙ [⌂ KTLX Oklahoma City ˅] ⁙⁙⁙ ⌕ ◎▴┆   ┇▥▴ ⁙⁙ ⌘⛶ ─ ▥▴ [Isolate ▾]│  TOOLS tier
        │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┇▒▒▒╎▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┆▒▒▒┇▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒│  ╎ = console tools' left = console's
        │                     ┇   ╎1:07 PM ═══ scrubber ═══ VCP:  212┆   ┇                       │  ┆ = radar tools' right = scan text's
-       │ ↺   ⁙⁙⁙⁙⁙ ((•))  ☁   ┇   ╎     3/10  ◀ ▶ ▶  ↺  Mode: precip┆   ┇📡  ⚙   ⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙│  ┇ = a temporal pane's INNER edge
-       │ PastCast  NowCast ForeCast┇ ╎2 min ago       Rescans: SAILS ×1┆   ┇Atlas Settings          │  ⁙⁙⁙ = the STRETCHING dot spacers;
+       │ ↺   ⁙⁙⁙⁙⁙ ((•))  ☁   ┇   ╎     3/10  ◀ ▶ ▶  ↺  Mode: precip┆   ┇                       │  ┇ = a temporal pane's INNER edge
+       │ PastCast  NowCast ForeCast┇ ╎2 min ago       Rescans: SAILS ×1┆   ┇  (blank — Atlas and    │  ⁙⁙⁙ = the STRETCHING dot spacers;
+       │                           ┇ ╎                                ┆   ┇   Settings: menu bar)  │
        └─────────────────────┴───┴───────── ↑ bar midpoint ─────────┴───┴─────────────────────────┘  the blank runs ┇…╎ / ┆…┇ give way first
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
             is drawn by whichever side owns it: the tools tier throws its own up
@@ -58,9 +59,8 @@
             It replaced this bar's Home key AND the side car that used to hang off the Atlas key — two doors
             to one list. The tools tier's left is radar + map (which site), its right is map only.
             See MapControlsStrip. Don't re-add a Home key here.
-          ↑ 📡 = Atlas, a plain window latch again, like Settings.
-          ↑ The run between the console and Atlas is BLANK: the activity slot that sat there moved to each temporal
-            window's ACTIVITY EXPANDER (TemporalPanes/TemporalPaneActivityExpander, 2026-10-16).
+          ↑ The bar's RIGHT of the console is BLANK: Atlas + Settings moved to the top menu bar (2026-11-03), and the
+            activity slot moved to each temporal pane's ACTIVITY EXPANDER (TemporalPaneActivityExpander, 2026-10-16).
           ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map (notches and the
             rail's see-through gaps included; the opaque tiers and both tabs paint over it) is frosted behind
             "Loading the loop" + progress bars + Cancel load (no escape since 2026-10-10). See Composites/LoopHoldingGate.
@@ -478,128 +478,9 @@
                                            HatchLook="{x:Bind ViewModel.Radar.HatchLook}"
                                            ViewModel="{x:Bind ViewModel.ShortRange.Playback}"/>
 
-                        <!-- ===== GLOBAL CLUSTER =====
-                             Every key here shares the bar's one look with the temporal keys at the centre:
-                             hairline at rest, accent border + raised face when ON. Nothing here repeats per
-                             pane.
-
-                             ONE KIND of control sits here: Atlas and Settings are INDEPENDENT window latches (any
-                             combination open). (The pane-layout key and Location used to sit here too; both moved
-                             to the tools tier — see MapControlsStrip.) ⚠️ They are NOT
-                             separated by a wider gap any more: this was two nested grids at 14px and 6px, which
-                             read as a spacing mistake rather than as a grouping. ONE spacing for all of them,
-                             matching the temporal cluster's, so the whole bar has a single rhythm. Keep it one
-                             flat grid — the moment it nests again the gaps drift apart. -->
-                        <Grid x:Name="RightCluster"
-                              Grid.Column="2"
-                              HorizontalAlignment="Right"
-                              VerticalAlignment="Center"
-                              ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/> <!-- Radar Atlas -->
-                                <ColumnDefinition Width="Auto"/> <!-- settings -->
-                                <ColumnDefinition Width="Auto"/> <!-- RightClusterSpacer (stretches to the window edge) -->
-                            </Grid.ColumnDefinitions>
-
-                            <!-- ⚠️ THE PANE-LAYOUT KEY AND THE LOCATION KEY ARE GONE from this cluster — both
-                                 moved to the tools tier (MapControlsStrip): pane layout as three 1/2/4 toggles
-                                 after Fit to view, Location beside the place search. Don't re-add them here. -->
-
-                            <!-- ===== WINDOW BUTTONS =====
-                                 Each latches while its window is open (IsChecked two-ways with the open flag),
-                                 and any combination may be open at once.
-
-                                 ⚠️ GLYPH OVER A NAME, same as the temporal keys — these were glyph-only, and a
-                                 bar where the centre keys are named and the right ones are not made the right
-                                 cluster read as decoration. A glyph alone also has to be LEARNED: a globe, a
-                                 tower and a gear are only obvious once you already know what is behind them,
-                                 and the tooltip that carried that meaning needs a hover to appear.
-
-                                 ⚠️ The names cost NO width: a key is a fixed SQUARE, so the name is fitted
-                                 INSIDE the square it already occupied (BarKeyNameSize, Styles.xaml). The
-                                 cluster is exactly as wide as it was, and the centred temporal keys do not
-                                 move. Keep it that way — a name long enough to force a wider key breaks both,
-                                 and there is no probe measuring it for you any more.
-
-                                 ⚠️ The style is BarKeyToggleStyle, NOT the old BarIconToggleStyle (deleted):
-                                 that one set the icon FontFamily on the BUTTON, which now renders the NAME in
-                                 the icon font — boxes instead of words. The glyph carries its own font on the
-                                 FontIcon. -->
-                            <!-- ⚠️ THERE WERE FOUR KEYS HERE. "Map" (global map controls) and the
-                                 Debug-only "Dev" key are gone: their windows became TABS of the Settings
-                                 window, so the gear now opens all of it. Adding a group of settings means
-                                 adding a tab (Controls/Windows/SettingsWindow), NOT a key here — this
-                                 cluster is for windows that are not settings.
-                                 ⚠️ The Timeframe key briefly lived here too, as the third window latch. It
-                                 moved to the CENTRE cluster, hard against the temporal trio, because a
-                                 panel that only ever configures those three modes belongs beside them —
-                                 see TemporalToggles. What is left here is genuinely global. -->
-                                <!-- ⚠️ ATLAS WAS A SPLIT KEY (a SplitTemporalToggle whose car opened a home/favorites
-                                     flyout). That flyout became the tools tier's SITE PICKER (MapControlsStrip), so this
-                                     is a plain window latch again, exactly like Settings. Don't re-split it.
-                                     ⚠️ Its glyph (EC05) is MIRRORED on TemporalPanePastCastContent's Timeframe-card "Atlas" button — same
-                                     door, same mark; change both.
-                                     ⚠️ ONE-WAY + Click → ToggleAtlasFromBar: this key always opens on RADAR SITES (the
-                                     user's call, 2026-10-01; PastCast's button opens on Past events). -->
-                                <ToggleButton x:Name="AtlasKey"
-                                              Grid.Column="0"
-                                              Style="{StaticResource BarKeyToggleStyle}"
-                                              ToolTipService.ToolTip="Anvil Atlas — radar sites and past events"
-                                              IsChecked="{x:Bind ViewModel.IsAtlasOpen, Mode=OneWay}"
-                                              Click="OnAtlasKeyClick">
-                                    <Grid Margin="3,0" RowSpacing="2">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-                                        <FontIcon Grid.Row="0"
-                                                  FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                                  FontSize="{StaticResource BarKeyGlyphSize}"
-                                                  Glyph="&#xEC05;"/>
-                                        <TextBlock Grid.Row="1"
-                                                   FontSize="{StaticResource BarKeyNameSize}"
-                                                   Text="Atlas"
-                                                   HorizontalAlignment="Center"/>
-                                    </Grid>
-                                </ToggleButton>
-                                <!-- ⚠️ THE "Map" KEY IS GONE (it was column 3, glyph E774, latching
-                                     IsMapControlsStripVisible). The map-tools tier now carries its own tab on
-                                     the rail above the bar, which is the same gesture in the place the thing
-                                     actually is — so the key was a second control for one flag, and the one
-                                     further from what it toggles. The FLAG is untouched and still persisted;
-                                     the tab two-ways it. Don't re-add a key for it. -->
-                                <ToggleButton x:Name="SettingsKey"
-                                              Grid.Column="1"
-                                              Style="{StaticResource BarKeyToggleStyle}"
-                                              ToolTipService.ToolTip="Settings — map, radar, storage"
-                                              IsChecked="{x:Bind ViewModel.IsSettingsWindowOpen, Mode=TwoWay}">
-                                    <Grid Margin="3,0" RowSpacing="2">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-                                        <FontIcon x:Name="SettingsGlyph" Grid.Row="0"
-                                                  FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                                  FontSize="{StaticResource BarKeyGlyphSize}"
-                                                  Glyph="&#xE713;"/>
-                                        <TextBlock x:Name="SettingsName" Grid.Row="1"
-                                                   FontSize="{StaticResource BarKeyNameSize}"
-                                                   Text="Settings"
-                                                   HorizontalAlignment="Center"/>
-                                    </Grid>
-                                </ToggleButton>
-                                <!-- ⚠️ THE WINDOW'S CAPTION BUTTONS LEFT THIS CLUSTER (2026-11-01): min/max/close are back
-                                     at the top-right, on the TOP MENU BAR (CaptionKey there). -->
-                                <!-- RIGHT CLUSTER SPACER — a stretching dot grid sized so ATLAS's left edge lands on the
-                                     ForeCast pane's INNER edge (MainWindow.AlignSideSections, the user's call
-                                     2026-10-22); it now runs on to the bar's right end, where the caption key was.
-                                     Width SET IN CODE; 10 is only the pre-layout value. -->
-                                <ctl:MapControlsStripSeparator x:Name="RightClusterSpacer"
-                                                               Grid.Column="2"
-                                                               Margin="8,0"
-                                                               FillWidth="True"
-                                                               Width="10"/>
-                        </Grid>
+                        <!-- ⚠️ NO RIGHT CLUSTER (2026-11-03, the user's call): Atlas and Settings left this bar for the TOP
+                             MENU BAR (Atlas · View · Settings), as the caption key did before them. Column 2 is a BLANK run
+                             now. Don't re-add window latches here — a new window opens from the menu bar. -->
 
                         <!-- ⚠️ NO ACTIVITY SLOT (removed 2026-10-16, the user's call): what Anvil is working on shows in
                              each temporal pane's ACTIVITY EXPANDER (TemporalPanes/TemporalPaneActivityExpander), per mode. The run
@@ -647,15 +528,16 @@
 
         <!-- ===== TOP MENU BAR (the user's call, 2026-11-01) =====
 
-               ┌ View ─────────────────────── drag band ─────────────────────────── – □ ✕ ┐  32 tall, full width
+               ┌ Atlas View Settings ─────────── drag band ──────────────────────── – □ ✕ ┐  32 tall, full width
                └─────────────────────────────╮ ˄ Menu ╭───────────────────────────────────┘  centred tab hides it
                  ░░░ light cast shadow ░░░░░░╰────────╯░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    (IsMenuBarVisible, saved)
 
              An OverlayBar (Edge Top, full width) over the map — like the bottom chrome it never resizes the map.
+             • Atlas / Settings: plain items, a click opens or closes that window (they were the bottom bar's keys).
              • View: the three temporal panes (TogglePane: off → mode on + pane open; on → pane open ⇄ hidden),
                then Pane selectors. Ctrl+1/2/3 = the panes.
              • The EMPTY run is the window's CAPTION (drag, double-click maximize, snap) — MainWindow.UpdateCaptionBand
-               sets the bar's rect as the Caption region; the View button and the caption key are Passthrough holes.
+               sets the bar's rect as the Caption region; the menu items (MenuBarMenus) and the caption key are Passthrough holes.
                Hidden, there is NO caption band (accepted for now): only the tab remains.
              • The caption key (– □ ✕) is back where Windows puts it (it was the bottom bar's far-right key).
              ⚠️ DECLARED AFTER THE BOTTOM CHROME + LOOP GATE (stays live over the frost) and BEFORE the temporal panes, which
@@ -692,7 +574,14 @@
                         <ColumnDefinition Width="Auto"/> <!-- – □ ✕ -->
                     </Grid.ColumnDefinitions>
 
+                    <!-- ORDER: Atlas · View · Settings (the user's call, 2026-11-03). Atlas and Settings are plain items that
+                         OPEN or CLOSE their window on click (they were the bottom bar's window latches); View is the one menu. -->
                     <StackPanel x:Name="MenuBarMenus" Orientation="Horizontal">
+                        <!-- ⚠️ Always opens on RADAR SITES (ToggleAtlasFromBar, the user's call 2026-10-01); PastCast's
+                             button opens on Past events. -->
+                        <Button x:Name="AtlasMenuButton" Content="Atlas" Style="{StaticResource MenuBarTitleButtonStyle}"
+                                ToolTipService.ToolTip="Anvil Atlas — radar sites and past events"
+                                Click="OnAtlasMenuClick"/>
                         <Button x:Name="ViewMenuButton" Content="View" Style="{StaticResource MenuBarTitleButtonStyle}">
                             <Button.Flyout>
                                 <MenuFlyout Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False">
@@ -723,6 +612,9 @@
                                 </MenuFlyout>
                             </Button.Flyout>
                         </Button>
+                        <Button x:Name="SettingsMenuButton" Content="Settings" Style="{StaticResource MenuBarTitleButtonStyle}"
+                                ToolTipService.ToolTip="Settings — map, radar, storage"
+                                Click="OnSettingsMenuClick"/>
                     </StackPanel>
 
                     <ctl:WindowCaptionKey x:Name="CaptionKey"

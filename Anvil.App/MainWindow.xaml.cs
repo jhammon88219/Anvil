@@ -239,10 +239,7 @@ namespace Anvil
 		// Each LEFT section ends, and each RIGHT section starts, on the inner edge of the edge pane above it (the
 		// declared panes' Width from the client edge), whether or not that pane is shown. Controls keep their
 		// size: one stretching dot spacer per section takes the slack — the tools tier's two (MapControlsStrip), the
-		// temporal keys' (TemporalToggles), and the right cluster's, here (between Settings and the caption key; the
-		// cluster is right-aligned, so the spacer's RIGHT edge is the one that doesn't move with it).
-		private const int SpacerMinColumns = 3;
-
+		// temporal keys' (TemporalToggles). The bar's right section is empty (Atlas + Settings are menu-bar items).
 		private void AlignSideSections()
 		{
 			if (Content is not FrameworkElement root || root.ActualWidth <= 0)
@@ -253,13 +250,7 @@ namespace Anvil
 			var innerRight = root.ActualWidth - TemporalPaneForeCast.Width;
 			ToolsStrip.AlignToWindowEdges(innerLeft, innerRight, root);
 			TemporalKeys.AlignToWindowEdge(innerLeft, root);
-			if (RightClusterSpacer.ActualWidth > 0 && AtlasKey.ActualWidth > 0)
-			{
-				var end = RightClusterSpacer.TransformToVisual(root).TransformPoint(default).X + RightClusterSpacer.ActualWidth;
-				var before = RightClusterSpacer.Margin.Left + RightCluster.ColumnSpacing + SettingsKey.ActualWidth
-					+ RightCluster.ColumnSpacing + AtlasKey.ActualWidth;
-				RightClusterSpacer.SetFillWidth(end - before - innerRight, SpacerMinColumns);
-			}
+			// (The bar's right section is empty since Atlas + Settings moved to the menu bar, 2026-11-03 — no spacer.)
 		}
 
 		// (The bar's activity slot and its AlignActivityBay are GONE, 2026-10-16: activity shows in each temporal
@@ -427,13 +418,11 @@ namespace Anvil
 
 		private void OnCaptionClose(object? sender, EventArgs e) => Close();
 
-		// The bar's Atlas key (IsChecked ONE-WAY): closes it, or opens it on Radar sites. The VM's answer flips the
-		// key back if the toggle's own flip disagreed — re-asserted here because a no-change leaves it stale.
-		private void OnAtlasKeyClick(object sender, RoutedEventArgs e)
-		{
-			ViewModel.ToggleAtlasFromBar();
-			AtlasKey.IsChecked = ViewModel.IsAtlasOpen;
-		}
+		// The menu bar's Atlas and Settings items: each closes its window if open, else opens it (Atlas on Radar sites).
+		private void OnAtlasMenuClick(object sender, RoutedEventArgs e) => ViewModel.ToggleAtlasFromBar();
+
+		private void OnSettingsMenuClick(object sender, RoutedEventArgs e) =>
+			ViewModel.IsSettingsWindowOpen = !ViewModel.IsSettingsWindowOpen;
 
 		private void UpdateNotchInputRegions()
 		{
