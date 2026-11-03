@@ -221,6 +221,17 @@ namespace Anvil
 		// the elements are declared in XAML (Notch0…3), this only sets their alignment, margin and shadow edge.
 		private const double SelectorGap = 8;
 
+		// The top bar's PLACE SEARCH is as wide as the SINGLE-pane selector centred right under it (the user's call,
+		// 2026-11-03). Measured, because the selector sizes to its content (its legend, compact or not, a model form).
+		// In two-across / quad the box keeps its last single-pane width — those selectors aren't under it.
+		private void OnPaneSelectorSizeChanged(object sender, SizeChangedEventArgs e)
+		{
+			if (ViewModel.Radar.PaneLayout == PaneLayout.Single && e.NewSize.Width > 0)
+			{
+				PlaceSearchBox.Width = e.NewSize.Width;
+			}
+		}
+
 		private void PlacePaneSelectors()
 		{
 			var layout = ViewModel.Radar.PaneLayout;

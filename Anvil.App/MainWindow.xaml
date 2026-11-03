@@ -234,6 +234,7 @@
             </Grid.RowDefinitions>
 
             <ctl:OverlayBar x:Name="Notch0" Edge="Top"
+                            SizeChanged="OnPaneSelectorSizeChanged"
                             IsFloating="True"
                             ShowTab="False"
                             EdgeStyle="CastShadow"
@@ -557,7 +558,10 @@
 
                     <!-- PLACE SEARCH, CENTRED on the window (spans every column; declared before the caption key so the
                          window buttons stay on top in a very narrow window). A Passthrough hole (UpdateNotchInputRegions). -->
+                    <!-- Width: AS WIDE AS THE SINGLE-PANE SELECTOR right under it (OnPaneSelectorSizeChanged, the user's
+                         call 2026-11-03); other layouts keep the last single-pane width. 236 is only the first value. -->
                     <comp:PlaceSearchBox x:Name="PlaceSearchBox"
+                                         Width="236"
                                          Grid.ColumnSpan="3"
                                          HorizontalAlignment="Center"
                                          VerticalAlignment="Center"
