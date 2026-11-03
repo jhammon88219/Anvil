@@ -269,13 +269,12 @@ namespace Anvil
 			}
 		}
 
-		// ===== The tools strip's centre ↔ the floating console =====
-		// The section rules (docs/ui-bottom-bar.md): the strip's centre section spans the console from the clock's left
-		// edge to the end of the LONGEST SCAN LINE's text (it follows the VCP text as it changes — the user's call,
-		// 2026-10-06; the reserved scan column is wider than its text). Two controls in two places, so it is MEASURED. The
-		// console MOVES without resizing (the window resizing re-centres it), so this runs on LayoutUpdated; the strip
-		// ignores sub-pixel no-ops. A console width change re-measures it too. (The site picker that sat centred on play
-		// here is the console's TAB since 2026-11-03 — RadarConsoleSiteTab, centred by layout alone.)
+		// ===== The console's top row ↔ its console row =====
+		// The section rules (docs/ui-bottom-bar.md), now INSIDE the card (canvas card A, 2026-11-03): the header's network
+		// picker starts on the clock's left edge and its rings/ruler picker ends on the end of the LONGEST SCAN LINE's text
+		// (it follows the VCP text as it changes — the user's call, 2026-10-06; the reserved scan column is wider than its
+		// text). The site picker between them centres by layout. MEASURED, and run on LayoutUpdated + a console width
+		// change; the header ignores sub-pixel no-ops.
 		private void AlignCentreSection()
 		{
 			if (Content is UIElement root)
@@ -285,31 +284,28 @@ namespace Anvil
 				var scanRight = ModelConsole.Visibility == Visibility.Visible
 					? ModelConsole.ScanTextRight(root)
 					: TimeModule.ScanTextRight(root);
-				ToolsStrip.AlignToConsole(TimeModule.ConsoleLeft(root), scanRight, root);
+				RadarConsoleHeader.AlignToConsole(TimeModule.ConsoleLeft(root), scanRight, root);
 			}
 		}
 
-		// ===== Both tiers' side sections ↔ the temporal panes' INNER edges (the user's call, 2026-10-22) =====
-		// Each LEFT section ends, and each RIGHT section starts, on the inner edge of the edge pane above it (the
-		// declared panes' Width from the client edge), whether or not that pane is shown. Controls keep their
-		// size: one stretching dot spacer per section takes the slack — the tools tier's two (MapControlsStrip).
-		// The BAR's side sections are empty since 2026-11-03 (temporal keys, Atlas, Settings → the top menu bar).
+		// ===== The tools strip's right section ↔ the ForeCast pane's INNER edge (the user's call, 2026-10-22) =====
+		// It starts on the inner edge of the edge pane above it (the declared pane's Width from the client edge), whether
+		// or not that pane is shown. Controls keep their size: one stretching dot spacer takes the slack (MapControlsStrip).
+		// The LEFT section's spacer is gone (2026-11-03, the user's call "for now"), so ▣ ⊚ sit at the strip's left padding.
 		private void AlignSideSections()
 		{
 			if (Content is not FrameworkElement root || root.ActualWidth <= 0)
 			{
 				return;
 			}
-			var innerLeft = TemporalPaneNowCast.Width;
-			var innerRight = root.ActualWidth - TemporalPaneForeCast.Width;
-			ToolsStrip.AlignToWindowEdges(innerLeft, innerRight, root);
+			ToolsStrip.AlignToWindowEdges(root.ActualWidth - TemporalPaneForeCast.Width, root);
 		}
 
 		// (The bar's activity slot and its AlignActivityBay are GONE, 2026-10-16: activity shows in each temporal
 		// window's activity expander, TemporalPanes/TemporalPaneActivityExpander.)
 
-		// Every cross-tier alignment: the site picker (and the console tools with it) on the play button, the side
-		// sections on the temporal panes' inner edges. Each is a no-op below half a pixel, so the passes they cause
+		// Every measured alignment: the console's top row on its console row, the strip's right section on the ForeCast
+		// pane's inner edge. Each is a no-op below half a pixel, so the passes they cause
 		// settle at once.
 		private void OnBottomBarLayoutUpdated(object? sender, object e)
 		{
@@ -853,13 +849,13 @@ namespace Anvil
 			};
 			PlacePaneSelectors();
 
-			// The tools tier's centre section is edge-aligned to the console (see AlignCentreSection), and both
-			// tiers' side sections end on the temporal panes' inner edges (see AlignSideSections). The window
-			// resizing moves the right edge.
+			// The console's top row is edge-aligned to its console row (see AlignCentreSection), and the tools strip's right
+			// section starts on the ForeCast pane's inner edge (see AlignSideSections). The window resizing moves that edge.
 			TimeModule.SizeChanged += (_, _) => AlignCentreSection();
-			ToolsStrip.SizeChanged += (_, _) => { AlignCentreSection(); AlignSideSections(); };
-			// The site picker rides the centred console, which MOVES without resizing, so every alignment also
-			// re-runs on layout (see OnBottomBarLayoutUpdated).
+			RadarConsoleHeader.SizeChanged += (_, _) => AlignCentreSection();
+			ToolsStrip.SizeChanged += (_, _) => AlignSideSections();
+			// The console is centred, so it MOVES without resizing: every alignment also re-runs on layout
+			// (see OnBottomBarLayoutUpdated).
 			BottomChrome.LayoutUpdated += OnBottomBarLayoutUpdated;
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs

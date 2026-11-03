@@ -22,7 +22,7 @@
      ⚠️ The hues are DATA (same in both themes) and MIRROR radar-sites.js's k-ink (.radar-site-btn.nexrad / .tdwr /
      .research) — change both. The glyphs are the on-map keys' (radar-sites.js CLASS_GLYPH), redrawn FILLED in the
      18-unit box (a PathIcon only fills).
-     ⚠️ The face's look copies MapControlsStrip's StripToolButtonStyle (32 × 32, raised hover pair) — that style is
+     ⚠️ The face's look copies MapControlsStrip's StripToolButtonStyle (32 × 32), but hovers on the GROUND pair — it sits on the floating console (RadarConsoleHeader) since 2026-11-03 — that style is
      local to the strip, so a tune there should come here too.
      ============================================================================ -->
 <UserControl x:Class="Anvil.Controls.Primitives.MapControlsStripNetworkPicker"
@@ -67,7 +67,7 @@
                                         <VisualState x:Name="Normal"/>
                                         <VisualState x:Name="PointerOver">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
                                                 <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                                                 <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
                                             </VisualState.Setters>

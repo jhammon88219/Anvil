@@ -7,10 +7,9 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The map-tools tier of the bottom chrome: place search left, the console tools (sites, Inspect, Ruler,
-	/// Rings, site picker) over the centred console, map-only tools right (see the XAML header for the shape and
-	/// the rules). It is pure content - the <c>OverlayBar</c> that hosts it owns
-	/// the surface, the hairline and the padding, and MainWindow's rail owns the tab that hides it.
+	/// The map-tools tier of the bottom chrome: the marker viewer + Location left, map-only tools right (see the XAML
+	/// header for the shape and the rules; the radar tools moved into the floating console's top row). It is pure
+	/// content - the <c>OverlayBar</c> that hosts it owns the surface, the edge and the padding; View → Map tools hides it.
 	/// </summary>
 	/// <remarks>
 	/// ⚠️ This class used to be half geometry: the strip was a content-sized island floating above the bar
@@ -42,66 +41,21 @@ namespace Anvil.Controls.Composites
 		public bool Free(bool locked) => !locked;
 		public bool FreeAnd(bool enabled, bool locked) => enabled && !locked;
 
-		// ===== Range rings (master show/hide, beside the Ruler) =====
-		// The tooltip speaks for the CLICK, like the site-markers toggle.
-		// ===== The centre section is EDGE-ALIGNED to the console (the section rules, docs/ui-bottom-bar.md) =====
-		// network picker ⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙ Inspect Rings/Ruler
-		// ├ console left              console right ┤
-		// Two measured values: the group's left margin (network picker on the console's left edge) and the ONE spacer's
-		// width (the tools ending on the console's right edge). (The site picker that sat centred on play between two
-		// spacers is the floating console's TAB since 2026-11-03, Composites/RadarConsoleSiteTab.) ⚠️ No floor against
-		// the side sections: the centre never gives way. A spacer never drops below a 3 × 3.
+		// (The centre section and its AlignToConsole are GONE, 2026-11-03: the network picker, Inspect and the rings/ruler
+		// picker moved into the floating console's top row, Composites/RadarConsoleHeader.) A spacer never drops below a 3 × 3.
 		private const int SpacerMinColumns = 3;
 
-		/// <summary>Fit the centre section between <paramref name="consoleLeft"/> (the clock's left edge) and
-		/// <paramref name="consoleRight"/> (the end of the longest scan line's text — it moves as that text changes), in
-		/// <paramref name="root"/>'s coordinates. Each value is a no-op for a sub-pixel change, so calling it from layout
-		/// settles at once.</summary>
-		public void AlignToConsole(double consoleLeft, double consoleRight, UIElement root)
-		{
-			if (double.IsNaN(consoleLeft) || double.IsNaN(consoleRight) ||
-				MapControlsStripNetworkPicker.ActualWidth <= 0 || RadarTools.ActualWidth <= 0)
-			{
-				return;
-			}
-			var origin = TransformToVisual(root).TransformPoint(default).X;
-			// spacer | its margins | the panel's spacing on both sides
-			var spacerChrome = CentreSpacer.Margin.Left + CentreSpacer.Margin.Right + 2 * ConsoleTools.Spacing;
-			var width = (consoleRight - RadarTools.ActualWidth) - (consoleLeft + MapControlsStripNetworkPicker.ActualWidth) - spacerChrome;
-			SetIfMoved(CentreSpacer, Math.Max(CentreSpacer.WidthFor(SpacerMinColumns), width));
-			var margin = consoleLeft - origin;
-			if (Math.Abs(margin - ConsoleTools.Margin.Left) > 0.5)
-			{
-				ConsoleTools.Margin = new Thickness(margin, 0, 0, 0);
-			}
-		}
+		// ===== The right section starts on the ForeCast pane's INNER edge (the user's call, 2026-10-22) =====
+		// ▣ ⊚                                                        ┊▥ ⁙⁙ ⌘ ⛶ ─ map ─ [Isolate]
+		//                                           ForeCast's inner edge ↑
+		// Controls keep their size; ONE dot spacer takes the slack. Its width is computed from its own right edge, which
+		// does NOT move with it (the group is right-aligned), so a repeat call in the same layout lands on the same value.
+		// (The left section's SearchSpacer is gone, 2026-11-03 — ▣ ⊚ sit at the left padding for now.)
 
-		private static void SetIfMoved(FrameworkElement e, double width)
+		/// <summary>Size the right spacer so the pane-layout key's left edge lands on <paramref name="innerRight"/>, in
+		/// <paramref name="root"/>'s coordinates.</summary>
+		public void AlignToWindowEdges(double innerRight, UIElement root)
 		{
-			if (Math.Abs(width - e.Width) > 0.5)
-			{
-				e.Width = width;
-			}
-		}
-
-		// ===== The side sections end on the temporal panes' INNER edges (the user's call, 2026-10-22) =====
-		// [search] ⁙⁙ ▣ ⊚┊                                          ┊▥ ⁙⁙ ⌘ ⛶ ─ map ─ [Isolate]
-		//                ↑ left window's inner edge     ForeCast's inner edge ↑
-		// Controls keep their size; ONE dot spacer per side takes the slack. Each width is computed from an edge that
-		// does NOT move with it (the left spacer's own left edge; the right spacer's own right edge, the group being
-		// right-aligned), so a repeat call in the same layout lands on the same value.
-
-		/// <summary>Size the two side spacers so Location's right edge lands on <paramref name="innerLeft"/> and the
-		/// pane-layout key's left edge on <paramref name="innerRight"/>, both in <paramref name="root"/>'s coordinates.</summary>
-		public void AlignToWindowEdges(double innerLeft, double innerRight, UIElement root)
-		{
-			if (SearchSpacer.ActualWidth > 0 && LocationToggle.ActualWidth > 0)
-			{
-				var start = SearchSpacer.TransformToVisual(root).TransformPoint(default).X;
-				var after = SearchSpacer.Margin.Right + SearchGroup.Spacing + MarkerViewerButton.ActualWidth
-					+ SearchGroup.Spacing + LocationToggle.ActualWidth;
-				SearchSpacer.SetFillWidth(innerLeft - start - after, SpacerMinColumns);
-			}
 			if (MapToolsSpacer.ActualWidth > 0 && MapControlsStripPaneLayoutPicker.ActualWidth > 0)
 			{
 				var end = MapToolsSpacer.TransformToVisual(root).TransformPoint(default).X + MapToolsSpacer.ActualWidth;

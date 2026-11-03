@@ -21,7 +21,7 @@
      (ticked, greyed) and draws itself at the next site, on the bearing you left it. Sticky on purpose (the old toggle's rule).
      ⚠️ NOT a ComboBox (mousewheel cycling over the map — the site picker's trap): a Button + a windowed Flyout
      (ShouldConstrainToRootBounds=False — else the owned panel windows paint over it), and the list STAYS OPEN while you tick.
-     ⚠️ The face's look copies MapControlsStrip's StripToolToggleStyle (32 × 32, raised hover pair, accent-edged lit
+     ⚠️ The face's look copies MapControlsStrip's StripToolToggleStyle (32 × 32, GROUND hover pair — on the floating console since 2026-11-03 — accent-edged lit
      state) — that style is local to the strip, so a tune there should come here too.
      ============================================================================ -->
 <UserControl x:Class="Anvil.Controls.Primitives.MapControlsStripRangeToolsPicker"
@@ -61,7 +61,7 @@
                                         <VisualState x:Name="Normal"/>
                                         <VisualState x:Name="PointerOver">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
                                                 <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
                                             </VisualState.Setters>
                                         </VisualState>

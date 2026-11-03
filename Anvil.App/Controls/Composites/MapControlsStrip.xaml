@@ -4,29 +4,24 @@
      chrome's ONE tier (2026-11-03): MainWindow drops it into an OverlayBar (IsRaised, ShowTab=False, EdgeStyle=CastShadow)
      that supplies the surface, the EDGE and the padding. No tab: View → Map tools shows / hides it.
 
-                                     ╭ ⌂ KTLX Oklahoma ˅ ╮                       ← the floating console + its site tab,
-                          ╭──────────┴───────────────────┴──────────╮               ABOVE the strip (MainWindow)
-                          │ 1:07 PM ═══ scrubber ═══ ◀ ▶ ▶   VCP 212 │
+                          ╭──────────────────────────────────────────╮   ← the floating console, ABOVE the strip
+                          │ ◗▴        [⌂ KTLX Oklahoma ˅]      ⌕ ◎▴ │     (MainWindow): its top row holds the
+                          │ ─────────────────────────────────────── │     network picker, site picker, Inspect and
+                          │ 1:07 PM ═══ scrubber ═══ ◀ ▶ ▶   VCP 212 │     rings/ruler (Composites/RadarConsoleHeader)
                           ╰──────────────────────────────────────────╯
-       ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ← shadow, thrown onto the map
+       ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ← shadow, thrown onto the map
        ┌ left temporal pane ─────────┐                                                     ┌ ForeCast window ───────────────┐
-       ⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙ (▣)(⊚)┊      (◗▴) ⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙ (⌕)(◎▴)      ┊(▥▴) ⁙⁙⁙ (⌘)(⛶) ─ (▥|▴) [Isolate ▾]   ← THIS
-                                       ┊      ├ console's left edge          console's right edge ┤    ┊
-                                       ↑ the window's INNER edge (485)                                  ↑ the window's INNER edge (W − 485)
-        ↑ LEFT = where: ▣ marker viewer —     ↑ CENTRE = RADAR + MAP, EDGE-ALIGNED to the     ↑ RIGHT = MAP ONLY, STARTS on the inner edge:
-          PLACEHOLDER; ⊚ Location (lit =        console: show each network's sites (NEXRAD /   pane layout FIRST (one square key, ▴ = a 1/2/4
-          marker out); ⁙⁙ = SearchSpacer        TDWR / research) ⁙ CentreSpacer ⁙ ⌕ INSPECT,  list) ⁙⁙⁙ = MapToolsSpacer takes the slack ─
-          takes the slack. (Place search is     ◎▴ the RANGE RINGS + RULER picker. (The site   reset north, fit to view ─ MAP key + car,
-          on the TOP BAR now — PlaceSearchBox.)  picker is the console's TAB now.)             isolation (fixed width).
-        ⚠️ THE SIDE SECTIONS ALIGN TO THE TEMPORAL PANES (the user's call, 2026-10-22): each side section spans the strip's
-            16 px padding to the INNER edge of the 480-wide edge pane above it (Styles.xaml TemporalPaneWidth), whether or not
-            that pane is shown. Controls keep their size; ONE stretching dot spacer per side takes the slack
-            (AlignToWindowEdges, from MainWindow).
-        ⚠️ THE CENTRE SECTION RULES (the user's, 2026-10-06 — docs/ui-bottom-bar.md "THE SECTION RULES"): the network
-            picker starts on the console's LEFT visible edge, the radar tools END on the end of the LONGEST SCAN LINE's
-            text (so CentreSpacer re-sizes as the VCP text changes), and nothing passes either edge. ⁙⁙ = CentreSpacer, the
-            ONE stretching dot grid (FillWidth) in the centre; its width and the group's left margin are MEASURED
-            (AlignToConsole). (Until 2026-11-03 the site picker sat centred on play between two spacers.)
+       (▣)(⊚)                                                                              ┊(▥▴) ⁙⁙⁙ (⌘)(⛶) ─ (▥|▴) [Isolate ▾]   ← THIS
+                                                                                           ↑ the window's INNER edge (W − 485)
+        ↑ LEFT = where: ▣ marker viewer —     ↑ CENTRE = EMPTY since 2026-11-03: its tools   ↑ RIGHT = MAP ONLY, STARTS on the inner edge:
+          PLACEHOLDER; ⊚ Location (lit =        moved into the floating console's top row.    pane layout FIRST (one square key, ▴ = a 1/2/4
+          marker out). From the strip's left                                                  list) ⁙⁙⁙ = MapToolsSpacer takes the slack ─
+          padding, NO spacer (the user's call,                                                reset north, fit to view ─ MAP key + car,
+          2026-11-03 — "for now").                                                            isolation (fixed width).
+        ⚠️ THE RIGHT SECTION ALIGNS TO THE FORECAST PANE (the user's call, 2026-10-22): it starts on the INNER edge of the
+            480-wide edge pane above it (Styles.xaml TemporalPaneWidth), whether or not that pane is shown. Controls keep their
+            size; ONE stretching dot spacer takes the slack (AlignToWindowEdges, from MainWindow). The LEFT section did the same
+            with SearchSpacer until 2026-11-03 (removed; the user will redesign this strip into the new layout).
         ─ = Primitives/MapControlsStripSeparator, a faint 3 × 3 DOT GRID between GROUPS with GENEROUS margins
             (8 + the panel's 8 left, 12 + the panel's 4 right = 16 a side). Tune dot size/gap/brush on the
             control, not here.
@@ -36,8 +31,8 @@
      a hairline). A hairline under a shadow reads as a seam someone forgot to finish - the two are alternatives, not
      layers. (The group SEPARATORS are not seams: they are small dot grids between tools, inside the tier.)
 
-     ⚠️ THE PLACES MEAN SOMETHING. The console tools sit under the floating radar console, so they hold the controls about
-     WHICH radar and what it shows (the console answers WHEN; its site tab picks the site). RIGHT holds the tools that touch
+     ⚠️ THE PLACES MEAN SOMETHING. The tools about WHICH radar and what it shows now live IN the floating console's top
+     row (RadarConsoleHeader — the console answers WHEN). LEFT holds "where on the map"; RIGHT holds the tools that touch
      ONLY the map — pane layout, reset north, fit to view, isolation — none of which loads or changes radar data. A new
      tool goes on the side whose question it answers.
 
@@ -54,8 +49,8 @@
 
      PLACE SEARCH MOVED to the top menu bar, centred (Composites/PlaceSearchBox, 2026-11-03) — its rules live there.
 
-     THE LEFT SECTION is the marker viewer (a placeholder) and LOCATION, in that order, after SearchSpacer
-     (they flanked the search box until it moved). Location moved here from the bar's right cluster — it is a "where on the map" move
+     THE LEFT SECTION is the marker viewer (a placeholder) and LOCATION, in that order, from the strip's left padding
+     (they flanked the search box until it moved; SearchSpacer before them is gone, 2026-11-03). Location moved here from the bar's right cluster — it is a "where on the map" move
      like search, and an occasional one.
      ⚠️ LOCATION LATCHES: as a plain button it would be a one-way door (nothing else in the shipped UI
      removes the marker — the Selected Marker window is pending re-add). Lit = your marker is out; clicking
@@ -63,21 +58,12 @@
      can FAIL without any property changing, so nothing else would pull the toggle back down. Don't make
      it TwoWay. The tooltip carries "Locating…" / "Location unavailable" — a failure is otherwise silent.
      ⚠️ Its mark is a DRAWN reticle (PathIcon, 18-unit box), the same family as the on-map marker — a key
-     pictures what it drops. That is why the Inspect key (left group) is a magnifier; don't give it a reticle.
+     pictures what it drops. That is why the Inspect key (on the console now) is a magnifier; don't give it a reticle.
      ⚠️ The viewer's mark is a drawn TEARDROP, the search pin's shape. Its button has NO Click on purpose;
      wire it when the marker window exists (open bool + WindowManager registration — CLAUDE.md "Add a window").
 
-     SITE KEYS, first of the console tools — ONE square key (◗▴, Primitives/MapControlsStripNetworkPicker) whose list
-     opens UP with a tick per network: ◗ NEXRAD (Radar.ShowNexradSites) · ✈ TDWR (ShowTdwrs) · ⚗ research
-     (ShowResearchRadars), all TwoWay and PERSISTED. It sits here because showing the sites and picking one are the
-     same question (WHICH radar). It replaced three side-by-side toggles to save width (the user's call, 2026-10-20);
-     its own header holds the look and the network hues (DATA, mirrored from radar-sites.js k-ink).
-     ⚠️ MAP MARKERS ONLY: they never remove a site from the Atlas or the site picker, and never unload a loop.
-     ⚠️ NO MASTER: the old "hide all sites" eye is gone (2026-09-26) — all three off = no keys. The TDWR and
-     research ticks moved here from Settings → Radar, where they used to switch those networks off app-wide.
-     ⚠️ The words say "radar sites", NEVER "markers": ▣ below is the MARKER viewer (search pins, your location).
-
-     SITE PICKER MOVED to the floating radar console as a TAB on its top (Composites/RadarConsoleSiteTab, 2026-11-03) — its rules live there.
+     THE NETWORK PICKER, THE SITE PICKER, INSPECT AND THE RINGS/RULER PICKER MOVED into the floating radar console's top
+     row (Composites/RadarConsoleHeader, 2026-11-03) — their rules live there and in the pickers' own headers.
 
      PANE LAYOUT sits RIGHT, first of the map tools: ONE square key (Primitives/MapControlsStripPaneLayoutPicker) whose
      face is the CURRENT layout's mark and whose upward list picks 1 / 2 / 4 (2026-10-22; it was three toggles, cut to
@@ -101,8 +87,7 @@
 
      ⚠️ GREYED WHILE THE PASTCAST LOADING SCREEN IS UP (Radar.AreControlsLocked, 2026-10-04): EVERY tool here, Location
      and the marker viewer included — the map is frosted and gated, so a live tool would only look broken, and pane
-     layout mid-load is a real memory risk. Inspect follows it through IsTransportEnabled; the site picker is already
-     off in PastCast. A new tool binds IsEnabled to Free(...) / FreeAnd(...) too. ⚠️ A mark drawn with fixed brushes
+     layout mid-load is a real memory risk. A new tool binds IsEnabled to Free(...) / FreeAnd(...) too. ⚠️ A mark drawn with fixed brushes
      (the pane-layout Rectangles) doesn't grey with the Disabled state — the picker dims it (its EnabledStates).
 
      Host contract: ViewModel (MapViewModel). Add a tool = one Button in the panel of the side it belongs to.
@@ -305,73 +290,15 @@
     </UserControl.Resources>
 
     <!-- ⚠️ NO Background here: the OverlayBar hosting this tier paints the raised surface, and a second
-         opaque fill would be one more place the tier's colour is written. One cell, three children — place
-         search at the left edge (over the temporal keys), the console tools over the centred console, the
-         map tools at the right edge (over the window keys). -->
+         opaque fill would be one more place the tier's colour is written. One cell, two children — "where on the map"
+         at the left edge, the map tools at the right edge. (The centre is empty: its tools are on the console.) -->
     <Grid>
-        <!-- ===== CONSOLE TOOLS — over the radar console (see the header): show sites, pick one, read, measure =====
-             ⚠️ EDGE-ALIGNED TO THE CONSOLE (AlignToConsole, from MainWindow): its LEFT MARGIN puts the network picker
-             on the console's left edge, and the two spacers' Widths put the site picker's centre on play and the
-             radar tools' right edge on the console's right edge. Nothing here passes either console edge. -->
-        <StackPanel x:Name="ConsoleTools"
-                    Orientation="Horizontal" Spacing="8"
-                    HorizontalAlignment="Left" VerticalAlignment="Center">
-            <!-- SITE KEYS — which networks' keys show on the map: ONE square key + an upward list of ticks
-                 (Primitives/MapControlsStripNetworkPicker, the user's mock-up 2026-10-20; it replaced three toggles).
-                 Its three bools are TwoWay to the radar VM's PERSISTED flags. -->
-            <prim:MapControlsStripNetworkPicker x:Name="MapControlsStripNetworkPicker"
-                                                IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                                                ShowNexrad="{x:Bind ViewModel.Radar.ShowNexradSites, Mode=TwoWay}"
-                                                ShowTdwr="{x:Bind ViewModel.Radar.ShowTdwrs, Mode=TwoWay}"
-                                                ShowResearch="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"/>
-
-            <!-- CENTRE SPACER — stretches (FillWidth) so the radar tools END on the console's right edge. Width SET IN CODE
-                 (AlignToConsole). ⚠️ THE SITE PICKER LEFT this run (2026-11-03): it is the floating console's TAB now
-                 (Composites/RadarConsoleSiteTab). -->
-            <prim:MapControlsStripSeparator x:Name="CentreSpacer" Margin="8,0" FillWidth="True" Width="10"/>
-
-            <!-- RADAR TOOLS — Inspect, then the rings + ruler picker, as ONE run (no separator inside;
-                 the user's call, 2026-10-06 / 2026-10-21). The picker's right edge is the console's (visible) scan text end. -->
-            <StackPanel x:Name="RadarTools" Orientation="Horizontal" Spacing="8">
-            <!-- INSPECT — the armed cursor mode (moved here from the bar, 2026-09-29): read the active product's
-                 value under the pointer in EVERY pane at once; each value shows on that pane's own ramp. Plain
-                 TwoWay (a click always flips it). ⚠️ DISABLED UNTIL A LOOP IS LOADED (Radar.IsTransportEnabled,
-                 the transport's gate): nothing decoded, nothing to read. Unlike the Ruler it DISARMS when the loop
-                 clears. ⚠️ The mark is a MAGNIFIER (E721), never a reticle — the reticle is Location's (it
-                 pictures the marker it drops). E721 is NOT verified by rendering in the real font. -->
-            <ToggleButton x:Name="InspectToggle"
-                          Style="{StaticResource StripToolToggleStyle}"
-                          IsEnabled="{x:Bind ViewModel.Radar.IsTransportEnabled, Mode=OneWay}"
-                          IsChecked="{x:Bind ViewModel.Radar.IsInspecting, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Inspect - read radar values under the cursor (click again to turn it off)">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="{StaticResource StripFontGlyphSize}" Glyph="&#xE721;"/>
-            </ToggleButton>
-
-            <!-- RANGE RINGS + RANGE RULER — ONE square key, an upward list of two ticks (Primitives/MapControlsStripRangeToolsPicker,
-                 the user's mock-up 2026-10-21; it replaced two toggles). The RIGHT-MOST console tool. Rings = the persisted
-                 master (a switch you can set ahead); the ruler's row needs a radar on screen, and an armed ruler stays armed
-                 across a cleared loop (sticky, as before). In the CENTRE because both measure against RADAR. -->
-            <prim:MapControlsStripRangeToolsPicker x:Name="MapControlsStripRangeToolsPicker"
-                                                   IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                                                   AreRingsOn="{x:Bind ViewModel.Radar.RangeRings.RingsVisible, Mode=TwoWay}"
-                                                   IsRulerOn="{x:Bind ViewModel.Radar.IsRangeRulerOn, Mode=TwoWay}"
-                                                   CanUseRuler="{x:Bind ViewModel.Radar.HasRadarDisplay, Mode=OneWay}"/>
-            </StackPanel>
-        </StackPanel>
-
-        <!-- ===== PLACE SEARCH — LEFT, over the temporal keys =====
-             Search ⁙⁙ then ▣ the marker viewer, then ⊚ Location — one row from the tier's left edge to the left
-             temporal pane's INNER edge (the section rules; it held the tier's midpoint until the console ⇄ temporal swap). -->
+        <!-- ===== WHERE ON THE MAP — LEFT =====
+             ▣ the marker viewer, then ⊚ Location, from the tier's left padding. ⚠️ No spacer (SearchSpacer removed
+             2026-11-03, the user's call "for now"); the place search box is on the top menu bar (Composites/PlaceSearchBox). -->
         <StackPanel x:Name="SearchGroup"
                     Orientation="Horizontal" Spacing="8"
                     HorizontalAlignment="Left" VerticalAlignment="Center">
-            <!-- ⚠️ THE PLACE SEARCH BOX MOVED to the top menu bar, centred (Composites/PlaceSearchBox, 2026-11-03). -->
-
-            <!-- SEARCH SPACER — now FIRST: stretches (FillWidth) from the tier's left edge so Location's right edge lands
-                 on the left temporal pane's INNER edge. Width SET IN CODE (AlignToWindowEdges); 10 is only the
-                 pre-layout value. The name stays (it still holds the "where on the map" section's slack). -->
-            <prim:MapControlsStripSeparator x:Name="SearchSpacer" Margin="0,0,8,0" FillWidth="True" Width="10"/>
-
             <!-- MARKER VIEWER — PLACEHOLDER. No Click until the marker window exists (see the header).
                  A teardrop with an eye, the search pin's own shape. -->
             <Button x:Name="MarkerViewerButton"
@@ -382,7 +309,7 @@
             </Button>
 
             <!-- LOCATION — drop / remove your marker. ONE-WAY IsChecked, re-asserted in the handler. LAST of the left
-                 section: its right edge is the left temporal pane's inner edge (AlignToWindowEdges).
+                 section.
                  ⚠️ NO STATUS LINE after it any more: "Searching online…" / "No places match …" run in the bar's
                  ACTIVITY SLOT (BarActivityViewModel.WatchPlaceSearch) — a variable-width line here broke the edge. -->
             <ToggleButton x:Name="LocationToggle"
