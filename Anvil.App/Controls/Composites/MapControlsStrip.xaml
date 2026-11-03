@@ -1,80 +1,45 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <!-- ============================================================================
-     MapControlsStrip — the map's tools and the radar-site picker, ON the map instead of two clicks deep in Settings.
-     It is the CONTENT of the bottom chrome's upper tier: MainWindow drops it into an OverlayBar
-     (IsRaised, ShowTab=False, EdgeStyle=CastShadow) that supplies the surface, the EDGE and the
-     padding, exactly the way RadarControls is content for the bar below it.
+     MapControlsStrip — the map's tools, ON the map instead of two clicks deep in Settings. It is the CONTENT of the bottom
+     chrome's ONE tier (2026-11-03): MainWindow drops it into an OverlayBar (IsRaised, ShowTab=False, EdgeStyle=CastShadow)
+     that supplies the surface, the EDGE and the padding. No tab: View → Map tools shows / hides it.
 
-       ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ← shadow, thrown onto the map
-
-       ╭─ ˅ Tools ─╮ ╭─ ˅ Bar ─╮                                    ← MainWindow's shared rail
-       ┌──────────────────────────────┐
-       │ ⌂ KTLX  Oklahoma City      ● │  ← PINNED: home            (the site picker's dropdown, opening UP)
-       │──────────────────────────────│
-       │ ★ KINX  Tulsa              ● │  ← favorites, starred order, scrolls
-       │ ★ KFWS  Dallas/Ft Worth    ● │     ● = online / offline / grey not-checked
-       │──────────────────────────────│
-       │ [ ] Show only these on the map│  ← = Settings → Radar → Radar site keys (ONE value, two switches)
-       │ Open Atlas                   │  ← footer (+ a hint line above it when there are no sites)
-       └──────────────────────────────┘          ┌─────────────────────────────┐
-                                                  │ Moore, OK          pop 62k  │   ← place suggestions
-                                                  └─────────────────────────────┘
-                                                                                             ┌ Map layers ────────┐
-                                                                                             │   ☑ Land           │  ← the CAR's flyout: a TREE
-                                                                                             │   ☑ Water          │     (BasemapGroups.Tree)
-                                                                                             │ ˅ ■ Roads          │  ← EXPANDER: box = select-all,
-                                                                                             │       ☑ Highways   │     ■ = partial; leaves filter
-                                                                                             │       ☐ Major roads│     each road by its own kind
-                                                                                             │       ☐ Minor roads│     (ramps, shields, labels
-                                                                                             │       ☐ Paths and… │     go with it)
-                                                                                             │       ☐ Rail       │
-                                                                                             │   ☑ Buildings      │
-                                                                                             │   ☑ Borders        │
-                                                                                             │   ☐ Counties (grey)│  ← greyed unless the style
-                                                                                             │ › ☑ Place names    │     has county lines; ›
-                                                                                             └────────────────────┘     = closed (cities, POIs,
-                                                                                                                          water names)
-                                                            ╭ ˅ Tools ╮ ╭ ˅ Bar ╮                ← the rail: the picker is as wide as this pair
+                                     ╭ ⌂ KTLX Oklahoma ˅ ╮                       ← the floating console + its site tab,
+                          ╭──────────┴───────────────────┴──────────╮               ABOVE the strip (MainWindow)
+                          │ 1:07 PM ═══ scrubber ═══ ◀ ▶ ▶   VCP 212 │
+                          ╰──────────────────────────────────────────╯
+       ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ← shadow, thrown onto the map
        ┌ left temporal pane ─────────┐                                                     ┌ ForeCast window ───────────────┐
-       [Moore, OK  ✕ ⌕] ⁙⁙⁙⁙⁙⁙ (▣)(⊚)┊      (◗▴) ⁙⁙⁙⁙⁙⁙⁙⁙ [⌂ KTLX  Oklahoma ˅] ⁙⁙⁙⁙⁙⁙ (⌕)(◎▴)      ┊(▥▴) ⁙⁙⁙ (⌘)(⛶) ─ (▥|▴) [Isolate ▾]   ← THIS
-                                       ┊      ├ console's left edge      ┊ ▶   console's right edge ┤    ┊
-                                       ↑ the window's INNER edge (485)  ┊ ← the bar's midpoint       ↑ the window's INNER edge (W − 485)
-        ↑ LEFT = where: the ROW ends on the     ↑ CENTRE = RADAR + MAP, EDGE-ALIGNED to the     ↑ RIGHT = MAP ONLY, STARTS on the inner edge:
-          left window's inner edge; ⁙⁙ =          console: show each network's sites (NEXRAD /   pane layout FIRST (one square key, ▴ = a 1/2/4
-          SearchSpacer takes the slack; ▣ marker  TDWR / research) ⁙ pick one (the console below list) ⁙⁙⁙ = MapToolsSpacer takes the slack ─
-          viewer — PLACEHOLDER; ⊚ Location        answers WHEN) ⁙ ⌕ INSPECT, ◎▴ the RANGE RINGS  reset north, fit to view ─ MAP key + car,
-          (lit = marker out); ✕ stays while       + RULER picker                                 isolation (fixed width).
-          there is text
-        ⚠️ THE SIDE SECTIONS ALIGN TO THE TEMPORAL PANES (the user's call, 2026-10-22): each side section spans the bar's
+       ⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙ (▣)(⊚)┊      (◗▴) ⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙ (⌕)(◎▴)      ┊(▥▴) ⁙⁙⁙ (⌘)(⛶) ─ (▥|▴) [Isolate ▾]   ← THIS
+                                       ┊      ├ console's left edge          console's right edge ┤    ┊
+                                       ↑ the window's INNER edge (485)                                  ↑ the window's INNER edge (W − 485)
+        ↑ LEFT = where: ▣ marker viewer —     ↑ CENTRE = RADAR + MAP, EDGE-ALIGNED to the     ↑ RIGHT = MAP ONLY, STARTS on the inner edge:
+          PLACEHOLDER; ⊚ Location (lit =        console: show each network's sites (NEXRAD /   pane layout FIRST (one square key, ▴ = a 1/2/4
+          marker out); ⁙⁙ = SearchSpacer        TDWR / research) ⁙ CentreSpacer ⁙ ⌕ INSPECT,  list) ⁙⁙⁙ = MapToolsSpacer takes the slack ─
+          takes the slack. (Place search is     ◎▴ the RANGE RINGS + RULER picker. (The site   reset north, fit to view ─ MAP key + car,
+          on the TOP BAR now — PlaceSearchBox.)  picker is the console's TAB now.)             isolation (fixed width).
+        ⚠️ THE SIDE SECTIONS ALIGN TO THE TEMPORAL PANES (the user's call, 2026-10-22): each side section spans the strip's
             16 px padding to the INNER edge of the 480-wide edge pane above it (Styles.xaml TemporalPaneWidth), whether or not
             that pane is shown. Controls keep their size; ONE stretching dot spacer per side takes the slack
-            (AlignToWindowEdges, from MainWindow). The bar below does the same with its own spacers.
+            (AlignToWindowEdges, from MainWindow).
         ⚠️ THE CENTRE SECTION RULES (the user's, 2026-10-06 — docs/ui-bottom-bar.md "THE SECTION RULES"): the network
-            toggles start on the console's LEFT visible edge, the site picker is CENTRED on play, the radar tools END on
-            the end of the LONGEST SCAN LINE's text (so RightSpacer re-sizes as the VCP text changes), and nothing passes
-            either edge. ⁙⁙ = LeftSpacer / RightSpacer, the TWO
-            stretching dot grids (FillWidth) — the only separators in the centre; widths and the group's left margin are
-            MEASURED (AlignToConsole). The right one is longer: play sits left of the console's middle.
-        ⚠️ THE CONSOLE ⇄ TEMPORAL SWAP (2026-10-06, the user's mock-up A): the bar's console moved to the MIDPOINT and
-            the temporal keys to the left edge, so place search left the tier's centre for the left edge.
+            picker starts on the console's LEFT visible edge, the radar tools END on the end of the LONGEST SCAN LINE's
+            text (so CentreSpacer re-sizes as the VCP text changes), and nothing passes either edge. ⁙⁙ = CentreSpacer, the
+            ONE stretching dot grid (FillWidth) in the centre; its width and the group's left margin are MEASURED
+            (AlignToConsole). (Until 2026-11-03 the site picker sat centred on play between two spacers.)
         ─ = Primitives/MapControlsStripSeparator, a faint 3 × 3 DOT GRID between GROUPS with GENEROUS margins
             (8 + the panel's 8 left, 12 + the panel's 4 right = 16 a side). Tune dot size/gap/brush on the
             control, not here.
-       ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒   ← …and onto the bar: NO rule
-       ◉  ⌕  ══ scrubber ══   ◀▶▶            ▤  ⊚  📡  ⚙           ← the bar
      ═══════════════════════ window bottom ═══════════════════════
 
-     ⚠️ THERE IS NO LINE ANYWHERE ON THIS TIER. Its top edge throws a shadow onto the map and the
-     bar below draws the band it receives from this one's underside. A hairline under a shadow reads
-     as a seam someone forgot to finish - the two are alternatives, not layers. (The group SEPARATORS are not
-     seams: they are small dot grids between tools, inside the tier, and never span it.)
+     ⚠️ THERE IS NO LINE ANYWHERE ON THIS TIER. Its top edge throws a shadow onto the map (or, with the EDGE-HATCH bolt-on,
+     a hairline). A hairline under a shadow reads as a seam someone forgot to finish - the two are alternatives, not
+     layers. (The group SEPARATORS are not seams: they are small dot grids between tools, inside the tier.)
 
-     ⚠️ IT ALIGNS TO THE BAR'S CLUSTERS, not to itself, and the PLACES MEAN SOMETHING. The console tools sit over
-     the radar console, so they hold the control that changes WHICH radar you are looking at (the console below
-     answers WHEN). RIGHT sits over the window keys and holds the tools that touch ONLY the map — pane
-     layout, reset north, fit to view, isolation — none of which loads or changes radar data. A new tool
-     goes on the side whose question it answers. Both tiers carry the same 16px side padding so the two
-     rows line up; that alignment is why the tools need no container of their own to look placed.
+     ⚠️ THE PLACES MEAN SOMETHING. The console tools sit under the floating radar console, so they hold the controls about
+     WHICH radar and what it shows (the console answers WHEN; its site tab picks the site). RIGHT holds the tools that touch
+     ONLY the map — pane layout, reset north, fit to view, isolation — none of which loads or changes radar data. A new
+     tool goes on the side whose question it answers.
 
      ⚠️ HISTORY: this was a content-sized ISLAND that floated above the bar with a NOTCH cut in its
      underside, so the bar's pull-tab could rise through it. That shape is gone, and with it went a
@@ -87,23 +52,10 @@
      already past it (#1A1A1A), so the hover would be invisible; in light it would go the wrong way.
      Each tier hovers one step further from its OWN ground.
 
-     PLACE SEARCH sits at the LEFT edge, over the temporal keys (it held the tier's midpoint until the swap); the box is
-     a FIXED width and ⊚ ends on the left window's inner edge, SearchSpacer between them (a custom short box is planned).
-     Its STATUS ("Searching online…", "No places match …", "Pick a place") runs in the bar's ACTIVITY SLOT, not
-     here (BarActivityViewModel.WatchPlaceSearch). Typing shows
-     GAZETTEER rows (offline); Enter/a row flies there and drops the search pin (MarkersViewModel).
-     ⚠️ ONLINE (Nominatim) runs ONLY on Enter when the gazetteer found nothing — its policy forbids
-     autocomplete. Don't wire it to TextChanged. ⚠️ Clearing the box removes the pin; that is the remove.
-     ⚠️ Text is ONE-WAY from PlaceSearch.QueryText: picking a PastCast saved event pins the town it is named
-     for through the SAME pin and puts the name in this box, so the box's X clears that pin too.
-     ⚠️ The box's ✕ STAYS while there is text, focused or not (stock WinUI hides it on focus loss, so coming back to
-     clear took two clicks) — code-behind pins the template's own DeleteButton; see PinClearButton for why it works.
-     ⚠️ An AutoSuggestBox is safe here (the wheel hazard is a CLOSED ComboBox cycling its selection).
-     ⚠️ No Ctrl+F: the WebView owns keyboard focus once the map is clicked, so an accelerator here
-     would work only sometimes.
+     PLACE SEARCH MOVED to the top menu bar, centred (Composites/PlaceSearchBox, 2026-11-03) — its rules live there.
 
-     THE SEARCH IS FOLLOWED by the marker viewer (a placeholder) and LOCATION, in that order (they flanked it
-     while it was centred). Location moved here from the bar's right cluster — it is a "where on the map" move
+     THE LEFT SECTION is the marker viewer (a placeholder) and LOCATION, in that order, after SearchSpacer
+     (they flanked the search box until it moved). Location moved here from the bar's right cluster — it is a "where on the map" move
      like search, and an occasional one.
      ⚠️ LOCATION LATCHES: as a plain button it would be a one-way door (nothing else in the shipped UI
      removes the marker — the Selected Marker window is pending re-add). Lit = your marker is out; clicking
@@ -125,22 +77,7 @@
      research ticks moved here from Settings → Radar, where they used to switch those networks off app-wide.
      ⚠️ The words say "radar sites", NEVER "markers": ▣ below is the MARKER viewer (search pins, your location).
 
-     SITE PICKER, the middle of the console tools — home + favorite radar sites (RadarSiteFavoritesViewModel). It replaced TWO doors to
-     one list: the bar's Home key, and the side car on the bar's Atlas key (whose flyout this dropdown absorbed).
-     It is ALSO the "which radar is selected" readout (the bar's site id left, 2026-09-29): the FACE is the site on
-     the map now (⌂ home, ★ favorite, bare otherwise), and the PINNED top row is that same site (SelectedSites),
-     whatever it is. Below the rule: home first, then the favorites (PinnedSites) — a selected home/favorite stays
-     in its place there too, so the list never reshuffles on a switch. Going home is still two clicks.
-     ⚠️ CENTRED on the bar's play button (MainWindow.AlignCentreSection → AlignToConsole), which is the bar's
-     midpoint, and EXACTLY AS WIDE AS THE RAIL'S TWO TABS (Tools + Bar) just above it — measured, so the picker
-     reads as the tabs' column (2026-10-06). The dot-grid spacers take up the rest.
-     ⚠️ A pick ACTS through ItemPicked, NOT SelectedItem: picking the site already loaded must still fly back to
-     it, and that changes no property. SelectedItem is ONE-WAY from LoadedSite and re-asserted after the pick
-     (a refused pick would otherwise leave the face naming a site that never loaded).
-     ⚠️ DISABLED in PastCast (a pick would re-target the replay); the tooltip sits on a WRAPPER so it still
-     explains itself — WinUI shows no tooltip on a disabled control.
-     ⚠️ The face has a FIXED width so a long name never resizes the tier; the name trims.
-     ⚠️ Glyphs E80F (Home) / E735 (FavoriteStarFill) are NOT verified by rendering in the real font.
+     SITE PICKER MOVED to the floating radar console as a TAB on its top (Composites/RadarConsoleSiteTab, 2026-11-03) — its rules live there.
 
      PANE LAYOUT sits RIGHT, first of the map tools: ONE square key (Primitives/MapControlsStripPaneLayoutPicker) whose
      face is the CURRENT layout's mark and whose upward list picks 1 / 2 / 4 (2026-10-22; it was three toggles, cut to
@@ -197,8 +134,6 @@
                     <StaticResource x:Key="StripToolCheckedGlyph" ResourceKey="TextFillColorPrimaryBrush"/>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
-
-            <conv:SiteAvailabilityToBrushConverter x:Key="AvailabilityToBrush"/>
 
             <!-- ⚠️ EVERY DRAWN MARK GETS ITS FULL 18 × 18 BOX (implicit, so every PathIcon on the tier). A PathIcon is
                  otherwise sized from (0,0) to its geometry's far corner, so a mark drawn in the MIDDLE of the 18-unit
@@ -366,59 +301,6 @@
                 </Grid>
             </DataTemplate>
 
-            <!-- One site-picker ROW (both sections): pin mark, id, name, availability dot. -->
-            <DataTemplate x:Key="SiteRowTemplate" x:DataType="vm:RadarSiteRow">
-                <Grid ColumnSpacing="10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="16"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"
-                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                              Glyph="{x:Bind comp:MapControlsStrip.PinGlyph(IsHome, IsFavorite), Mode=OneWay}"/>
-                    <TextBlock Grid.Column="1" Text="{x:Bind Id}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{x:Bind Name}" FontSize="12" VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis"
-                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                    <Ellipse Grid.Column="3" Width="8" Height="8" VerticalAlignment="Center"
-                             Fill="{x:Bind Availability, Converter={StaticResource AvailabilityToBrush}, Mode=OneWay}"/>
-                </Grid>
-            </DataTemplate>
-
-            <!-- The site picker's FACE: the pin mark (collapsed for a site that is neither), id and name — no dot.
-                 No foregrounds set: the text inherits the picker's, so it greys with it in PastCast. -->
-            <DataTemplate x:Key="SiteFaceTemplate" x:DataType="vm:RadarSiteRow">
-                <!-- A Grid, not a horizontal StackPanel: only a * column gives the name a width to trim to.
-                     Gaps are MARGINS, not ColumnSpacing, so a collapsed mark leaves no gap behind. -->
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <FontIcon Margin="0,0,8,0"
-                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"
-                              Glyph="{x:Bind comp:MapControlsStrip.PinGlyph(IsHome, IsFavorite), Mode=OneWay}"
-                              Visibility="{x:Bind comp:MapControlsStrip.PinVisibility(IsHome, IsFavorite), Mode=OneWay}"/>
-                    <TextBlock Grid.Column="1" Margin="0,0,8,0" Text="{x:Bind Id}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{x:Bind Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                </Grid>
-            </DataTemplate>
-
-            <!-- One place-search row: the name left, population (or the OpenStreetMap credit) right. -->
-            <DataTemplate x:Key="PlaceRowTemplate" x:DataType="models:PlaceResult">
-                <Grid ColumnSpacing="12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="{x:Bind Display}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="{x:Bind Detail}" FontSize="12" VerticalAlignment="Center"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                </Grid>
-            </DataTemplate>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -443,50 +325,10 @@
                                                 ShowTdwr="{x:Bind ViewModel.Radar.ShowTdwrs, Mode=TwoWay}"
                                                 ShowResearch="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"/>
 
-            <!-- LEFT SPACER — stretches (FillWidth) so the site picker's centre lands on play. Width SET IN CODE
-                 (AlignToConsole). Margins as every separator (8 + the panel's 8 = 16 a side). -->
-            <prim:MapControlsStripSeparator x:Name="LeftSpacer" Margin="8,0" FillWidth="True" Width="10"/>
-
-            <!-- SITE PICKER — the centre of the centre. The wrapper carries the tooltip (a disabled control shows
-                 none); Transparent so it hit-tests. ⚠️ CENTRED ON THE BAR'S PLAY BUTTON and as wide as the rail's two
-                 tabs (AlignToConsole sets Width; 260 is only the pre-layout value). -->
-            <Grid Background="Transparent"
-                  ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">
-                <prim:SectionedComboBox x:Name="SitePicker"
-                                        Width="260"
-                                        PlaceholderText="Radar site"
-                                        PinnedItemsSource="{x:Bind ViewModel.SiteFavorites.SelectedSites, Mode=OneWay}"
-                                        ItemsSource="{x:Bind ViewModel.SiteFavorites.PinnedSites, Mode=OneWay}"
-                                        SelectedItem="{x:Bind ViewModel.SiteFavorites.LoadedSite, Mode=OneWay}"
-                                        ItemTemplate="{StaticResource SiteRowTemplate}"
-                                        FaceTemplate="{StaticResource SiteFaceTemplate}"
-                                        IsEnabled="{x:Bind ViewModel.SiteFavorites.CanPickSites, Mode=OneWay}"
-                                        ItemPicked="OnSitePicked">
-                    <prim:SectionedComboBox.FooterContent>
-                        <StackPanel Spacing="4">
-                            <TextBlock Margin="11,2,11,2"
-                                       Text="Set a home site or star favorites in the Atlas to list them here."
-                                       TextWrapping="Wrap" FontSize="12"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                       Visibility="{x:Bind ViewModel.SiteFavorites.IsEmpty, Mode=OneWay}"/>
-                            <!-- FAVORITES ONLY — the SAME property as Settings → Radar → Radar site keys (two switches,
-                                 one value). Here because this list IS home + favorites: "these" needs no explaining. -->
-                            <CheckBox Margin="11,0,11,0"
-                                      Content="Show only these on the map"
-                                      IsChecked="{x:Bind ViewModel.SiteFavorites.ShowOnlyFavoritesOnMap, Mode=TwoWay}"
-                                      ToolTipService.ToolTip="Hide every other radar site on the map. The loaded site always shows."/>
-                            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                                    Background="Transparent" BorderThickness="0" Padding="11,6"
-                                    Content="Open Atlas"
-                                    Click="OnOpenAtlasClick"/>
-                        </StackPanel>
-                    </prim:SectionedComboBox.FooterContent>
-                </prim:SectionedComboBox>
-            </Grid>
-
-            <!-- RIGHT SPACER — stretches (FillWidth) so the radar tools END on the console's right edge. Width SET IN
-                 CODE (AlignToConsole). Longer than the left one: play sits left of the console's middle. -->
-            <prim:MapControlsStripSeparator x:Name="RightSpacer" Margin="8,0" FillWidth="True" Width="10"/>
+            <!-- CENTRE SPACER — stretches (FillWidth) so the radar tools END on the console's right edge. Width SET IN CODE
+                 (AlignToConsole). ⚠️ THE SITE PICKER LEFT this run (2026-11-03): it is the floating console's TAB now
+                 (Composites/RadarConsoleSiteTab). -->
+            <prim:MapControlsStripSeparator x:Name="CentreSpacer" Margin="8,0" FillWidth="True" Width="10"/>
 
             <!-- RADAR TOOLS — Inspect, then the rings + ruler picker, as ONE run (no separator inside;
                  the user's call, 2026-10-06 / 2026-10-21). The picker's right edge is the console's (visible) scan text end. -->
@@ -523,25 +365,12 @@
         <StackPanel x:Name="SearchGroup"
                     Orientation="Horizontal" Spacing="8"
                     HorizontalAlignment="Left" VerticalAlignment="Center">
-            <!-- ⚠️ A FIXED width (2026-10-22): it used to stretch to the temporal keys' width; the section's alignment
-                 is now SearchSpacer's job. The user still plans a custom short search box (2026-10-06). -->
-            <AutoSuggestBox x:Name="PlaceSearchBox"
-                            Width="236" VerticalAlignment="Center"
-                            PlaceholderText="Search places"
-                            IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                            QueryIcon="Find"
-                            TextMemberPath="Display"
-                            Text="{x:Bind ViewModel.PlaceSearch.QueryText, Mode=OneWay}"
-                            ItemsSource="{x:Bind ViewModel.PlaceSearch.Suggestions}"
-                            ItemTemplate="{StaticResource PlaceRowTemplate}"
-                            Loaded="OnPlaceSearchLoaded"
-                            TextChanged="OnPlaceSearchTextChanged"
-                            QuerySubmitted="OnPlaceSearchQuerySubmitted"
-                            ToolTipService.ToolTip="Find a city or town and fly there. Clear the box to remove the pin."/>
+            <!-- ⚠️ THE PLACE SEARCH BOX MOVED to the top menu bar, centred (Composites/PlaceSearchBox, 2026-11-03). -->
 
-            <!-- SEARCH SPACER — stretches (FillWidth) so Location's right edge lands on the left temporal pane's INNER
-                 edge. Width SET IN CODE (AlignToWindowEdges); 10 is only the pre-layout value. -->
-            <prim:MapControlsStripSeparator x:Name="SearchSpacer" Margin="8,0" FillWidth="True" Width="10"/>
+            <!-- SEARCH SPACER — now FIRST: stretches (FillWidth) from the tier's left edge so Location's right edge lands
+                 on the left temporal pane's INNER edge. Width SET IN CODE (AlignToWindowEdges); 10 is only the
+                 pre-layout value. The name stays (it still holds the "where on the map" section's slack). -->
+            <prim:MapControlsStripSeparator x:Name="SearchSpacer" Margin="0,0,8,0" FillWidth="True" Width="10"/>
 
             <!-- MARKER VIEWER — PLACEHOLDER. No Click until the marker window exists (see the header).
                  A teardrop with an eye, the search pin's own shape. -->

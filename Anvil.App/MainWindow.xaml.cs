@@ -42,23 +42,17 @@ namespace Anvil
 		// pull-tab by a negative margin, so the tab could rise through a notch cut in its underside; it is a
 		// full-width tier now and the tabs sit on a rail above both tiers. docs/ui-bottom-bar.md.
 
-		// WHAT THE RAIL IS SITTING ON: the Tools tab wears the plate it stands on — raised while the tools strip is up, the
-		// map's ground once it is hidden and the tab sits at the window bottom. (The bar tier under the strip, whose edge
-		// used to flip between receiving and casting here, became the floating console, 2026-11-03.)
-		private void ApplyRailSeating()
-		{
-			bool onTools = ViewModel.IsMapControlsStripVisible;
-
-			ToolsTab.Raised = onTools;
-			// EDGE-HATCH (bolt-on): while the hatch draws (EdgeHatchBottomChrome), the strip casts no shadow — a hairline instead.
+		// The tools strip's EDGE: a cast shadow onto the map, or — EDGE-HATCH (bolt-on), while the hatch draws
+		// (EdgeHatchBottomChrome) — a hairline. (The rail of tabs this used to seat, and the bar tier whose edge flipped
+		// here, are gone, 2026-11-03: the console floats, the strip is shown from View → Map tools.)
+		private void ApplyRailSeating() =>
 			MapControlsTier.EdgeStyle = ViewModel.EdgeHatch.IsHatch ? BarEdgeStyle.Hairline : BarEdgeStyle.CastShadow;
-		}
 
 		// ===== THE FLOATING RADAR CONSOLE (2026-11-03, canvas option C) =====
 		// Centred (XAML), SelectorGap above the bottom chrome — the tools strip + its tab, or the tab alone while the strip
 		// is hidden — so it mirrors the pane selectors under the top bar. In CODE because that height is MEASURED.
 		private void PlaceConsoleIsland() =>
-			ConsoleIsland.Margin = new Thickness(0, 0, 0, BottomChrome.ActualHeight + SelectorGap);
+			ConsoleIslandHost.Margin = new Thickness(0, 0, 0, BottomChrome.ActualHeight + SelectorGap);
 
 		// ── SITE MENU ── the menu a map site key's chevron opens. Its items are DECLARED in MainWindow.xaml
 		// (SiteMenu); RadarSiteMenu describes one open (labels, icons, enabled) and does what the items do.
@@ -118,7 +112,7 @@ namespace Anvil
 		// The TEMPORAL PANES end on the same line (the tools tier's top), as the layer's bottom margin.
 		private void OnBottomChromeSizeChanged(object sender, SizeChangedEventArgs e)
 		{
-			var opaque = BottomChrome.ActualHeight - BottomChrome.RowDefinitions[0].ActualHeight;
+			var opaque = BottomChrome.ActualHeight; // the strip alone (no rail row since 2026-11-03)
 			LoopGate.ContentBottomInset = opaque;
 			_bottomOpaque = opaque;
 			ApplyPaneLayerMargin();
@@ -264,24 +258,23 @@ namespace Anvil
 			}
 		}
 
-		// ===== The tools tier's centre ↔ the console =====
-		// The section rules (docs/ui-bottom-bar.md): the tier's centre section spans the console from the clock's left
+		// ===== The tools strip's centre ↔ the floating console =====
+		// The section rules (docs/ui-bottom-bar.md): the strip's centre section spans the console from the clock's left
 		// edge to the end of the LONGEST SCAN LINE's text (it follows the VCP text as it changes — the user's call,
-		// 2026-10-06; the reserved scan column is wider than its text), with the site picker CENTRED on play — the bar's midpoint, since the console centres itself on play
-		// (RadarControls.CentreOnPlay). Two controls on two tiers, so it is MEASURED. The console MOVES without
-		// resizing (the window resizing re-centres it), so this runs on LayoutUpdated; the strip ignores sub-pixel
-		// no-ops. A console width change re-measures it too.
+		// 2026-10-06; the reserved scan column is wider than its text). Two controls in two places, so it is MEASURED. The
+		// console MOVES without resizing (the window resizing re-centres it), so this runs on LayoutUpdated; the strip
+		// ignores sub-pixel no-ops. A console width change re-measures it too. (The site picker that sat centred on play
+		// here is the console's TAB since 2026-11-03 — RadarConsoleSiteTab, centred by layout alone.)
 		private void AlignCentreSection()
 		{
 			if (Content is UIElement root)
 			{
-				// The picker KEEPS its declared width (260 ≈ the rail's old Tools + Bar pair; the Bar tab went with the bar
-				// tier 2026-11-03, so 0 = "don't resize"). MODEL MODE: the right end follows the VISIBLE console's text (ModelConsole's lines differ from radar's);
-				// left edge + play are the same in both (ModelConsole copies radar's widths), so they stay on TimeModule.
+				// MODEL MODE: the right end follows the VISIBLE console's text (ModelConsole's lines differ from radar's); the
+				// left edge is the same in both (ModelConsole copies radar's widths), so it stays on TimeModule.
 				var scanRight = ModelConsole.Visibility == Visibility.Visible
 					? ModelConsole.ScanTextRight(root)
 					: TimeModule.ScanTextRight(root);
-				ToolsStrip.AlignToConsole(TimeModule.ConsoleLeft(root), TimeModule.PlayCentre(root), scanRight, 0, root);
+				ToolsStrip.AlignToConsole(TimeModule.ConsoleLeft(root), scanRight, root);
 			}
 		}
 
@@ -493,9 +486,9 @@ namespace Anvil
 
 			// The TOP BAR's controls sit IN the caption band (it is the bar), so they are the holes that matter now; the
 			// tab, selectors and panes are listed too so nothing interactive can ever end up under a caption rect.
-			var rects = new List<RectInt32>(PaneLayoutInfo.MaxPanes + 7);
+			var rects = new List<RectInt32>(PaneLayoutInfo.MaxPanes + 8);
 			foreach (var notch in new FrameworkElement[]
-				{ MenuBarMenus, CaptionKey, TopChrome.TabElement, ConsoleIsland,
+				{ MenuBarMenus, PlaceSearchBox, CaptionKey, TopChrome.TabElement, ConsoleIslandHost,
 				  Notch0, Notch1, Notch2, Notch3, TemporalPanePastCast, TemporalPaneNowCast, TemporalPaneForeCast })
 			{
 				if (notch.Visibility != Visibility.Visible || notch.ActualWidth <= 0 || notch.ActualHeight <= 0)

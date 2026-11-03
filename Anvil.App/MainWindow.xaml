@@ -2,8 +2,9 @@
 <!-- MainWindow — the app shell. The map fills the whole window; the UI is a MENU BAR over its top edge, the
      bottom chrome over its bottom edge, and a small FLOATING pane selector per map pane.
 
-       ┌ Atlas View Settings Temporal Mode · Now ── drag ───────── – □ ✕ ┐  TOP MENU BAR (hideable, "Menu" tab)
-       ├───────────────────────────╮ ˄ Menu ╭──────────────────────────┤
+       ┌ Atlas View Settings Temporal Mode ─── [ Search places ✕ ⌕ ] ─── drag ── – □ ✕ ┐  TOP MENU BAR (hideable, "Menu" tab):
+       │                                       (centred, 7 px above + below)            │  search CENTRED; its box + margins set
+       ├───────────────────────────╮ ˄ Menu ╭──────────────────────────┤                    the bar's height (46)
        │                              ┃                              │  FLOATING PANE SELECTORS — product,
        │                   ╭─────────╮┃╭─────────╮                   │  colour-ramp legend, tilt. Quad shown:
        │    map pane 2     │SRV ▓▒░  │┃│CC  ▓▒░  │   map pane 3      │  all four at the CROSSING; two across =
@@ -12,24 +13,24 @@
        │                   ╰─────────╯┃╰─────────╯                   │  View → Pane selectors hides all.
        │    map pane 0  (MAIN)        ┃        map pane 1            │
        ├─────────────────────────────┴─────────────────────────────┤
-       │        ╭──────────────────────────────────────────╮       │  FLOATING RADAR CONSOLE (2026-11-03) —
+       │                    ╭────────────────────╮                 │  SITE TAB (RadarConsoleSiteTab) — home +
+       │                    │ ⌂ KTLX Oklahoma ˅  │                 │  favorites, centred on the console's top
+       │        ╭───────────┴────────────────────┴─────────╮       │  FLOATING RADAR CONSOLE (2026-11-03) —
        │        │ 1:07 PM ═══ scrubber ═══ ◀ ▶ ▶ ↺  VCP: 212 │       │  the old bar's console, unchanged, rounded,
        │        │ 2 min ago      3/10        Mode: precip   │       │  centred (play = the midpoint), SelectorGap
        │        ╰──────────────────────────────────────────╯       │  above the chrome. View → Radar console.
-       │  ░░░░░░░░░░░░░░░░░░░░╭ ˅ Tools ╮░░░░░░░░░░░░░░░░░░░░░░░░  │  …the strip's shadow thrown UP onto the map
-       │ [Search ✕⌕] ⁙⁙⁙ ▣ ⊚┇   ╎◗▴ ⁙⁙⁙ [⌂ KTLX Oklahoma City ˅] ⁙⁙⁙ ⌕ ◎▴┆   ┇▥▴ ⁙⁙ ⌘⛶ ─ ▥▴ [Isolate ▾]│  TOOLS strip = the ONE bottom bar
+       │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  …the strip's shadow thrown UP onto the map
+       │ ⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙ ▣ ⊚┇   ╎◗▴ ⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙ ⌕ ◎▴┆   ┇▥▴ ⁙⁙ ⌘⛶ ─ ▥▴ [Isolate ▾]│  TOOLS strip = the ONE bottom bar
        └─────────────────────┴───┴───────── ↑ window midpoint ──────┴───┴─────────────────────────┘  ╎ ┆ = the console's clock-left / scan-text-right;
                                                                                                     ┇ = a temporal pane's INNER edge; ⁙⁙⁙ = stretching spacers
           ↑ THE MIRROR (2026-11-03, the user's canvas option C): top = menu bar · ˄ Menu tab · floating pane selectors;
-            bottom = tools strip · ˅ Tools tab · floating radar console. The bar tier that held only the console is GONE
+            bottom = tools strip · floating radar console (+ its site tab). The bar tier that held only the console is GONE
             (and its "Bar" tab), so the temporal panes run down to the strip's top. The console never shrinks; in a
             narrow window it overlaps the panes' bottoms (it is declared after them).
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, drawn by whichever side owns it: the tools strip throws
-            its own up onto the map; the floating selectors and console cast theirs. OverlayBar.EdgeStyle picks per
-            instance, because only the host knows what is beyond a given edge. The Tools tab wears the plate it stands on
-            (raised on the strip, ground at the window bottom) — MainWindow.ApplyRailSeating.
-          ↑ ONE TAB, ON A RAIL above the strip (an OverlayBar draws its tab in row 0 of its own grid; the strip runs
-            ShowTab=False and the rail is declared last so the strip's shadow passes behind the tab).
+            its own up onto the map; the floating selectors, console and site tab cast rounded halos. OverlayBar.EdgeStyle
+            picks per instance, because only the host knows what is beyond a given edge.
+          ↑ NO TAB ON THE STRIP (2026-11-03): View → Map tools shows / hides it (the rail of tabs is gone).
           ↑ THE CONSOLE ⇄ TEMPORAL SWAP (2026-10-06, mock-up A): the time module holds the bar's MIDPOINT and
             the temporal keys sit at the LEFT edge, so the bar reads mode → time → windows. The tools tier
             follows: its centre section spans the console's edges with the site picker on ▶ — the bar's
@@ -382,32 +383,15 @@
              columns absorb that and the pills do NOT drift. If the left ever grows past its half it
              simply overlaps rather than pushing; the pills are LAST in markup so they stay on top and
              clickable. ===== -->
-        <!-- ⚠️ THE BOTTOM CHROME IS TWO STACKED TIERS UNDER ONE SHARED RAIL, bottom-aligned, and its row
-             is Auto: the row grows by the tools tier's height, which costs the MAP nothing, because the
-             WebView spans both rows at full height either way.
-             ⚠️ THE RAIL IS SHARED BECAUSE IT HAS TO BE. An OverlayBar draws its tab as row 0 of its own
-             grid, directly above its surface — so the lower tier's tab would land in the SEAM between the
-             two tiers, where it can be neither seen nor clicked. Both tiers therefore run ShowTab=False
-             and both tabs sit here, above the stack. Hiding a tier shortens the panel and the rail travels
-             down with it, still reachable.
-
-             ⚠️⚠️ A GRID, NOT A StackPanel, AND THE RAIL IS DECLARED LAST ON PURPOSE. Both tiers hang their
-             cast shadow UPWARD on a negative margin (see OverlayBar), so the tools tier's band reaches up
-             into the rail's row. A StackPanel paints in declaration order, which put the tier's band OVER
-             the bottom half of both tabs; a Grid lets the rail keep row 0 while being declared last, so it
-             paints on top and the shadow passes behind it. ⚠️ Keep the rail last in markup — moving it
-             back up to read in stacking order is the one edit that silently re-breaks this. -->
+        <!-- ⚠️ THE BOTTOM CHROME IS ONE TIER NOW (2026-11-03): the tools strip, bottom-aligned, its row Auto — the row grows
+             by the strip's height, which costs the MAP nothing (the WebView spans both rows at full height either way).
+             No tab and no rail any more: View → Map tools shows / hides it (IsMapControlsStripVisible, persisted). Hidden,
+             the strip collapses to 0 and the floating console drops to the window bottom. (It was two tiers under a
+             shared rail of two tabs; the bar tier became the floating console, the tabs became View items.) -->
         <Grid x:Name="BottomChrome" Grid.Row="1" VerticalAlignment="Bottom" SizeChanged="OnBottomChromeSizeChanged">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- the shared rail (declared LAST, see above) -->
-                <RowDefinition Height="Auto"/> <!-- the tools tier: the ONE bottom bar since 2026-11-03 -->
-            </Grid.RowDefinitions>
-
-            <!-- The UPPER TIER: the map's camera tools, on the raised surface. Its visibility is PERSISTED
-                 (AppSettings.MapControlsStripVisible) — unlike the bar's, which is pure view state — so the
-                 Tools tab two-ways the view-model flag rather than this control's own. -->
+            <!-- The tools strip: the map's camera tools, on the raised surface. Its visibility is PERSISTED
+                 (AppSettings.MapControlsStripVisible), driven by View → Map tools. -->
             <ctl:OverlayBar x:Name="MapControlsTier"
-                            Grid.Row="1"
                             ShowTab="False"
                             IsRaised="True"
                             EdgeStyle="CastShadow"
@@ -417,37 +401,11 @@
                     <comp:MapControlsStrip x:Name="ToolsStrip" ViewModel="{x:Bind ViewModel}"/>
                 </ctl:OverlayBar.BarContent>
             </ctl:OverlayBar>
-
-            <!-- ⚠️ NO BAR TIER (2026-11-03, the user's call — canvas option C): the bar's only content, the radar console,
-                 FLOATS above this strip now (ConsoleIsland, declared after the temporal panes). The tools tier is the ONE
-                 bottom bar, mirroring the top menu bar: bar · tab · a floating control beside it. -->
-
-            <!-- ⚠️ THE RAIL IS ROW 0 BUT DECLARED LAST — see the ⚠⚠ at the top of this Grid. It has to
-                 paint AFTER the tools tier, because that tier's cast shadow hangs up into this row and
-                 would otherwise darken the bottom half of both tabs.
-                 ⚠️ BOTH TABS WEAR THE PLATE THEY STAND ON, never the tier they toggle, so their face MOVES
-                 with the stack: raised while the map-tools tier is up, ground once it is hidden and the
-                 rail comes to rest on the bar. Set in MainWindow.ApplyRailSeating, which owns that rule
-                 together with the bar's EdgeStyle — they answer the same question and drifting apart
-                 would light the tabs for one plate while the shadow describes another.
-                 ⚠️ They used to be keyed to the tier each one TOGGLES (Tools raised, Bar ground) so the
-                 colours told them apart; that made the Bar tab a darker notch in a raised edge, a tab on a
-                 surface it did not match. The LABELS disambiguate — which is why they are NOUNS, since two
-                 lozenges both reading "Hide" name no difference between themselves.
-                 ⚠️ ORDER MATCHES THE STACK: Tools (the upper tier) left, Bar (the lower) right.
-                 ⚠️ The tools tier's SITE PICKER is exactly as wide as this pair (MainWindow.AlignCentreSection measures
-                 RailTabs) — both sit on the window's midpoint, so the picker reads as the tabs' column. -->
-            <StackPanel x:Name="RailTabs" Grid.Row="0"
-                        Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
-                <ctl:OverlayBarTab x:Name="ToolsTab" Target="Tools"
-                                   IsShown="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=TwoWay}"/>
-                <!-- (The "Bar" tab went with the bar tier, 2026-11-03 — the console floats; View → Radar console hides it.) -->
-            </StackPanel>
         </Grid>
 
         <!-- ===== TOP MENU BAR (the user's call, 2026-11-01) =====
 
-               ┌ Atlas View Settings ─────────── drag band ──────────────────────── – □ ✕ ┐  32 tall, full width
+               ┌ Atlas View Settings Temporal Mode ── [ Search places ✕ ⌕ ] ── drag ─── – □ ✕ ┐  46 tall (the search box + 7 + 7), full width
                └─────────────────────────────╮ ˄ Menu ╭───────────────────────────────────┘  centred tab hides it
                  ░░░ light cast shadow ░░░░░░╰────────╯░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    (IsMenuBarVisible, saved)
 
@@ -476,7 +434,9 @@
                         IsOverlayBarVisible="{x:Bind ViewModel.IsMenuBarVisible, Mode=TwoWay}"
                         SizeChanged="OnTopChromeSizeChanged">
             <ctl:OverlayBar.BarContent>
-                <Grid x:Name="MenuBarContent" Height="32">
+                <!-- MinHeight 32 = the caption height; the CENTRED place search makes it taller (its box + 7 px above and
+                     below, the tools strip's old margins — the user's call, 2026-11-03). -->
+                <Grid x:Name="MenuBarContent" MinHeight="32">
                     <Grid.Resources>
                         <!-- A menu title: flat text button, full bar height, the stock hover. -->
                         <Style x:Key="MenuBarTitleButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
@@ -538,6 +498,9 @@
                                                           IsChecked="{x:Bind ViewModel.ArePaneSelectorsVisible, Mode=TwoWay}"/>
                                     <ToggleMenuFlyoutItem x:Name="ViewRadarConsoleItem" Text="Radar console"
                                                           IsChecked="{x:Bind ViewModel.IsRadarConsoleVisible, Mode=TwoWay}"/>
+                                    <!-- The tools strip had its own "Tools" tab until 2026-11-03; this item replaced it. -->
+                                    <ToggleMenuFlyoutItem x:Name="ViewMapToolsItem" Text="Map tools"
+                                                          IsChecked="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=TwoWay}"/>
                                 </MenuFlyout>
                             </Button.Flyout>
                         </Button>
@@ -591,6 +554,15 @@
                             </Button.Flyout>
                         </Button>
                     </StackPanel>
+
+                    <!-- PLACE SEARCH, CENTRED on the window (spans every column; declared before the caption key so the
+                         window buttons stay on top in a very narrow window). A Passthrough hole (UpdateNotchInputRegions). -->
+                    <comp:PlaceSearchBox x:Name="PlaceSearchBox"
+                                         Grid.ColumnSpan="3"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center"
+                                         Margin="0,7"
+                                         ViewModel="{x:Bind ViewModel}"/>
 
                     <ctl:WindowCaptionKey x:Name="CaptionKey"
                                           Grid.Column="2"
@@ -670,15 +642,24 @@
              the model follows it. RadarControls stays LAID OUT underneath (Opacity 0, not hit-testable — never Collapsed):
              the tools strip's alignment measures it (AlignCentreSection), and ModelConsole has its exact widths.
              ⚠️ CENTRED ONLY BECAUSE IT IS A FIXED WIDTH: the clock reserves a two-digit hour (RadarControls). -->
+        <!-- The host: the SITE TAB (row 0, Composites/RadarConsoleSiteTab, centred) standing on the console (row 1).
+             ⚠️ The tab is declared AFTER the console so it paints over the console's top hairline (its -1 bottom margin
+             is that overlap); its own halo stops at its foot, so neither shadow crosses the other plate. -->
+        <Grid x:Name="ConsoleIslandHost"
+              Grid.Row="0" Grid.RowSpan="2"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Bottom"
+              Visibility="{x:Bind PaneVisibility(ViewModel.IsRadarConsoleVisible), Mode=OneWay}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- the site tab -->
+                <RowDefinition Height="Auto"/> <!-- the console -->
+            </Grid.RowDefinitions>
         <ctl:OverlayBar x:Name="ConsoleIsland"
-                        Grid.Row="0" Grid.RowSpan="2"
+                        Grid.Row="1"
                         Edge="Bottom"
                         IsFloating="True"
                         ShowTab="False"
-                        EdgeStyle="CastShadow"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Bottom"
-                        Visibility="{x:Bind PaneVisibility(ViewModel.IsRadarConsoleVisible), Mode=OneWay}">
+                        EdgeStyle="CastShadow">
             <ctl:OverlayBar.BarContent>
                 <Grid x:Name="ConsoleIslandContent">
                     <comp:RadarControls x:Name="TimeModule"
@@ -698,5 +679,11 @@
                 </Grid>
             </ctl:OverlayBar.BarContent>
         </ctl:OverlayBar>
+        <comp:RadarConsoleSiteTab x:Name="RadarConsoleSiteTab"
+                                  Grid.Row="0"
+                                  HorizontalAlignment="Center"
+                                  Margin="0,0,0,-1"
+                                  ViewModel="{x:Bind ViewModel}"/>
+        </Grid>
     </Grid>
 </Window>
