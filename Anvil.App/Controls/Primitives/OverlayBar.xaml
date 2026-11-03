@@ -54,12 +54,12 @@
        └────────────────────────╮ ˄ Menu ╭────────────────────────────────┘  tab centred, TabTarget = its noun
          ░░░░░░░░░░░░░░░░░░░░░░░╰────────╯░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    light 14 px cast shadow
 
-       IsFloating=True — A PANE SELECTOR (attached to nothing; ShowTab False)
+       IsFloating=True — A PANE SELECTOR / THE FLOATING RADAR CONSOLE (attached to nothing; ShowTab False)
 
-              ░╭─────────────────────────╮░    every corner rounded, a hairline all round when not shadowed;
-              ░│  BarContent (the slot)  │░    Edge still picks which way its cast shadow falls
-              ░╰─────────────────────────╯░
-               ░░░░░░░░░░░░░░░░░░░░░░░░░░░
+              ░╭───────────────────────────╮░   every corner rounded (8), a hairline ALL ROUND (shadowed or not);
+             ░│   BarContent (the slot)   │░   CastShadow = the ROUNDED HALO (FloatHalo: five rings, radius 8+n·2),
+              ░╰───────────────────────────╯░   nudged 2 px the way Edge says (Bottom = up, Top = down).
+               ░░░░░░░░░░░░░░░░░░░░░░░░░░░     ⚠️ Never the edge bands — their square ends showed as a card behind.
 
      Hidden, only the tab remains (it reads "Show") and the bar Border collapses — the map is
      never resized either way, in either shape.
@@ -122,6 +122,8 @@
                         <Setter Target="InsetShadow.Background" Value="{StaticResource ShadowFadeUp}"/>
                         <Setter Target="SideShadowLeft.(Grid.Row)" Value="0"/>
                         <Setter Target="SideShadowRight.(Grid.Row)" Value="0"/>
+                        <Setter Target="FloatHalo.(Grid.Row)" Value="0"/>
+                        <Setter Target="FloatHalo.Margin" Value="0,2,0,-2"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -230,6 +232,14 @@
                         <Setter Target="InsetShadow.Visibility" Value="Visible"/>
                     </VisualState.Setters>
                 </VisualState>
+                <!-- FLOATING (2026-11-03): the ROUNDED halo, never the edge bands — they are rectangles with square ends,
+                     which showed as a square card behind the rounded one (and the bottom edge's 36 px dense band stood
+                     above the floating console like empty space). -->
+                <VisualState x:Name="FloatShadow">
+                    <VisualState.Setters>
+                        <Setter Target="FloatHalo.Visibility" Value="Visible"/>
+                    </VisualState.Setters>
+                </VisualState>
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
 
@@ -266,6 +276,24 @@
                 Opacity="{ThemeResource OverlayBarShadowOpacity}"
                 IsHitTestVisible="False"
                 Visibility="Collapsed"/>
+
+        <!-- THE FLOATING HALO (IsFloating, 2026-11-03): a soft ROUNDED shadow behind a floating box — five black rings,
+             each 2 px wider with a matching larger radius (8 + n·2), stacked so the shade thickens toward the card.
+             Nudged 2 px toward the Edge's far side (EdgeStates: Bottom = up, Top = down), so "Edge picks which way its
+             shadow falls" still holds. Declared BEFORE BarBorder (paints behind it) and inside the cell with negative
+             margins, so it reserves no layout. -->
+        <Grid x:Name="FloatHalo"
+              Grid.Row="1"
+              Margin="0,-2,0,2"
+              Opacity="{ThemeResource OverlayBarShadowOpacity}"
+              IsHitTestVisible="False"
+              Visibility="Collapsed">
+            <Border Margin="-10" CornerRadius="18" Background="Black" Opacity="0.08"/>
+            <Border Margin="-8" CornerRadius="16" Background="Black" Opacity="0.10"/>
+            <Border Margin="-6" CornerRadius="14" Background="Black" Opacity="0.12"/>
+            <Border Margin="-4" CornerRadius="12" Background="Black" Opacity="0.16"/>
+            <Border Margin="-2" CornerRadius="10" Background="Black" Opacity="0.22"/>
+        </Grid>
 
         <!-- The bar itself: a content slot the host fills (see BarContent). Collapses when hidden. -->
         <Border x:Name="BarBorder"

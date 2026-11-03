@@ -251,14 +251,17 @@ namespace Anvil.Controls.Primitives
 			VisualStateManager.GoToState(this, top ? "TopEdge" : "BottomEdge", false);
 			VisualStateManager.GoToState(this, floating ? "FloatingCorners"
 				: !island ? "SquareCorners" : top ? "IslandTopCorners" : "IslandBottomCorners", false);
-			VisualStateManager.GoToState(this, shadowed ? "NoRule"
-				: floating ? "RuleFloating"
+			// A FLOATING box keeps its rounded hairline even when shadowed: its halo is soft, and the line is what gives the
+			// rounded corners a crisp edge (2026-11-03).
+			VisualStateManager.GoToState(this, floating ? "RuleFloating"
+				: shadowed ? "NoRule"
 				: top ? (island ? "RuleTopIsland" : "RuleTopFull")
 				: (island ? "RuleBottomIsland" : "RuleBottomFull"), false);
 			VisualStateManager.GoToState(this, island ? "IslandPadding"
 				: top ? "TopBarPadding"
 				: IsRaised ? "RaisedPadding" : "GroundPadding", false);
 			VisualStateManager.GoToState(this, !lit ? "NoShadow"
+				: floating ? (shadowed ? "FloatShadow" : "NoShadow")
 				: EdgeStyle == BarEdgeStyle.CastShadow ? (island ? "CastShadowIsland" : "CastShadowEdge")
 				: EdgeStyle == BarEdgeStyle.InsetShadow ? "InsetShadowEdge"
 				: "NoShadow", false);
