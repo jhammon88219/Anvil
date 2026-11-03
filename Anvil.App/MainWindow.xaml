@@ -2,7 +2,7 @@
 <!-- MainWindow — the app shell. The map fills the whole window; the UI is a MENU BAR over its top edge, the
      bottom chrome over its bottom edge, and a small FLOATING pane selector per map pane.
 
-       ┌ Atlas View Settings ─────────── drag ──────────────────── – □ ✕ ┐  TOP MENU BAR (hideable, "Menu" tab)
+       ┌ Atlas View Settings Temporal Mode · Now ── drag ───────── – □ ✕ ┐  TOP MENU BAR (hideable, "Menu" tab)
        ├───────────────────────────╮ ˄ Menu ╭──────────────────────────┤
        │                              ┃                              │  FLOATING PANE SELECTORS — product,
        │                   ╭─────────╮┃╭─────────╮                   │  colour-ramp legend, tilt. Quad shown:
@@ -17,9 +17,9 @@
        │ [Search ✕⌕] ⁙⁙⁙ ▣ ⊚┇   ╎◗▴ ⁙⁙⁙ [⌂ KTLX Oklahoma City ˅] ⁙⁙⁙ ⌕ ◎▴┆   ┇▥▴ ⁙⁙ ⌘⛶ ─ ▥▴ [Isolate ▾]│  TOOLS tier
        │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┇▒▒▒╎▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┆▒▒▒┇▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒│  ╎ = console tools' left = console's
        │                     ┇   ╎1:07 PM ═══ scrubber ═══ VCP:  212┆   ┇                       │  ┆ = radar tools' right = scan text's
-       │ ↺   ⁙⁙⁙⁙⁙ ((•))  ☁   ┇   ╎     3/10  ◀ ▶ ▶  ↺  Mode: precip┆   ┇                       │  ┇ = a temporal pane's INNER edge
-       │ PastCast  NowCast ForeCast┇ ╎2 min ago       Rescans: SAILS ×1┆   ┇  (blank — Atlas and    │  ⁙⁙⁙ = the STRETCHING dot spacers;
-       │                           ┇ ╎                                ┆   ┇   Settings: menu bar)  │
+       │  (blank — the mode   ┇   ╎     3/10  ◀ ▶ ▶  ↺  Mode: precip┆   ┇                       │  ┇ = a temporal pane's INNER edge
+       │   keys: menu bar)    ┇ ╎2 min ago       Rescans: SAILS ×1┆   ┇  (blank — Atlas and    │  ⁙⁙⁙ = the STRETCHING dot spacers;
+       │                           ┇ ╎                                ┆   ┇   Settings: menu bar)  │  bar height PINNED at BarKeySide (72)
        └─────────────────────┴───┴───────── ↑ bar midpoint ─────────┴───┴─────────────────────────┘  the blank runs ┇…╎ / ┆…┇ give way first
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
             is drawn by whichever side owns it: the tools tier throws its own up
@@ -44,8 +44,8 @@
             midpoint (AlignCentreSection) — and
             the place search + ▣ ⊚ moved to the left, over the temporal keys.
           ↑ Site markers AND ⌕ Inspect are on the TOOLS tier (both left this bar; see MapControlsStrip).
-          ↑ ↺ ((•)) ☁ = the three mode keys, PLAIN on/off squares (their 3-dot side cars went 2026-10-29: a mode's
-            pane follows its mode — see the TEMPORAL PANES block and Composites/TemporalToggles).
+          ↑ The three MODE KEYS are gone from the bar (2026-11-03): the top menu bar's Temporal Mode menu replaced them
+            (Composites/TemporalToggles deleted). A mode's pane still follows its mode — see the TEMPORAL PANES block.
           ↑ ▥▴ (first of the right tools) = pane layout, ONE square key with an upward 1 / 2 / 4 list, on the TOOLS
             tier; it left this bar's right cluster, which is now window latches only. See MapControlsStrip.
           ↑ ┇ THE SIDE SECTIONS END ON THE TEMPORAL PANES' INNER EDGES (2026-10-22): both tiers' left sections end,
@@ -75,20 +75,17 @@
      ⚠️ THE PANE WATERMARK IS GONE TOO (the big ghosted "Ref" in a pane's corner). The notch says the same
      thing better, a few pixels away. See the PANE NOTCHES block below.
 
-     ⚠️ EVERY key in the bar is a SQUARE holding a MARK OVER A NAME — the temporal keys too, since their 3-dot side
-     cars went (2026-10-29: a mode's pane follows its mode, so there is no window to latch). See
+     ⚠️ The bar has NO keys of its own now (2026-11-03) — the console only. Square keys elsewhere still follow
      Controls/Styles.xaml, section 2.
 
-     Left of the bar is the three temporal keys; the CENTER is RadarControls (the global time module), held
-     on the bar's midpoint by a [*, Auto, *] grid so no amount of growth on either side can shift it; right is the
-     app-wide window buttons, all on one spacing. (Until 2026-10-06 the console was left and the keys centred.)
-     The gaps between the three clusters are empty bar, by design.
+     The bar's CENTER is RadarControls (the global time module), held on the bar's midpoint by a [*, Auto, *] grid;
+     both sides are BLANK since 2026-11-03 (temporal keys, Atlas, Settings → the top menu bar).
 
      ⚠️ THE KEYS IN THIS CLUSTER take their LOOK from ONE style chain in Controls/Styles.xaml
      (BarChromeButtonStyle → BarKeyToggleStyle for the ones that latch / BarIconButtonStyle for the one
      that acts): hairline at rest, accent BORDER + raised face when ON, and the SAME SQUARE, set by that
-     chain from the shared BarKeySide. The three temporal keys are on it too (BarKeyToggleStyle, TemporalToggles) —
-     ONE home for the look.
+     chain from the shared BarKeySide — ONE home for the look. (The bar itself holds no keys now; BarKeySide
+     still pins its height.)
      ⚠️ SIZES ARE DECLARED, NOT MEASURED. They used to be: each cluster measured the height its row was
      given and mirrored it onto Width, because the per-pane product chips lived in the bar and changed its
      height. The chips moved to the pane notches and the whole apparatus (a Layout/BarKeyMetrics class, two
@@ -437,11 +434,13 @@
                  the two states whichever one you pick. -->
             <ctl:OverlayBar x:Name="BottomBar" Grid.Row="2" ShowTab="False" EdgeStyle="InsetShadow">
                 <ctl:OverlayBar.BarContent>
-                    <Grid x:Name="BarGrid" ColumnSpacing="16">
+                    <!-- ⚠️ MinHeight = BarKeySide PINS the bar at its old height: the temporal keys made it that tall, and
+                         without them it would shrink to the console's height and drop the whole bottom chrome. -->
+                    <Grid x:Name="BarGrid" ColumnSpacing="16" MinHeight="{StaticResource BarKeySide}">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>    <!-- temporal keys, left-aligned  ┐ equal stars: -->
-                            <ColumnDefinition Width="Auto"/> <!-- radar console, DEAD CENTER   │ the Auto     -->
-                            <ColumnDefinition Width="*"/>    <!-- window buttons, right edge   ┘ sits centered-->
+                            <ColumnDefinition Width="*"/>    <!-- blank (the temporal keys moved up) ┐ equal stars: -->
+                            <ColumnDefinition Width="Auto"/> <!-- radar console, DEAD CENTER         │ the Auto     -->
+                            <ColumnDefinition Width="*"/>    <!-- blank (Atlas + Settings moved up)  ┘ sits centered-->
                         </Grid.ColumnDefinitions>
 
                         <!-- ===== CENTERPIECE: the time module, alone =====
@@ -486,18 +485,8 @@
                              each temporal pane's ACTIVITY EXPANDER (TemporalPanes/TemporalPaneActivityExpander), per mode. The run
                              between the console and Atlas is a permanent BLANK run (the section rules allow it). -->
 
-                        <!-- ===== TEMPORAL MODE KEYS — the bar's LEFT edge =====
-                             They held the midpoint until 2026-10-06 (the console took it). LAST in markup on
-                             purpose: in a window narrow enough that the centred console reaches into this column,
-                             the console slides UNDER these rather than over them, so the mode keys stay clickable.
-                             Past excludes Now/Fore; Now and Fore coexist.
-                             ⚠️ VerticalAlignment Center, not Stretch: the keys are a fixed size (Styles.xaml,
-                             BarKeySide) and this row is what makes the BAR that tall. -->
-                        <comp:TemporalToggles x:Name="TemporalKeys"
-                                              Grid.Column="0"
-                                              HorizontalAlignment="Left"
-                                              VerticalAlignment="Center"
-                                              ViewModel="{x:Bind ViewModel}"/>
+                        <!-- ⚠️ NO TEMPORAL KEYS (2026-11-03, the user's call): the three mode keys became the TOP MENU BAR's
+                             Temporal Mode menu (Composites/TemporalToggles deleted). Column 0 is a BLANK run now. -->
                     </Grid>
                 </ctl:OverlayBar.BarContent>
             </ctl:OverlayBar>
@@ -534,6 +523,7 @@
 
              An OverlayBar (Edge Top, full width) over the map — like the bottom chrome it never resizes the map.
              • Atlas / Settings: plain items, a click opens or closes that window (they were the bottom bar's keys).
+             • Temporal Mode (right-most): NowCast, ForeCast ─ PastCast; toggles the MODE (was the bar's three keys).
              • View: the three temporal panes (TogglePane: off → mode on + pane open; on → pane open ⇄ hidden),
                then Pane selectors. Ctrl+1/2/3 = the panes.
              • The EMPTY run is the window's CAPTION (drag, double-click maximize, snap) — MainWindow.UpdateCaptionBand
@@ -615,6 +605,43 @@
                         <Button x:Name="SettingsMenuButton" Content="Settings" Style="{StaticResource MenuBarTitleButtonStyle}"
                                 ToolTipService.ToolTip="Settings — map, radar, storage"
                                 Click="OnSettingsMenuClick"/>
+                        <!-- ===== TEMPORAL MODE (the user's call, 2026-11-03 — mock-up C; it replaced the bottom bar's three keys) =====
+
+                               ┌ Temporal Mode · Now + Fore ┐   title names the RUNNING modes (just "Temporal Mode" when none)
+                               │ ✓ NowCast       pane hidden │   right column = the mode runs but View hid its pane
+                               │ ✓ ForeCast                  │
+                               │ ─────────────────────────── │   the rule: Now + Fore together, Past ALONE
+                               │   PastCast        (dimmed)  │   the side that's OFF dims while the other side runs…
+                               │   Turns NowCast and ForeCast off   …and this greyed line says what clicking it does
+                               └─────────────────────────────┘
+                             A click toggles THAT MODE only (MapViewModel.ToggleTemporalMode); its pane follows the mode. The
+                             dimmed side still works — dimming warns, it never blocks. -->
+                        <Button x:Name="TemporalModeMenuButton" Style="{StaticResource MenuBarTitleButtonStyle}"
+                                Content="{x:Bind TemporalModeTitle(ViewModel.IsNowCast, ViewModel.IsForeCast, ViewModel.IsPastCast), Mode=OneWay}">
+                            <Button.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False">
+                                    <ToggleMenuFlyoutItem x:Name="TemporalNowCastItem" Text="NowCast"
+                                                          IsChecked="{x:Bind ViewModel.IsNowCast, Mode=OneWay}"
+                                                          Opacity="{x:Bind DimWhen(ViewModel.IsPastCast), Mode=OneWay}"
+                                                          KeyboardAcceleratorTextOverride="{x:Bind PaneHiddenTag(ViewModel.IsNowPaneHidden), Mode=OneWay}"
+                                                          Click="OnTemporalNowCastClick"/>
+                                    <ToggleMenuFlyoutItem x:Name="TemporalForeCastItem" Text="ForeCast"
+                                                          IsChecked="{x:Bind ViewModel.IsForeCast, Mode=OneWay}"
+                                                          Opacity="{x:Bind DimWhen(ViewModel.IsPastCast), Mode=OneWay}"
+                                                          KeyboardAcceleratorTextOverride="{x:Bind PaneHiddenTag(ViewModel.IsForePaneHidden), Mode=OneWay}"
+                                                          Click="OnTemporalForeCastClick"/>
+                                    <MenuFlyoutSeparator/>
+                                    <ToggleMenuFlyoutItem x:Name="TemporalPastCastItem" Text="PastCast"
+                                                          IsChecked="{x:Bind ViewModel.IsPastCast, Mode=OneWay}"
+                                                          Opacity="{x:Bind DimWhenEither(ViewModel.IsNowCast, ViewModel.IsForeCast), Mode=OneWay}"
+                                                          KeyboardAcceleratorTextOverride="{x:Bind PaneHiddenTag(ViewModel.IsPastPaneHidden), Mode=OneWay}"
+                                                          Click="OnTemporalPastCastClick"/>
+                                    <MenuFlyoutItem x:Name="TemporalModeHintItem" IsEnabled="False"
+                                                    Text="{x:Bind TemporalModeHint(ViewModel.IsNowCast, ViewModel.IsForeCast, ViewModel.IsPastCast), Mode=OneWay}"
+                                                    Visibility="{x:Bind TemporalModeHintVisibility(ViewModel.IsNowCast, ViewModel.IsForeCast, ViewModel.IsPastCast), Mode=OneWay}"/>
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
                     </StackPanel>
 
                     <ctl:WindowCaptionKey x:Name="CaptionKey"

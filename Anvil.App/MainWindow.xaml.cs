@@ -169,6 +169,50 @@ namespace Anvil
 			};
 		}
 
+		// Temporal Mode menu → toggle THAT mode only (the old bar keys' rule): IsChecked is ONE-WAY, so the item is
+		// re-asserted from the VM's answer after it flipped itself.
+		private void OnTemporalNowCastClick(object sender, RoutedEventArgs e) => ToggleModeFromMenu(TemporalMode.Now, TemporalNowCastItem);
+		private void OnTemporalForeCastClick(object sender, RoutedEventArgs e) => ToggleModeFromMenu(TemporalMode.Fore, TemporalForeCastItem);
+		private void OnTemporalPastCastClick(object sender, RoutedEventArgs e) => ToggleModeFromMenu(TemporalMode.Past, TemporalPastCastItem);
+
+		private void ToggleModeFromMenu(TemporalMode mode, ToggleMenuFlyoutItem item)
+		{
+			ViewModel.ToggleTemporalMode(mode);
+			item.IsChecked = mode switch
+			{
+				TemporalMode.Past => ViewModel.IsPastCast,
+				TemporalMode.Now => ViewModel.IsNowCast,
+				_ => ViewModel.IsForeCast,
+			};
+		}
+
+		// x:Bind functions for the Temporal Mode menu (mock-up C).
+		// The title names what runs: "Temporal Mode · Now + Fore", or just "Temporal Mode".
+		public string TemporalModeTitle(bool now, bool fore, bool past)
+		{
+			var on = new List<string>(2);
+			if (now) { on.Add("Now"); }
+			if (fore) { on.Add("Fore"); }
+			if (past) { on.Add("Past"); }
+			return on.Count == 0 ? "Temporal Mode" : "Temporal Mode · " + string.Join(" + ", on);
+		}
+
+		// The side that is OFF dims while the other side runs (Past excludes Now + Fore).
+		public double DimWhen(bool other) => other ? 0.45 : 1.0;
+		public double DimWhenEither(bool a, bool b) => DimWhen(a || b);
+
+		// The mode runs but View hid its pane — shown in the item's right column.
+		public string PaneHiddenTag(bool hidden) => hidden ? "pane hidden" : "";
+
+		// The greyed line under PastCast: what a click on the dimmed side turns off.
+		public string TemporalModeHint(bool now, bool fore, bool past) =>
+			past ? "NowCast or ForeCast turns PastCast off"
+			: now || fore ? "Turns NowCast and ForeCast off"
+			: "";
+
+		public Visibility TemporalModeHintVisibility(bool now, bool fore, bool past) =>
+			now || fore || past ? Visibility.Visible : Visibility.Collapsed;
+
 		// ===== FLOATING PANE SELECTORS — where each sits in its pane's cell (the user's call, 2026-11-01) =====
 		// SINGLE: centred, just under the top bar's tab. TWO ACROSS: against the divider on each side, same height.
 		// QUAD: all four at the CROSSING, each in its pane's inner corner — the top row hangs its shadow UP (Edge Bottom).
@@ -238,8 +282,8 @@ namespace Anvil
 		// ===== Both tiers' side sections ↔ the temporal panes' INNER edges (the user's call, 2026-10-22) =====
 		// Each LEFT section ends, and each RIGHT section starts, on the inner edge of the edge pane above it (the
 		// declared panes' Width from the client edge), whether or not that pane is shown. Controls keep their
-		// size: one stretching dot spacer per section takes the slack — the tools tier's two (MapControlsStrip), the
-		// temporal keys' (TemporalToggles). The bar's right section is empty (Atlas + Settings are menu-bar items).
+		// size: one stretching dot spacer per section takes the slack — the tools tier's two (MapControlsStrip).
+		// The BAR's side sections are empty since 2026-11-03 (temporal keys, Atlas, Settings → the top menu bar).
 		private void AlignSideSections()
 		{
 			if (Content is not FrameworkElement root || root.ActualWidth <= 0)
@@ -249,8 +293,6 @@ namespace Anvil
 			var innerLeft = TemporalPaneNowCast.Width;
 			var innerRight = root.ActualWidth - TemporalPaneForeCast.Width;
 			ToolsStrip.AlignToWindowEdges(innerLeft, innerRight, root);
-			TemporalKeys.AlignToWindowEdge(innerLeft, root);
-			// (The bar's right section is empty since Atlas + Settings moved to the menu bar, 2026-11-03 — no spacer.)
 		}
 
 		// (The bar's activity slot and its AlignActivityBay are GONE, 2026-10-16: activity shows in each temporal

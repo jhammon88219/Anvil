@@ -413,8 +413,8 @@
 
     <!-- ───────────────────────────── ToggleButton ───────────────────────────── -->
 
-    <!-- EVERY latching key in the bar: the three temporal keys at the centre
-         (Controls/Composites/TemporalToggles) and the four window buttons on the right (MainWindow).
+    <!-- EVERY latching bar-style key (the bar's own temporal / Atlas / Settings keys moved to the top menu bar,
+         2026-11-03; the style still serves the other square keys).
          Its content is a glyph over a NAME, both sized by the hosting control's code-behind via
          Layout/BarKeyMetrics — so there is nothing to add here beyond the base. The style exists to name
          the role and to keep one reference for both clusters if they ever need to diverge again.
