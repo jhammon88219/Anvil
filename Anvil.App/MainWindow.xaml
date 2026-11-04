@@ -111,22 +111,6 @@
             <KeyboardAccelerator Key="Escape" Invoked="OnEscapeAccelerator"/>
         </Grid.KeyboardAccelerators>
         <Grid.Resources>
-            <!-- The top bar slides like the auto-hidden Windows taskbar: a quick ease-out down, a quicker one away. The
-                 slide-OUT's To is the bar's measured height (set in code, HideTopBar). -->
-            <Storyboard x:Key="TopChromeSlideIn">
-                <DoubleAnimation Storyboard.TargetName="TopChromeSlide" Storyboard.TargetProperty="Y" To="0" Duration="0:0:0.2">
-                    <DoubleAnimation.EasingFunction>
-                        <ExponentialEase EasingMode="EaseOut" Exponent="5"/>
-                    </DoubleAnimation.EasingFunction>
-                </DoubleAnimation>
-            </Storyboard>
-            <Storyboard x:Key="TopChromeSlideOut">
-                <DoubleAnimation Storyboard.TargetName="TopChromeSlide" Storyboard.TargetProperty="Y" To="-60" Duration="0:0:0.15">
-                    <DoubleAnimation.EasingFunction>
-                        <ExponentialEase EasingMode="EaseIn" Exponent="4"/>
-                    </DoubleAnimation.EasingFunction>
-                </DoubleAnimation>
-            </Storyboard>
             <!-- The hint on entering full screen: fades in, holds ~3 s, fades out. -->
             <Storyboard x:Key="FullScreenHintFlash">
                 <DoubleAnimationUsingKeyFrames Storyboard.TargetName="FullScreenHint" Storyboard.TargetProperty="Opacity">
@@ -395,14 +379,7 @@
                         Edge="Top"
                         ShowTab="False"
                         EdgeStyle="CastShadow"
-                        SizeChanged="OnTopChromeSizeChanged"
-                        PointerEntered="OnTopChromePointerEntered"
-                        PointerExited="OnTopChromePointerExited"
-                        GotFocus="OnTopChromeGotFocus">
-            <!-- FULL SCREEN: the bar slides up out of sight on this (TopChromeSlideIn / Out); 0 = in place. -->
-            <ctl:OverlayBar.RenderTransform>
-                <TranslateTransform x:Name="TopChromeSlide"/>
-            </ctl:OverlayBar.RenderTransform>
+                        SizeChanged="OnTopChromeSizeChanged">
             <ctl:OverlayBar.BarContent>
                 <!-- MinHeight 32 = the caption height; the CENTRED place search makes it taller (its box + 7 px above and
                      below, the tools strip's old margins — the user's call, 2026-11-03). -->
@@ -794,26 +771,19 @@
                                   ViewModel="{x:Bind ViewModel}"/>
         </Grid>
 
-        <!-- ===== FULL SCREEN — the REVEAL STRIP and the HINT (2026-11-04; rules at MainWindow.xaml.cs FULL SCREEN) =====
+        <!-- ===== FULL SCREEN — the HINT (2026-11-04; rules at MainWindow.xaml.cs FULL SCREEN) =====
 
-               ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁   ← REVEAL STRIP: 3 px, invisible, the full width of the screen's
-                     ╭──────────────────────────────────╮      top edge; the pointer resting on it ~150 ms slides the menu
-                     │ Full screen · pointer to the top │      bar down (the map is a WebView, which never tells XAML about
-                     │ for the menu · F11 or Esc to exit│      the pointer — so this strip is the only way to see it there)
-                     ╰──────────────────────────────────╯   ← the HINT, ~3 s on entering, click-through
-             ⚠️ DECLARED LAST so the strip lies over the panes, the rail and the console too (in full screen they all start at
-             the screen's top). Collapsed outside full screen and while the bar is down. -->
-        <Border x:Name="FullScreenRevealStrip"
-                Height="3"
-                VerticalAlignment="Top"
-                Background="Transparent"
-                Visibility="Collapsed"
-                PointerEntered="OnRevealStripPointerEntered"
-                PointerExited="OnRevealStripPointerExited"/>
+               ┌ menu bar ──────────────────────────────── – □ ✕ ┐
+                         ╭──────────────────────────────────╮
+                         │ Full screen · press F11 or Esc   │   ← ~3 s on entering (FullScreenHintFlash), click-through,
+                         │ to exit                          │     just under the menu bar
+                         ╰──────────────────────────────────╯
+             (An auto-hide REVEAL STRIP lived here too — removed 2026-11-04 with the auto-hide, the user's call.)
+             Declared LAST so it paints over the panes and the console. -->
         <Border x:Name="FullScreenHint"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Top"
-                Margin="0,28,0,0"
+                Margin="0,60,0,0"
                 Padding="16,10"
                 CornerRadius="8"
                 Opacity="0"
@@ -821,7 +791,7 @@
                 Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                 BorderThickness="1">
-            <TextBlock Text="Full screen · move the pointer to the top for the menu · press F11 or Esc to exit"
+            <TextBlock Text="Full screen · press F11 or Esc to exit"
                        FontSize="13"
                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
         </Border>
