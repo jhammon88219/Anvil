@@ -176,6 +176,8 @@
              through to the map — only the notches themselves catch the pointer. Declared BEFORE the bottom
              bar so the bar draws over it and stays clickable where the two overlap.
 
+             ⚠️ NO SITE, NO SELECTOR (the user's call, 2026-11-04): a selector shows only while a radar site is selected
+             (Radar.HasRadarLoop, Now and Past alike) or a ForeCast model draws (its read-only model form) — NotchVisibility.
              ⚠️ ONE show/hide for all four now (View → Pane selectors, persisted) — the per-notch tabs went with
              the attachment (2026-11-01). They used to be four independent view-state toggles. -->
         <!-- ⚠️ THE SITE CHECK TOAST IS GONE from the map band: the announced site check now shows in the NowCast
@@ -213,7 +215,7 @@
                             IsRaised="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
-                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane0.IsVisible), Mode=OneWay}"
+                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane0.IsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
@@ -233,7 +235,7 @@
                             IsRaised="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
-                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane1.IsVisible), Mode=OneWay}"
+                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane1.IsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
@@ -253,7 +255,7 @@
                             IsRaised="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
-                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane2.IsVisible), Mode=OneWay}"
+                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane2.IsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
@@ -273,7 +275,7 @@
                             IsRaised="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
-                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane3.IsVisible), Mode=OneWay}"
+                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane3.IsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"

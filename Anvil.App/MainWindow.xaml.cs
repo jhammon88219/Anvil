@@ -321,16 +321,15 @@ namespace Anvil
 		public int PaneColumnSpan(PaneLayout layout, int index) => layout.CellOf(index).ColumnSpan;
 
 		/// <summary>
-		/// A pane's notch shows whenever that pane is up — from launch, with no loop and no site.
+		/// A pane's selector shows while View → Pane selectors is on, its pane is up, AND a radar site is selected
+		/// (Now and Past alike) — or a ForeCast model draws (the selector's read-only model form needs no site).
 		///
-		/// <para>⚠️ It deliberately does NOT wait for a loop. The notch is the pane's identity, so a map
-		/// with no notch reads as a map with no controls rather than as one waiting for a site; appearing
-		/// only once a loop lands also made it pop in over the map with no warning. It sits DORMANT
-		/// instead — dimmed, with its controls disabled (see PaneNotchContent.IsDormant) — which says
-		/// "this is yours once you pick a site" in a way an absent control cannot.</para>
+		/// <para>⚠️ NO SITE, NO SELECTOR (the user's call, 2026-11-04, alongside the console's same rule). It used to
+		/// show from launch, DORMANT (dimmed, controls off — PaneNotchContent.IsDormant) as "yours once you pick a
+		/// site"; now the map is bare until a site is picked, and the selector arrives with its loop.</para>
 		/// </summary>
-		public Visibility NotchVisibility(bool selectorsVisible, bool paneVisible) =>
-			selectorsVisible && paneVisible ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility NotchVisibility(bool selectorsVisible, bool paneVisible, bool hasSite, bool modelDrawing) =>
+			selectorsVisible && paneVisible && (hasSite || modelDrawing) ? Visibility.Visible : Visibility.Collapsed;
 
 		/// <summary>A temporal pane shows while its pane flag is set (MapViewModel; never past its mode).</summary>
 		public Visibility PaneVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
