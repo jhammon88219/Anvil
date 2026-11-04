@@ -1,63 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MainWindow — the app shell. The map fills the whole window; the UI is a MENU BAR over its top edge, the
-     bottom chrome over its bottom edge, and a small FLOATING pane selector per map pane.
+<!-- MainWindow — the app shell. The map fills the whole window; the UI is a MENU BAR over its top edge, a vertical
+     MAP-TOOLS RAIL down its left (or beside the left temporal pane), a small FLOATING pane selector per map pane and the
+     FLOATING radar console. There is NO bottom chrome (2026-11-04).
 
-       ┌ Atlas View Settings Temporal Mode ─── [ Search places ✕ ⌕ ] ─── drag ── – □ ✕ ┐  TOP MENU BAR (hideable, "Menu" tab):
-       │                                       (centred, 7 px above + below)            │  search CENTRED; its box + margins set
-       ├───────────────────────────╮ ˄ Menu ╭──────────────────────────┤                    the bar's height (46)
-       │                              ┃                              │  FLOATING PANE SELECTORS — product,
-       │                   ╭─────────╮┃╭─────────╮                   │  colour-ramp legend, tilt. Quad shown:
-       │    map pane 2     │SRV ▓▒░  │┃│CC  ▓▒░  │   map pane 3      │  all four at the CROSSING; two across =
-       ├━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┤  against the divider under the tab;
-       │                   │Ref ▓▒░  │┃│Vel ▓▒░  │                   │  single = centred under the tab.
-       │                   ╰─────────╯┃╰─────────╯                   │  View → Pane selectors hides all.
-       │    map pane 0  (MAIN)        ┃        map pane 1            │
-       ├─────────────────────────────┴─────────────────────────────┤
-       │        ╭──────────────────────────────────────────╮       │  FLOATING RADAR CONSOLE (2026-11-03) —
-       │        │ ◗▴      [⌂ KTLX Oklahoma ˅]       ⌕ ◎▴ │       │  TOP ROW (RadarConsoleHeader): networks ·
-       │        │ ──────────────────────────────────────── │       │  site picker (on play) · Inspect + rings,
-       │        │ 1:07 PM ═══ scrubber ═══ ◀ ▶ ▶ ↺  VCP: 212 │       │  over a rule (card A); then the old bar's
-       │        │ 2 min ago      3/10        Mode: precip   │       │  console, rounded, centred, SelectorGap
-       │        ╰──────────────────────────────────────────╯       │  above the chrome. View → Radar console.
-       │         ╎ clock-left                scan-text-right ┆      │  ← the top row's side groups align here
-       │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  …the strip's shadow thrown UP onto the map
-       │ ▣ ⊚                                          ┇▥▴ ⁙⁙ ⌘⛶ ─ ▥▴ [Isolate ▾]│  TOOLS strip = the ONE bottom bar
-       └──────────────────────────── ↑ window midpoint ───────────┴─────────────────────────┘  ┇ = the ForeCast pane's INNER edge;
-                                                                                                    ⁙⁙⁙ = a stretching spacer
-          ↑ THE MIRROR (2026-11-03, the user's canvas option C): top = menu bar · ˄ Menu tab · floating pane selectors;
-            bottom = tools strip · floating radar console (its top row holds the site picker). The bar tier that held only the console is GONE
-            (and its "Bar" tab), so the temporal panes run down to the strip's top. The console never shrinks; in a
-            narrow window it overlaps the panes' bottoms (it is declared after them).
-          ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, drawn by whichever side owns it: the tools strip throws
-            its own up onto the map; the floating selectors and the console cast rounded halos. OverlayBar.EdgeStyle
-            picks per instance, because only the host knows what is beyond a given edge.
-          ↑ NO TAB ON THE STRIP (2026-11-03): View → Map tools shows / hides it (the rail of tabs is gone).
-          ↑ THE CONSOLE ⇄ TEMPORAL SWAP (2026-10-06, mock-up A): the time module holds the bar's MIDPOINT and
-            the temporal keys sit at the LEFT edge, so the bar reads mode → time → windows. The tools tier
-            follows: its centre section spans the console's edges with the site picker on ▶ — the bar's
-            midpoint (AlignCentreSection) — and
-            the place search + ▣ ⊚ moved to the left, over the temporal keys.
-          ↑ Site markers AND ⌕ Inspect are on the TOOLS tier (both left this bar; see MapControlsStrip).
-          ↑ The three MODE KEYS are gone from the bar (2026-11-03): the top menu bar's Temporal Mode menu replaced them
-            (Composites/TemporalToggles deleted). A mode's pane still follows its mode — see the TEMPORAL PANES block.
-          ↑ ▥▴ (first of the right tools) = pane layout, ONE square key with an upward 1 / 2 / 4 list, on the TOOLS
-            tier; it left this bar's right cluster, which is now window latches only. See MapControlsStrip.
-          ↑ ┇ THE SIDE SECTIONS END ON THE TEMPORAL PANES' INNER EDGES (2026-10-22): both tiers' left sections end,
-            and both right sections start, on the inner edge of the 480-wide edge pane above them, open or not
-            (AlignSideSections ← the declared panes' Width). Controls keep their size; one dot spacer per section
-            per tier takes the slack. The blank runs between the sections give way as the window shrinks.
-          ↑ ▣ = the (future) marker viewer and ⊚ = Location follow the place search on the TOOLS
-            tier. Location left this bar: it is a "where on the map" move like search, and an
-            occasional one, so it fails the bar's constant-gesture test. See MapControlsStrip.
+       ┌ Atlas View Settings Temporal Mode Pane Mode Isolation ── [ Search places ✕ ⌕ ] ── drag ── – □ ✕ ┐  TOP MENU BAR
+       ├──┬──────────────────────────────────────────────────────────────────────────────────────────────┤  (always shown,
+       │  │                           ┃                              │  no tab); search CENTRED, its box + margins
+       │▤▸│              ╭─────────╮┃╭─────────╮                   │  set the bar's height (46)
+       │⁘ │  map pane 2  │SRV ▓▒░  │┃│CC  ▓▒░  │   map pane 3      │  FLOATING PANE SELECTORS — product, colour-ramp
+       │⛶ ├━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┤  legend, tilt. Quad shown: all four at the
+       │↻ │              │Ref ▓▒░  │┃│Vel ▓▒░  │                   │  CROSSING; two across = against the divider;
+       │⁘ │              ╰─────────╯┃╰─────────╯                   │  single = centred under the bar.
+       │◍ │  map pane 0  (MAIN)     ┃        map pane 1            │  View → Pane selectors hides all.
+       │⊚ │       ╭──────────────────────────────────────────╮     │  FLOATING RADAR CONSOLE (2026-11-03) —
+       │  │       │ ◗▴      [⌂ KTLX Oklahoma ˅]       ⌕ ◎▴ │     │  TOP ROW (RadarConsoleHeader): networks ·
+       │  │       │ ──────────────────────────────────────── │     │  site picker (on play) · Inspect + rings,
+       │  │       │ 1:07 PM ═══ scrubber ═══ ◀ ▶ ▶ ↺  VCP: 212 │     │  over a rule (card A); then the console,
+       │  │       │ 2 min ago      3/10        Mode: precip   │     │  rounded, centred, SelectorGap above the
+       │  │       ╰──────────────────────────────────────────╯     │  window bottom. View → Radar console.
+       └──┴──────────────────────── ↑ window midpoint ─────────────┘
+        ↑ the MAP-TOOLS RAIL (2026-11-04): map layers · fit · reset north · markers · location, CENTRED top to bottom;
+          on the window's left edge, DOCKED to the NowCast / PastCast pane's right edge while one shows (TEMPORAL PANES block).
+
+          ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, drawn by whichever side owns it: the top bar casts its
+            own down, the rail its own onto the map; the floating selectors and the console cast rounded halos.
+          ↑ THE BOTTOM TOOLS STRIP IS GONE (2026-11-04, the user's call): its map tools became the left RAIL
+            (Composites/MapControlsStrip, vertical now); its pane-layout key became the top bar's PANE MODE menu and its
+            isolation picker the top bar's ISOLATION item. So the temporal panes and the rail run to the window bottom.
+          ↑ The console never shrinks; in a narrow window it overlaps the panes' bottoms (it is declared after them).
           ↑ [⌂ KTLX ˅] = the SITE PICKER (home + favorites), centred in the floating console's TOP ROW with the network
-            picker left and Inspect + rings/ruler right (2026-11-03; it was the strip's centre, then a tab on the card).
-            It replaced this bar's Home key AND the side car that used to hang off the Atlas key — two doors
-            to one list. See Composites/RadarConsoleHeader. Don't re-add a Home key here.
-          ↑ The bar's RIGHT of the console is BLANK: Atlas + Settings moved to the top menu bar (2026-11-03), and the
-            activity slot moved to each temporal pane's ACTIVITY EXPANDER (TemporalPaneActivityExpander, 2026-10-16).
-          ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map (notches and the
-            rail's see-through gaps included; the opaque tiers and both tabs paint over it) is frosted behind
-            "Loading the loop" + progress bars + Cancel load (no escape since 2026-10-10). See Composites/LoopHoldingGate.
+            picker left and Inspect + rings/ruler right (2026-11-03). It replaced the old bar's Home key AND the side car
+            that used to hang off the Atlas key — two doors to one list. See Composites/RadarConsoleHeader. Don't re-add a
+            Home key.
+          ↑ Atlas, Settings and the temporal modes are TOP MENU BAR items (2026-11-03); activity shows in each temporal
+            pane's ACTIVITY EXPANDER (TemporalPaneActivityExpander, 2026-10-16).
+          ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map (notches included; the top
+            bar, the rail and the console paint over it) is frosted behind "Loading the loop" + progress bars + Cancel load
+            (no escape since 2026-10-10). See Composites/LoopHoldingGate.
 
      ⚠️ WHAT REPEATS PER PANE IS NOT IN THE BAR ANY MORE. It used to be: the bar's left cluster carried a
      160px "chip" per pane (a combined product-selector-and-colour-ramp) plus the one tilt combo, which is
@@ -95,7 +74,7 @@
      The pane notches are now FLOATING pane selectors — see the PANE NOTCHES block. -->
      <!-- TOP OF WINDOW (2026-11-01):
        ┌ View ──────────────────────── drag ───────────────────────── – □ ✕ ┐
-       ├──────────┬─────────────────╮ ˄ Menu ╭────────────────┬──────────┤
+       ├──────────┬────────────────────────────────────────────┬──────────┤
        │ PastCast │      ╭────────────────╮                    │ ForeCast │  temporal panes under the bar,
        │ /NowCast │      │Ref˅│▓▒░▒▓│0.5°│  a floating pane    │          │  selectors floating (see below)
        │          │      ╰────────────────╯  selector           │          │
@@ -116,18 +95,11 @@
     mc:Ignorable="d"
     Title="Anvil">
 
-    <!-- Two overlay rows (see the sketch at the top of the file):
-           Row 0 — the map band (the map shows through). The three TEMPORAL PANES overlay its edges (see the
-                   TEMPORAL PANES block); every other panel that pops over the map is a real top-level OS window
-                   owned by WindowManager.
-           Row 1 — the bottom bar, pinned to the bottom edge. Its LEFT is RadarControls (the pane chips +
-                   the global time module); its RIGHT is the global cluster below. The map RowSpans both,
-                   so the boundary is invisible and costs the map nothing. -->
+    <!-- ONE overlay cell over the whole window (the bottom chrome row went 2026-11-04; the leftover Grid.RowSpan="2"s are
+         harmless). The map fills it; the top bar, the TEMPORAL PANES + the MAP-TOOLS RAIL, the pane selectors and the
+         floating console overlay it. Every other panel that pops over the map is a real top-level OS window owned by
+         WindowManager. -->
     <Grid Background="#FF0A0A0A">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>    <!-- map band (the map shows through) -->
-            <RowDefinition Height="Auto"/> <!-- bottom bar (tab + bar), pinned to the bottom -->
-        </Grid.RowDefinitions>
 
         <!-- Full-window map (bottom layer; the bar floats on top of it). -->
         <controls:WebView2 x:Name="MainMapWebView" Grid.Row="0" Grid.RowSpan="2">
@@ -174,14 +146,13 @@
 
              SINGLE                         TWO ACROSS                       QUAD
              ════════ top bar ════════      ════════ top bar ════════        ═════════ top bar ═════════
-                     ╰ ˄ Menu ╯                    ╰ ˄ Menu ╯                         ╰ ˄ Menu ╯
                  ╭───────────────╮          ╭──────────╮┃╭──────────╮        ┃         ┃
                  │Ref˅│▓▒░▒▓│0.5°│          │Ref ▓▒░ 0.5°│┃│Vel ▓▒░ 0.5°│     ╭──────╮┃╭──────╮
                  ╰───────────────╯          ╰──────────╯┃╰──────────╯        │ SRV  │┃│  CC  │   top row: hangs
-                 centred, under the tab     against the divider, under      ━━━━━━━━━━╋━━━━━━━━━━   UP (Edge Bottom)
-                                            the tab's foot                   │ Ref  │┃│ Vel  │   bottom row: DOWN
+                 centred, under the bar     against the divider, under      ━━━━━━━━━━╋━━━━━━━━━━   UP (Edge Bottom)
+                                            the bar                          │ Ref  │┃│ Vel  │   bottom row: DOWN
                                                                              ╰──────╯┃╰──────╯   all at the crossing
-             The selectors move up with the tab when the top bar is hidden.
+             (The top bar has no Menu tab since 2026-11-04, so it is always there to sit under.)
 
              ⚠️ THE WATERMARK IS GONE. Each pane used to carry a big ghosted product label in its top-left
              corner, because every control lived in the bottom bar and the pane had no other way to say what
@@ -337,91 +308,35 @@
             </Border>
         </Grid>
 
-        <!-- ===== EDGE-HATCH (experimental bolt-on, grep EDGE-HATCH) ===== the cross-hatch band where the bottom chrome meets
-             the map, in place of the top tier's black cast shadow (Settings → Edges; "Black shadow" brings the shadow back
-             — ApplyRailSeating switches the tiers' EdgeStyle with it).
-
-               ╱╲╱ ╲╱  ╲  ╱╲╱╲╱ ╲╱  ╲  ╱╲╱╲╱ ╲╱  ╲   ← Primitives/EdgeHatch, Direction Up, Height = the band width,
-               ╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱     bottom margin = the opaque tiers' height (OnBottomChromeSizeChanged)
-               ▀▀▀▀▀▀▀▀▀▀▀ tools tier (or the bar) ▀▀▀▀▀▀▀   "Bar surface" ink = the RAISED face while the tools tier shows
-
-             ⚠️ Z-ORDER: declared BEFORE the loop holding gate and the bottom chrome — the rail's Tools / Bar tabs stand just
-             above the tools tier and must paint OVER the band (the shadow passed behind them too), and the gate frosts it with
-             the map — and well before the temporal panes, so an open pane covers it over its own width (the same trick as
-             the shadow). The pane draws its own map-side hatch (TemporalPane, EdgeHatchPaneEdge). -->
-        <ctl:EdgeHatch x:Name="EdgeHatchBottomChrome" Grid.Row="0" Grid.RowSpan="2" VerticalAlignment="Bottom"
-                       Height="{x:Bind ViewModel.EdgeHatch.Width, Mode=OneWay}"
-                       Spacing="{x:Bind ViewModel.EdgeHatch.Spacing, Mode=OneWay}"
-                       Weight="{x:Bind ViewModel.EdgeHatch.Weight, Mode=OneWay}"
-                       Thin="{x:Bind ViewModel.EdgeHatch.Thins, Mode=OneWay}"
-                       Fade="{x:Bind ViewModel.EdgeHatch.Fades, Mode=OneWay}"
-                       Dots="{x:Bind ViewModel.EdgeHatch.IsDots, Mode=OneWay}"
-                       Ink="{x:Bind ViewModel.EdgeHatch.ColorHex, Mode=OneWay}"
-                       LineOpacity="{x:Bind ViewModel.EdgeHatch.LineOpacity, Mode=OneWay}"
-                       Raised="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=OneWay}"
-                       Visibility="{x:Bind PaneVisibility(ViewModel.EdgeHatch.IsHatch), Mode=OneWay}"/>
-
-        <!-- LOOP HOLDING GATE — PastCast's loading screen (Composites/LoopHoldingGate). It dims the map band and the
-             pane notches and swallows their input while a loop loads; the bottom chrome (row 1, declared AFTER it)
-             paints over it and stays live. Transparent and click-through while hidden.
-             ⚠️ BOTH ROWS, not row 0: row 1 starts with the shared RAIL, which is see-through apart from its two
-             tabs — a row-0 gate left a full-width undimmed strip there (and still would with both tiers hidden).
-             Spanning both rows dims under the whole chrome; the opaque tiers cover it, the rail's gaps show it.
-             ContentBottomInset (= the opaque tiers' height, MainWindow.UpdateLoopGateInset) keeps the screen's
-             content centred on the visible map instead of the whole window.
-             ⚠️ The TEMPORAL PANES are declared after it (and after the bottom chrome) — harmless, because every pane steps
-             aside while the gate's frost is up (MapViewModel.OnLoadingScreenChanged), so the gate never has a pane to dim. -->
+        <!-- LOOP HOLDING GATE — PastCast's loading screen (Composites/LoopHoldingGate). It dims the map and the pane
+             notches and swallows their input while a loop loads; the top bar, the map-tools rail and the floating console
+             (all declared AFTER it) paint over it and stay live (the rail's tools grey through AreControlsLocked).
+             Transparent and click-through while hidden. There is no bottom chrome any more (2026-11-04), so its
+             ContentBottomInset stays 0 and the screen centres on the whole map.
+             ⚠️ The TEMPORAL PANES are declared after it — harmless, because every pane steps aside while the gate's frost
+             is up (MapViewModel.OnLoadingScreenChanged), so the gate never has a pane to dim. -->
         <comp:LoopHoldingGate x:Name="LoopGate" Grid.Row="0" Grid.RowSpan="2" ViewModel="{x:Bind ViewModel.Radar.LoopGate}"/>
-
-        <!-- ===== Row 1: the bottom bar. Left = the radar console; CENTER = the temporal mode pills;
-             right = the app-wide window buttons. The empty space between them is bar, by design: the
-             scrubber stops at the end of the site readout rather than stretching the full width.
-
-             ⚠️ THE PILLS ARE PINNED TO THE BAR'S TRUE HORIZONTAL CENTER and nothing may move them.
-             That is why the outer grid is [*, Auto, *] and NOT a content-driven [Auto, Auto, Auto] or a
-             pair of stretched halves: two EQUAL star columns split whatever is left over, so the Auto
-             column between them lands on the midpoint of the bar no matter how wide either side gets.
-             Multi-pane grows the chip cluster on the left (quad = a 2x2 of product combos) — the star
-             columns absorb that and the pills do NOT drift. If the left ever grows past its half it
-             simply overlaps rather than pushing; the pills are LAST in markup so they stay on top and
-             clickable. ===== -->
-        <!-- ⚠️ THE BOTTOM CHROME IS ONE TIER NOW (2026-11-03): the tools strip, bottom-aligned, its row Auto — the row grows
-             by the strip's height, which costs the MAP nothing (the WebView spans both rows at full height either way).
-             No tab and no rail any more: View → Map tools shows / hides it (IsMapControlsStripVisible, persisted). Hidden,
-             the strip collapses to 0 and the floating console drops to the window bottom. (It was two tiers under a
-             shared rail of two tabs; the bar tier became the floating console, the tabs became View items.) -->
-        <Grid x:Name="BottomChrome" Grid.Row="1" VerticalAlignment="Bottom" SizeChanged="OnBottomChromeSizeChanged">
-            <!-- The tools strip: the map's camera tools, on the raised surface. Its visibility is PERSISTED
-                 (AppSettings.MapControlsStripVisible), driven by View → Map tools. -->
-            <ctl:OverlayBar x:Name="MapControlsTier"
-                            ShowTab="False"
-                            IsRaised="True"
-                            EdgeStyle="CastShadow"
-                            IsOverlayBarVisible="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=OneWay}"><!-- EdgeStyle: CastShadow is only the pre-layout value — ApplyRailSeating sets it (Hairline while the EDGE-HATCH draws) -->
-
-                <ctl:OverlayBar.BarContent>
-                    <comp:MapControlsStrip x:Name="ToolsStrip" ViewModel="{x:Bind ViewModel}"/>
-                </ctl:OverlayBar.BarContent>
-            </ctl:OverlayBar>
-        </Grid>
 
         <!-- ===== TOP MENU BAR (the user's call, 2026-11-01) =====
 
-               ┌ Atlas View Settings Temporal Mode ── [ Search places ✕ ⌕ ] ── drag ─── – □ ✕ ┐  46 tall (the search box + 7 + 7), full width
-               └─────────────────────────────╮ ˄ Menu ╭───────────────────────────────────┘  centred tab hides it
-                 ░░░ light cast shadow ░░░░░░╰────────╯░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    (IsMenuBarVisible, saved)
+               ┌ Atlas View Settings Temporal Mode Pane Mode Isolation ── [ Search places ✕ ⌕ ] ── drag ── – □ ✕ ┐  46 tall
+               └──────────────────────────────────────────────────────────────────────────────────────────────┘  full width
+                 ░░░ light cast shadow ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    ALWAYS shown
 
-             An OverlayBar (Edge Top, full width) over the map — like the bottom chrome it never resizes the map.
+             An OverlayBar (Edge Top, full width) over the map — it never resizes the map.
+             ⚠️ NO "Menu" TAB (removed 2026-11-04, the user's call: "I don't want the user to hide this bar yet, not this way").
+               The bar always shows; MapViewModel.IsMenuBarVisible is still persisted but nothing binds it now.
              • Atlas / Settings: plain items, a click opens or closes that window (they were the bottom bar's keys).
-             • Temporal Mode (right-most): NowCast, ForeCast ─ PastCast; toggles the MODE (was the bar's three keys).
+             • Temporal Mode: NowCast, ForeCast ─ PastCast; toggles the MODE (was the bar's three keys).
+             • Pane Mode: Single / Double / Quad Pane (was the tools strip's pane-layout key). Isolation: the isolation
+               picker drawn as a menu title (was the tools strip's picker). Both grey while the loop holding gate is up.
              • View: the three temporal panes (TogglePane: a running mode's pane open ⇄ hidden; while Now OR Fore runs, the
                other's item turns that mode on), then Pane selectors. Ctrl+1/2/3 = the panes. An item that can't act is
                DISABLED (CanPick*Pane) with "Turn on X first" in its shortcut column.
              • The EMPTY run is the window's CAPTION (drag, double-click maximize, snap) — MainWindow.UpdateCaptionBand
                sets the bar's rect as the Caption region; the menu items (MenuBarMenus) and the caption key are Passthrough holes.
-               Hidden, there is NO caption band (accepted for now): only the tab remains.
              • The caption key (– □ ✕) is back where Windows puts it (it was the bottom bar's far-right key).
-             ⚠️ DECLARED AFTER THE BOTTOM CHROME + LOOP GATE (stays live over the frost) and BEFORE the temporal panes, which
+             ⚠️ DECLARED AFTER THE LOOP GATE (stays live over the frost) and BEFORE the temporal panes, which
              start at its bottom edge (OnTopChromeSizeChanged) and so cover its shadow over their own width.
              ⚠️ Every flyout here is ShouldConstrainToRootBounds="False" (windowed), like the strip's — else the owned
              panel windows paint over it. -->
@@ -429,11 +344,8 @@
                         Grid.Row="0" Grid.RowSpan="2"
                         VerticalAlignment="Top"
                         Edge="Top"
-                        ShowTab="True"
-                        ShowTabLabel="True"
-                        TabTarget="Menu"
+                        ShowTab="False"
                         EdgeStyle="CastShadow"
-                        IsOverlayBarVisible="{x:Bind ViewModel.IsMenuBarVisible, Mode=TwoWay}"
                         SizeChanged="OnTopChromeSizeChanged">
             <ctl:OverlayBar.BarContent>
                 <!-- MinHeight 32 = the caption height; the CENTRED place search makes it taller (its box + 7 px above and
@@ -555,6 +467,80 @@
                                 </MenuFlyout>
                             </Button.Flyout>
                         </Button>
+
+                        <!-- ===== PANE MODE (the user's call, 2026-11-04 — it replaced the tools strip's square pane-layout key) =====
+
+                               ┌ Pane Mode ─────────┐
+                               │   ▭  Single Pane    │   ToggleMenuFlyoutItems, the CURRENT one ticked; the marks are
+                               │ ✓ ▭▭ Double Pane    │   drawn PathIcons (solid blocks, like the old key's list)
+                               │   ⊞  Quad Pane      │
+                               └─────────────────────┘
+                             ⚠️ IsChecked is ONE-WAY and RE-ASSERTED in OnPaneModeClick: a same / refused pick changes no
+                             property, so the clicked item would stay flipped. Greyed while the PastCast loading screen is up
+                             (Radar.AreControlsLocked) — a layout change mid-load is a real memory risk. -->
+                        <Button x:Name="PaneModeMenuButton" Content="Pane Mode" Style="{StaticResource MenuBarTitleButtonStyle}"
+                                IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}">
+                            <Button.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False">
+                                    <ToggleMenuFlyoutItem x:Name="PaneModeSingleItem" Text="Single Pane" Tag="Single"
+                                                          IsChecked="{x:Bind IsPaneLayout(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
+                                                          Click="OnPaneModeClick">
+                                        <ToggleMenuFlyoutItem.Icon>
+                                            <PathIcon Data="M2,4 H16 V14 H2 Z"/>
+                                        </ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="PaneModeDoubleItem" Text="Double Pane" Tag="TwoAcross"
+                                                          IsChecked="{x:Bind IsPaneLayout(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
+                                                          Click="OnPaneModeClick">
+                                        <ToggleMenuFlyoutItem.Icon>
+                                            <PathIcon Data="M2,4 H8.5 V14 H2 Z M9.5,4 H16 V14 H9.5 Z"/>
+                                        </ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="PaneModeQuadItem" Text="Quad Pane" Tag="Quad"
+                                                          IsChecked="{x:Bind IsPaneLayout(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
+                                                          Click="OnPaneModeClick">
+                                        <ToggleMenuFlyoutItem.Icon>
+                                            <PathIcon Data="M2,4 H8.5 V8.5 H2 Z M9.5,4 H16 V8.5 H9.5 Z M2,9.5 H8.5 V14 H2 Z M9.5,9.5 H16 V14 H9.5 Z"/>
+                                        </ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
+
+                        <!-- ===== ISOLATION (the user's call, 2026-11-04 — it was the tools strip's isolation picker) =====
+
+                               Isolation              a SectionedComboBox drawn as a MENU TITLE (IsMenuTitle): flat words,
+                             ┌───────────────────┐    lit on hover / while open. The dropdown is the picker's own, unchanged:
+                             │ No Isolation      │ ┐  the three MODES pinned above a rule, the 52 places scrolling below,
+                             │ Isolate CONUS     │ │  capped at the picker's MaxDropDownHeight (360, its default — the
+                             │ Select to Isolate │ ┘  height it had on the strip), 220 wide (DropDownWidth).
+                             │───────────────────│
+                             │ Alabama         ⋮ │    ⚠️ "Select to Isolate" ARMS the map — a MODE, not a resting choice:
+                             └───────────────────┘    hovering a state highlights it; the click picks it (states.js).
+                             ⚠⚠ A SectionedComboBox, NOT a ComboBox / MenuFlyout: a closed ComboBox cycles on the mousewheel
+                             (it froze the map), and a MenuFlyout can't pin a section over a scrolling list. -->
+                        <ctl:SectionedComboBox x:Name="IsolationMenuPicker"
+                                               IsMenuTitle="True"
+                                               PlaceholderText="Isolation"
+                                               DropDownPlacement="BottomEdgeAlignedLeft"
+                                               DropDownWidth="220"
+                                               VerticalAlignment="Stretch"
+                                               Margin="0,3"
+                                               IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
+                                               PinnedItemsSource="{x:Bind ViewModel.StateIso.IsolationModes, Mode=OneWay}"
+                                               ItemsSource="{x:Bind ViewModel.StateIso.IsolationPlaces, Mode=OneWay}"
+                                               SelectedItem="{x:Bind ViewModel.StateIso.SelectedIsolationOption, Mode=TwoWay}"
+                                               ToolTipService.ToolTip="Mask the map down to CONUS or a single state">
+                            <ctl:SectionedComboBox.ItemTemplate>
+                                <!-- One isolation row, for BOTH sections. The modes carry hover text; the places have a null
+                                     Tooltip, which shows nothing rather than an empty box. -->
+                                <DataTemplate x:DataType="vm:StateIsolationOption">
+                                    <Grid Background="Transparent" ToolTipService.ToolTip="{x:Bind Tooltip}">
+                                        <TextBlock Text="{x:Bind Label}" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ctl:SectionedComboBox.ItemTemplate>
+                        </ctl:SectionedComboBox>
                     </StackPanel>
 
                     <!-- PLACE SEARCH, CENTRED on the window (spans every column; declared before the caption key so the
@@ -581,32 +567,22 @@
         <!-- ===== TEMPORAL PANES ===== (TemporalPanes/TemporalPane — one class, three declarations, Mode set here ONCE)
 
                ┌─────────────────────────── top menu bar ────────────────────────┐
-               ├──────────┬───────────────────────────────────────────┬──────────┤
-               │ PastCast │                                           │ ForeCast │  each 480 wide (Styles.xaml
-               │    or    │              …the map…                    │          │  TemporalPaneWidth), flush to
-               │ NowCast  │                                           │          │  its edge and the TOP BAR's foot
-               │ (left)   │                                           │ (right)  │  (window top while it's hidden),
-               │          │                                           │          │  down to the tools tier's top
-               │          │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│          │  ← the top tier's cast shadow:
-               ├──────────┴───────────────────────────────────────────┴──────────┤    over the MAP only, never
-               │                       bottom chrome                             │    over an open pane
-               └─────────────────────────────────────────────────────────────────┘
+               ├──────────┬──┬────────────────────────────────────────┬──────────┤
+               │ PastCast │▤ │                                        │ ForeCast │  each 480 wide (Styles.xaml
+               │    or    │⛶ │           …the map…                    │          │  TemporalPaneWidth), flush to
+               │ NowCast  │↻ │                                        │          │  its edge and the TOP BAR's foot,
+               │ (left)   │◍ │                                        │ (right)  │  down to the WINDOW BOTTOM (no
+               │          │⊚ │                                        │          │  bottom chrome since 2026-11-04)
+               └──────────┴──┴────────────────────────────────────────┴──────────┘
+                           ↑ the MAP-TOOLS RAIL (below), docked to the left pane, or the window edge without one
 
              OVERLAYS, not OS windows: they never resize or push the map. Past and Now share the LEFT edge, safe only
              because Past excludes Now. Each shows while its mode runs AND it isn't HIDDEN from the top bar's View menu
              (MapViewModel.Is{Past,Now,Fore}PaneShown — also held back by the launch order and the loop holding gate) and
              builds its body on first show (see TemporalPane). The layer's TOP margin is the top bar's surface height
-             (OnTopChromeSizeChanged); its BOTTOM MARGIN is the opaque
-             tiers' height (OnBottomChromeSizeChanged) — the same inset the loop holding gate centres on — so a pane
-             ends on the tools tier's top in every tier state. The grid has no Background: between the panes the map
+             (OnTopChromeSizeChanged); its bottom is the window's. The grid has no Background: between the panes the map
              still takes the pointer. Declared after the notches (a pane covers a notch it overlaps, as the windows
-             did).
-             ⚠️ DECLARED AFTER THE BOTTOM CHROME, ON PURPOSE (the user's call, 2026-10-30): the top tier (tools, or the bar
-             when tools is hidden) hangs its 36 px cast shadow UP onto the map on a negative margin, and a pane sits flush
-             on that edge — painted after the chrome, each open pane covers the shadow over exactly its own width, while
-             the map between panes keeps it. No code: it follows the panes as they show and hide. Safe because a pane
-             never overlaps the chrome itself (it ends on the tier's top) or the rail's tabs (centred, and a pane is
-             480 from an edge). Don't move this block back above BottomChrome — the shadow would darken every pane's foot.
+             did) and after the top bar, so an open pane covers the bar's cast shadow over its own width.
              (The panes no longer reach into the caption band: the TOP BAR is the caption now, and they start below it.) -->
         <Grid x:Name="TemporalPaneLayer" Grid.Row="0" Grid.RowSpan="2">
             <tp:TemporalPane x:Name="TemporalPanePastCast" Mode="Past"
@@ -621,24 +597,78 @@
                              Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Right"
                              Visibility="{x:Bind PaneVisibility(ViewModel.IsForePaneShown), Mode=OneWay}"
                              ViewModel="{x:Bind ViewModel}"/>
+
+            <!-- ===== THE MAP-TOOLS RAIL (the user's call, 2026-11-04 — it replaced the horizontal bottom tools strip) =====
+
+                   ┌ top menu bar ────────────────────────────    ┌ top menu bar ──────────────────────────────────
+                   ├──┐                                           ├──────────┬──┐
+                   │  │░                                          │ NowCast  │  │░
+                   │▤▸│░  ← map layers (key + car)                │    or    │▤▸│░   DOCKED to the left pane's
+                   │⁘ │░                                          │ PastCast │⁘ │░   RIGHT edge while Now or
+                   │⛶ │░  ← fit to view                           │          │⛶ │░   Past's pane shows
+                   │↻ │░  ← reset north                           │          │↻ │░   (MapToolsRailMargin)
+                   │⁘ │░                                          │          │⁘ │░
+                   │◍ │░  ← markers (placeholder)                 │          │◍ │░
+                   │⊚ │░  ← location                              │          │⊚ │░
+                   │  │░                                          │          │  │░
+                   └──┘ no left pane: the window's left edge      └──────────┴──┘
+                   48 wide, the top bar's foot to the window bottom (this layer's margins), the tools CENTRED top to
+                   bottom (Composites/MapControlsStrip). RAISED face; its map side casts the light 14 px shade
+                   (ShadowFadeLeft), or — EDGE-HATCH (bolt-on) — the hatch instead. View → Map tools hides it.
+                   ⚠️ IN THIS LAYER ON PURPOSE: it shares the panes' top/bottom insets, and declared after them it covers a
+                   left pane's map-side hatch (the rail is the map side then). Past and Now never show together. -->
+            <Grid x:Name="MapToolsRail"
+                  Width="48"
+                  HorizontalAlignment="Left"
+                  Margin="{x:Bind MapToolsRailMargin(ViewModel.IsPastPaneShown, ViewModel.IsNowPaneShown), Mode=OneWay}"
+                  Visibility="{x:Bind PaneVisibility(ViewModel.IsMapControlsStripVisible), Mode=OneWay}">
+                <Rectangle x:Name="MapToolsRailShadow"
+                           Width="14" HorizontalAlignment="Right" Margin="0,0,-14,0"
+                           Fill="{StaticResource ShadowFadeLeft}"
+                           Opacity="{ThemeResource OverlayBarShadowOpacity}"
+                           IsHitTestVisible="False"
+                           Visibility="{x:Bind HiddenWhen(ViewModel.EdgeHatch.IsHatch), Mode=OneWay}"/>
+                <!-- EDGE-HATCH (experimental bolt-on): the hatch on the rail's map side, in place of the shade. -->
+                <ctl:EdgeHatch x:Name="EdgeHatchMapToolsRail"
+                               HorizontalAlignment="Right"
+                               Direction="Right"
+                               Raised="True"
+                               IsHitTestVisible="False"
+                               Width="{x:Bind ViewModel.EdgeHatch.Width, Mode=OneWay}"
+                               Margin="{x:Bind MapToolsRailHatchMargin(ViewModel.EdgeHatch.Width), Mode=OneWay}"
+                               Spacing="{x:Bind ViewModel.EdgeHatch.Spacing, Mode=OneWay}"
+                               Weight="{x:Bind ViewModel.EdgeHatch.Weight, Mode=OneWay}"
+                               Thin="{x:Bind ViewModel.EdgeHatch.Thins, Mode=OneWay}"
+                               Fade="{x:Bind ViewModel.EdgeHatch.Fades, Mode=OneWay}"
+                               Dots="{x:Bind ViewModel.EdgeHatch.IsDots, Mode=OneWay}"
+                               Ink="{x:Bind ViewModel.EdgeHatch.ColorHex, Mode=OneWay}"
+                               LineOpacity="{x:Bind ViewModel.EdgeHatch.LineOpacity, Mode=OneWay}"
+                               Visibility="{x:Bind PaneVisibility(ViewModel.EdgeHatch.IsHatch), Mode=OneWay}"/>
+                <Border x:Name="MapToolsRailSurface" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+                <comp:MapControlsStrip x:Name="ToolsStrip"
+                                       HorizontalAlignment="Left"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0,0,0"
+                                       ViewModel="{x:Bind ViewModel}"/>
+            </Grid>
         </Grid>
 
         <!-- ===== THE FLOATING RADAR CONSOLE (the user's call, 2026-11-03 — canvas option C, "mirror") =====
 
-                 ┌ Menu bar ──────────────────────────╮ ˄ Menu ╭───────────────────────────────────┐
-                                                ╭──────────────────╮   ← floating pane selector(s)
-                                    ...map...
-                     ╭──────────────────────────────────────────────────────────╮
-                     │ ◗▴               [ ⌂ KTLX  Oklahoma City  ˅ ]        ⌕ ◎▴  │  ← THIS: the TOP ROW (RadarConsoleHeader)
-                     │ ──────────────────────────────────────────────────────── │    over its rule (canvas card A),
-                     │ 1:07 PM  ▮▮▮▮▮▮▮▮▮▮ scrubber ▮▮▮▮▮▮▮▮▮  ◀ ▶ ▶ ↺  VCP: 212    │    then the console exactly as it
-                     │ 2 min ago                              3/10      Mode: precip │    was on the bar, rounded, floating
-                     ╰──────────────────────────────────────────────────────────╯
-                       ├ clock's left edge                     scan text's end ┤   ← the top row's side groups align here
-               ▣ ⊚                                          ┇ ▥ ⁙⁙ ↑N ⛶ Map Isolate   ← the tools strip, the ONE bottom bar
+                 ┌ Menu bar ─────────────────────────────────────────────────────────────────────────────┐
+                 │▤│                            ╭──────────────────╮   ← floating pane selector(s)
+                 │⛶│                ...map...
+                 │↻│ ╭──────────────────────────────────────────────────────────╮
+                 │◍│ │ ◗▴               [ ⌂ KTLX  Oklahoma City  ˅ ]        ⌕ ◎▴  │  ← THIS: the TOP ROW (RadarConsoleHeader)
+                 │⊚│ │ ──────────────────────────────────────────────────────── │    over its rule (canvas card A),
+                 │ │ │ 1:07 PM  ▮▮▮▮▮▮▮▮▮▮ scrubber ▮▮▮▮▮▮▮▮▮  ◀ ▶ ▶ ↺  VCP: 212    │    then the console exactly as it
+                 │ │ │ 2 min ago                              3/10      Mode: precip │    was on the bar, rounded, floating
+                 │ │ ╰──────────────────────────────────────────────────────────╯
+                 │ │   ├ clock's left edge                     scan text's end ┤   ← the top row's side groups align here
+                 └─┘ ↑ the map-tools rail (left)                                     SelectorGap above the window bottom
 
-             The top and bottom MIRROR each other: bar · a floating control. Centred on the window (play = the
-             midpoint, RadarControls.CentreOnPlay), SelectorGap above the bottom chrome — PlaceConsoleIsland. Same look as
+             Centred on the window (play = the midpoint, RadarControls.CentreOnPlay), SelectorGap (8) above the window
+             bottom — there is no bottom chrome since 2026-11-04 (its tools are the left RAIL). Same look as
              the bar it came from: the GROUND surface, NOT raised (the selectors are raised). It never shrinks: in a window
              too narrow for both edge panes it overlaps their bottoms — DECLARED AFTER the temporal panes so it paints over
              them and stays clickable, and after the loop holding gate, so it stays live over the frost like the bar did.
@@ -655,6 +685,7 @@
               Grid.Row="0" Grid.RowSpan="2"
               HorizontalAlignment="Center"
               VerticalAlignment="Bottom"
+              Margin="0,0,0,8"
               Visibility="{x:Bind PaneVisibility(ViewModel.IsRadarConsoleVisible), Mode=OneWay}">
         <ctl:OverlayBar x:Name="ConsoleIsland"
                         Edge="Bottom"

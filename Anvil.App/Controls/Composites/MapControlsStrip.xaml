@@ -1,96 +1,62 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <!-- ============================================================================
-     MapControlsStrip — the map's tools, ON the map instead of two clicks deep in Settings. It is the CONTENT of the bottom
-     chrome's ONE tier (2026-11-03): MainWindow drops it into an OverlayBar (IsRaised, ShowTab=False, EdgeStyle=CastShadow)
-     that supplies the surface, the EDGE and the padding. No tab: View → Map tools shows / hides it.
+     MapControlsStrip — the map's tools, ON the map. It is the CONTENT of the vertical MAP-TOOLS RAIL (2026-11-04, the
+     user's call — it was the bottom chrome's horizontal tier): MainWindow's MapToolsRail (in the TEMPORAL PANES layer)
+     supplies the raised surface, the map-side shade and the 8 px left padding. View → Map tools shows / hides it.
 
-                          ╭──────────────────────────────────────────╮   ← the floating console, ABOVE the strip
-                          │ ◗▴        [⌂ KTLX Oklahoma ˅]      ⌕ ◎▴ │     (MainWindow): its top row holds the
-                          │ ─────────────────────────────────────── │     network picker, site picker, Inspect and
-                          │ 1:07 PM ═══ scrubber ═══ ◀ ▶ ▶   VCP 212 │     rings/ruler (Composites/RadarConsoleHeader)
-                          ╰──────────────────────────────────────────╯
-       ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ← shadow, thrown onto the map
-       ┌ left temporal pane ─────────┐                                                     ┌ ForeCast window ───────────────┐
-       (▣)(⊚)                                                                              ┊(▥▴) ⁙⁙⁙ (⌘)(⛶) ─ (▥|▴) [Isolate ▾]   ← THIS
-                                                                                           ↑ the window's INNER edge (W − 485)
-        ↑ LEFT = where: ▣ marker viewer —     ↑ CENTRE = EMPTY since 2026-11-03: its tools   ↑ RIGHT = MAP ONLY, STARTS on the inner edge:
-          PLACEHOLDER; ⊚ Location (lit =        moved into the floating console's top row.    pane layout FIRST (one square key, ▴ = a 1/2/4
-          marker out). From the strip's left                                                  list) ⁙⁙⁙ = MapToolsSpacer takes the slack ─
-          padding, NO spacer (the user's call,                                                reset north, fit to view ─ MAP key + car,
-          2026-11-03 — "for now").                                                            isolation (fixed width).
-        ⚠️ THE RIGHT SECTION ALIGNS TO THE FORECAST PANE (the user's call, 2026-10-22): it starts on the INNER edge of the
-            480-wide edge pane above it (Styles.xaml TemporalPaneWidth), whether or not that pane is shown. Controls keep their
-            size; ONE stretching dot spacer takes the slack (AlignToWindowEdges, from MainWindow). The LEFT section did the same
-            with SearchSpacer until 2026-11-03 (removed; the user will redesign this strip into the new layout).
-        ─ = Primitives/MapControlsStripSeparator, a faint 3 × 3 DOT GRID between GROUPS with GENEROUS margins
-            (8 + the panel's 8 left, 12 + the panel's 4 right = 16 a side). Tune dot size/gap/brush on the
-            control, not here.
-     ═══════════════════════ window bottom ═══════════════════════
+         ┌ top menu bar ─────────────
+         ├────┐                         one COLUMN, CENTRED top to bottom in the rail, in the user's order:
+         │    │░
+         │ ▤▸ │░   1 · MAP LAYERS — the map key + its car (the layers flyout opens to the RIGHT)
+         │ ⁘  │░       ─ separator
+         │ ⛶  │░   2 · FIT TO VIEW
+         │ ↻  │░   3 · RESET NORTH
+         │ ⁘  │░       ─ separator
+         │ ◍  │░   4 · MARKERS — the marker viewer, a PLACEHOLDER (no Click yet)
+         │ ⊚  │░   5 · LOCATION (lit = your marker is out)
+         │    │░
+         └────┘     48 wide: 8 padding + a 32 key + the 8 px car on the map key's row
 
-     ⚠️ THERE IS NO LINE ANYWHERE ON THIS TIER. Its top edge throws a shadow onto the map (or, with the EDGE-HATCH bolt-on,
-     a hairline). A hairline under a shadow reads as a seam someone forgot to finish - the two are alternatives, not
-     layers. (The group SEPARATORS are not seams: they are small dot grids between tools, inside the tier.)
+     ⚠️ PANE MODE AND ISOLATION LEFT THIS STRIP (2026-11-04): both are top-menu-bar items now (MainWindow.xaml, TOP MENU
+     BAR — Pane Mode menu, Isolation = a SectionedComboBox drawn as a menu title). The NETWORK PICKER, SITE PICKER, INSPECT
+     and RINGS/RULER live in the floating console's top row (Composites/RadarConsoleHeader). Place search is centred on
+     the top menu bar (Composites/PlaceSearchBox).
+     ─ = Primitives/MapControlsStripSeparator, a faint 3 × 3 DOT GRID between GROUPS, centred under the keys (Width 32)
+         with generous vertical margins. Tune dot size/gap/brush on the control, not here.
 
-     ⚠️ THE PLACES MEAN SOMETHING. The tools about WHICH radar and what it shows now live IN the floating console's top
-     row (RadarConsoleHeader — the console answers WHEN). LEFT holds "where on the map"; RIGHT holds the tools that touch
-     ONLY the map — pane layout, reset north, fit to view, isolation — none of which loads or changes radar data. A new
-     tool goes on the side whose question it answers.
-
-     ⚠️ HISTORY: this was a content-sized ISLAND that floated above the bar with a NOTCH cut in its
-     underside, so the bar's pull-tab could rise through it. That shape is gone, and with it went a
-     path builder, an equal-sides invariant that was correctness rather than cosmetics, three shared
-     tab constants and a standing rule against ever giving this control a Background. Don't
-     reintroduce the notch: see docs/ui-bottom-bar.md for what it cost and why the tab moved instead.
+     ⚠️ THERE IS NO LINE ON THE RAIL. Its map side throws a shade onto the map (or, with the EDGE-HATCH bolt-on, the
+     hatch). The group SEPARATORS are not seams: they are small dot grids between tools.
 
      ⚠️ ITS HOVER IS THE RAISED PAIR, and that is not a detail. A control resting on the raised
      surface cannot hover to OverlayBarSurfaceHoverBrush — in dark the raised ground (#141414) is
      already past it (#1A1A1A), so the hover would be invisible; in light it would go the wrong way.
      Each tier hovers one step further from its OWN ground.
 
-     PLACE SEARCH MOVED to the top menu bar, centred (Composites/PlaceSearchBox, 2026-11-03) — its rules live there.
-
-     THE LEFT SECTION is the marker viewer (a placeholder) and LOCATION, in that order, from the strip's left padding
-     (they flanked the search box until it moved; SearchSpacer before them is gone, 2026-11-03). Location moved here from the bar's right cluster — it is a "where on the map" move
-     like search, and an occasional one.
      ⚠️ LOCATION LATCHES: as a plain button it would be a one-way door (nothing else in the shipped UI
      removes the marker — the Selected Marker window is pending re-add). Lit = your marker is out; clicking
      it lit removes it. ⚠️ IsChecked is ONE-WAY and re-asserted after the await in the handler: the locate
      can FAIL without any property changing, so nothing else would pull the toggle back down. Don't make
      it TwoWay. The tooltip carries "Locating…" / "Location unavailable" — a failure is otherwise silent.
      ⚠️ Its mark is a DRAWN reticle (PathIcon, 18-unit box), the same family as the on-map marker — a key
-     pictures what it drops. That is why the Inspect key (on the console now) is a magnifier; don't give it a reticle.
+     pictures what it drops. That is why the Inspect key (on the console) is a magnifier; don't give it a reticle.
      ⚠️ The viewer's mark is a drawn TEARDROP, the search pin's shape. Its button has NO Click on purpose;
      wire it when the marker window exists (open bool + WindowManager registration — CLAUDE.md "Add a window").
 
-     THE NETWORK PICKER, THE SITE PICKER, INSPECT AND THE RINGS/RULER PICKER MOVED into the floating radar console's top
-     row (Composites/RadarConsoleHeader, 2026-11-03) — their rules live there and in the pickers' own headers.
-
-     PANE LAYOUT sits RIGHT, first of the map tools: ONE square key (Primitives/MapControlsStripPaneLayoutPicker) whose
-     face is the CURRENT layout's mark and whose upward list picks 1 / 2 / 4 (2026-10-22; it was three toggles, cut to
-     one key so the right section fits beside the ForeCast window). ⚠️ It belongs to the right group, so the stretching
-     spacer sits AFTER it, between it and Reset north; its left edge is the window's inner edge.
-     It stays with the map tools even though each pane carries its own radar product: what THIS control
-     changes is how the map is split. What each pane shows is chosen in its notch (PaneNotchContent).
-     ⚠️ ONE-WAY Layout + re-assert in OnPaneLayoutPicked (a same / refused pick changes no property).
-     ⚠️ SQUARE marks, solid blocks, accent cell = pane 0 — the picker's own header has the rules.
-     No "two stacked": weather reads left-to-right across a storm.
-
-     MAP sits RIGHT, beside state isolation — both take parts of the map away (Basemap = BasemapViewModel).
+     MAP LAYERS sits FIRST (Basemap = BasemapViewModel).
      The KEY hides the whole basemap: a blank, THEME-coloured ground (styles/themes/ anvil-map-blank) under the overlays,
      for screenshots / thumbnails / a clean storm. LIT = THE MAP IS SHOWING (default lit); the tooltip speaks
-     for the click. The CAR opens the layer flyout: which basemap GROUPS draw, as a TREE of expanders (Roads by
-     kind, Place names by cities / POIs / water — so you can keep only highways). Expanders start closed and
-     aren't persisted; the ticks are. The dimmer is GONE (the user's call, 2026-10-01).
+     for the click. The CAR (▸, beside the key on the map side) opens the layer flyout to the RIGHT: which basemap GROUPS
+     draw, as a TREE of expanders (Roads by kind, Place names by cities / POIs / water — so you can keep only highways).
+     Expanders start closed and aren't persisted; the ticks are. The dimmer is GONE (the user's call, 2026-10-01).
      ⚠️ Hiding OVERRIDES the ticks without changing them — show again and your set returns (the flyout says so
      while hidden). ⚠️ The hide is SESSION-ONLY; the ticks persist.
      ⚠️ A pair of 32 px tools, not a bar key: bar keys are 72 px.
 
      ⚠️ GREYED WHILE THE PASTCAST LOADING SCREEN IS UP (Radar.AreControlsLocked, 2026-10-04): EVERY tool here, Location
-     and the marker viewer included — the map is frosted and gated, so a live tool would only look broken, and pane
-     layout mid-load is a real memory risk. A new tool binds IsEnabled to Free(...) / FreeAnd(...) too. ⚠️ A mark drawn with fixed brushes
-     (the pane-layout Rectangles) doesn't grey with the Disabled state — the picker dims it (its EnabledStates).
+     and the marker viewer included — the map is frosted and gated, so a live tool would only look broken. A new tool
+     binds IsEnabled to Free(...) / FreeAnd(...) too.
 
-     Host contract: ViewModel (MapViewModel). Add a tool = one Button in the panel of the side it belongs to.
+     Host contract: ViewModel (MapViewModel). Add a tool = one Button in MapToolsColumn, in its group.
      ============================================================================ -->
 <UserControl x:Class="Anvil.Controls.Composites.MapControlsStrip"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -278,197 +244,141 @@
                 </Setter>
             </Style>
 
-            <!-- One isolation row, for BOTH sections of the picker. The modes carry hover text; the places
-                 have a null Tooltip, which shows nothing rather than an empty box. -->
-            <DataTemplate x:Key="IsolationRowTemplate" x:DataType="vm:StateIsolationOption">
-                <Grid Background="Transparent" ToolTipService.ToolTip="{x:Bind Tooltip}">
-                    <TextBlock Text="{x:Bind Label}" VerticalAlignment="Center"/>
-                </Grid>
-            </DataTemplate>
 
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <!-- ⚠️ NO Background here: the OverlayBar hosting this tier paints the raised surface, and a second
-         opaque fill would be one more place the tier's colour is written. One cell, two children — "where on the map"
-         at the left edge, the map tools at the right edge. (The centre is empty: its tools are on the console.) -->
-    <Grid>
-        <!-- ===== WHERE ON THE MAP — LEFT =====
-             ▣ the marker viewer, then ⊚ Location, from the tier's left padding. ⚠️ No spacer (SearchSpacer removed
-             2026-11-03, the user's call "for now"); the place search box is on the top menu bar (Composites/PlaceSearchBox). -->
-        <StackPanel x:Name="SearchGroup"
-                    Orientation="Horizontal" Spacing="8"
-                    HorizontalAlignment="Left" VerticalAlignment="Center">
-            <!-- MARKER VIEWER — PLACEHOLDER. No Click until the marker window exists (see the header).
-                 A teardrop with an eye, the search pin's own shape. -->
-            <Button x:Name="MarkerViewerButton"
-                    Style="{StaticResource StripToolButtonStyle}"
-                    IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                    ToolTipService.ToolTip="Markers (coming soon)">
-                <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M9,0 C5.1,0 2,3.1 2,7 C2,12 9,18 9,18 C9,18 16,12 16,7 C16,3.1 12.9,0 9,0 Z M9,4.5 A2.5,2.5 0 1,0 9,9.5 A2.5,2.5 0 1,0 9,4.5 Z"/></Viewbox>
-            </Button>
-
-            <!-- LOCATION — drop / remove your marker. ONE-WAY IsChecked, re-asserted in the handler. LAST of the left
-                 section.
-                 ⚠️ NO STATUS LINE after it any more: "Searching online…" / "No places match …" run in the bar's
-                 ACTIVITY SLOT (BarActivityViewModel.WatchPlaceSearch) — a variable-width line here broke the edge. -->
-            <ToggleButton x:Name="LocationToggle"
+    <!-- ⚠️ NO Background here: MainWindow's MapToolsRail paints the raised surface, and a second opaque fill would be one
+         more place the rail's colour is written. ONE column, top to bottom in the user's order (the header). Keys are
+         Left-aligned at the rail's 8 px padding so the map key's car can sit beside it on the map side. -->
+    <StackPanel x:Name="MapToolsColumn" Orientation="Vertical" Spacing="4">
+        <!-- ===== 1 · MAP LAYERS — the basemap's key + its layer flyout (see the header) =====
+             A pair: the KEY hides/shows the whole basemap, the narrow CAR opens the flyout to the right. Plain TwoWay on
+             the key (a click always flips it). -->
+        <StackPanel Orientation="Horizontal">
+            <ToggleButton x:Name="MapShownToggle"
                           Style="{StaticResource StripToolToggleStyle}"
-                          IsEnabled="{x:Bind FreeAnd(ViewModel.Markers.CanLocate, ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                          IsChecked="{x:Bind ViewModel.Markers.HasUserLocationMarker, Mode=OneWay}"
-                          ToolTipService.ToolTip="{x:Bind LocationTooltip(ViewModel.Markers.HasUserLocationMarker, ViewModel.Markers.LocateStatusText), Mode=OneWay}"
-                          Click="OnToggleUserLocation">
-                <!-- Ring (donut 3.6-5.2), SOLID core (r 2.2), four ticks standing off it. -->
-                <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M3.8,9 A5.2,5.2 0 1,0 14.2,9 A5.2,5.2 0 1,0 3.8,9 Z M5.4,9 A3.6,3.6 0 1,0 12.6,9 A3.6,3.6 0 1,0 5.4,9 Z M6.8,9 A2.2,2.2 0 1,0 11.2,9 A2.2,2.2 0 1,0 6.8,9 Z M8.2,0 H9.8 V3 H8.2 Z M8.2,15 H9.8 V18 H8.2 Z M0,8.2 H3 V9.8 H0 Z M15,8.2 H18 V9.8 H15 Z"/></Viewbox>
+                          IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
+                          IsChecked="{x:Bind ViewModel.Basemap.IsMapShown, Mode=TwoWay}"
+                          ToolTipService.ToolTip="{x:Bind MapShownTooltip(ViewModel.Basemap.IsMapShown), Mode=OneWay}">
+                <!-- A folded map: three panels, the middle one set back. Drawn, not an unverified glyph. -->
+                <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M1,3.6 L5.4,1.8 L5.4,14.6 L1,16.4 Z M6.6,1.8 L11.4,3.6 L11.4,16.4 L6.6,14.6 Z M12.6,3.6 L17,1.8 L17,14.6 L12.6,16.4 Z"/></Viewbox>
             </ToggleButton>
+            <Button x:Name="MapLayersButton"
+                    Width="8"
+                    IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
+                    Style="{StaticResource StripToolButtonStyle}"
+                    CornerRadius="3"
+                    ToolTipService.ToolTip="Map layers">
+                <!-- A right-pointing caret in its own 6 × 10 box (it overrides the implicit 18 × 18). -->
+                <PathIcon Data="M1,1 L5,5 L1,9 Z" Width="6" Height="10"/>
+                <Button.Flyout>
+                    <!-- ⚠️ Windowed (ShouldConstrainToRootBounds=False), like every flyout over the map — else the owned
+                         panel windows paint over it. Opens to the RIGHT of the rail, onto the map. -->
+                    <Flyout Placement="RightEdgeAlignedTop" ShouldConstrainToRootBounds="False">
+                        <StackPanel Width="220" Spacing="2">
+                            <TextBlock Text="Map layers" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <TextBlock Text="The map is hidden. These apply when you show it."
+                                       TextWrapping="Wrap" FontSize="12" Margin="0,0,0,4"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                       Visibility="{x:Bind HiddenNoteVisibility(ViewModel.Basemap.IsMapShown), Mode=OneWay}"/>
+                            <!-- THE TREE: one row per category (BasemapCategory). Every row reserves a 20 px
+                                 chevron column, so plain rows' boxes line up with the expanders'. An expander's
+                                 box is a ONE-WAY select-all (Click → ToggleAll; ■ = partial), DragMoveLayerExpander's
+                                 rule; its leaves indent 48 (the parent's box column 24 + one more step) and bind TWO-WAY. Wrappers carry
+                                 the tooltips: a disabled CheckBox shows none. -->
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.Basemap.Categories}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:BasemapCategory">
+                                        <StackPanel>
+                                            <Grid ColumnSpacing="4" Background="Transparent"
+                                                  ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="20"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Button Width="20" Height="20" MinWidth="0" MinHeight="0" Padding="0"
+                                                        VerticalAlignment="Center"
+                                                        Background="Transparent" BorderThickness="0" CornerRadius="4"
+                                                        Visibility="{x:Bind comp:MapControlsStrip.VisibleIf(HasChildren)}"
+                                                        AutomationProperties.Name="{x:Bind Label}"
+                                                        Click="{x:Bind ToggleExpanded}">
+                                                    <FontIcon Glyph="&#xE76C;" FontSize="10"
+                                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                              RenderTransformOrigin="0.5,0.5">
+                                                        <FontIcon.RenderTransform>
+                                                            <RotateTransform Angle="{x:Bind comp:MapControlsStrip.ChevronAngle(IsExpanded), Mode=OneWay}"/>
+                                                        </FontIcon.RenderTransform>
+                                                    </FontIcon>
+                                                </Button>
+                                                <CheckBox Grid.Column="1" Content="{x:Bind Label}" MinHeight="32"
+                                                          IsChecked="{x:Bind IsChecked, Mode=OneWay}"
+                                                          IsEnabled="{x:Bind IsAvailable, Mode=OneWay}"
+                                                          Click="{x:Bind ToggleAll}"/>
+                                            </Grid>
+                                            <ItemsControl ItemsSource="{x:Bind Leaves}" Margin="48,0,0,0"
+                                                          Visibility="{x:Bind comp:MapControlsStrip.VisibleIf(IsExpanded), Mode=OneWay}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:BasemapGroupOption">
+                                                        <Grid Background="Transparent"
+                                                              ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
+                                                            <CheckBox Content="{x:Bind Label}" MinHeight="32"
+                                                                      IsChecked="{x:Bind IsShown, Mode=TwoWay}"
+                                                                      IsEnabled="{x:Bind IsAvailable, Mode=OneWay}"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
         </StackPanel>
 
-        <!-- ===== MAP TOOLS — RIGHT, over the window keys: pane layout, reset north, fit, isolation ===== -->
-        <StackPanel x:Name="RightTools"
-                    Orientation="Horizontal" Spacing="4"
-                    HorizontalAlignment="Right" VerticalAlignment="Center">
-            <!-- PANE LAYOUT — FIRST of the right group: ONE square key + an upward 1 / 2 / 4 list
-                 (Primitives/MapControlsStripPaneLayoutPicker, the user's call 2026-10-22; it replaced three toggles).
-                 ⚠️ Its LEFT EDGE is the ForeCast window's INNER edge (AlignToWindowEdges sizes MapToolsSpacer). -->
-            <prim:MapControlsStripPaneLayoutPicker x:Name="MapControlsStripPaneLayoutPicker"
-                                                   IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                                                   Layout="{x:Bind ViewModel.Radar.PaneLayout, Mode=OneWay}"
-                                                   LayoutPicked="OnPaneLayoutPicked"/>
+        <prim:MapControlsStripSeparator x:Name="MapToolsSeparatorLayers" Width="32" HorizontalAlignment="Left" Margin="0,8"/>
 
-            <!-- MAP TOOLS SPACER — stretches (FillWidth) so the pane-layout key's left edge lands on the window's inner
-                 edge. Width SET IN CODE (AlignToWindowEdges); 10 is only the pre-layout value. -->
-            <prim:MapControlsStripSeparator x:Name="MapToolsSpacer" Margin="12,0" FillWidth="True" Width="10"/>
+        <!-- ===== 2 · FIT TO VIEW — frame the effective region (isolated state, else CONUS). ===== -->
+        <Button x:Name="FitToViewButton"
+                Style="{StaticResource StripToolButtonStyle}"
+                Click="OnFitToViewClick"
+                IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
+                ToolTipService.ToolTip="Fit To View">
+            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="{StaticResource StripFontGlyphSize}" Glyph="&#xE740;"/>
+        </Button>
 
-            <!-- Reset north — undo a right-drag rotate/tilt. -->
-            <Button Style="{StaticResource StripToolButtonStyle}"
-                    Click="OnResetNorthClick"
-                    IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                    ToolTipService.ToolTip="Reset North/Flat">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="{StaticResource StripFontGlyphSize}" Glyph="&#xE72C;"/>
-            </Button>
+        <!-- ===== 3 · RESET NORTH — undo a right-drag rotate/tilt. ===== -->
+        <Button x:Name="ResetNorthButton"
+                Style="{StaticResource StripToolButtonStyle}"
+                Click="OnResetNorthClick"
+                IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
+                ToolTipService.ToolTip="Reset North/Flat">
+            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="{StaticResource StripFontGlyphSize}" Glyph="&#xE72C;"/>
+        </Button>
 
-            <!-- Fit to view — frame the effective region (isolated state, else CONUS). -->
-            <Button Style="{StaticResource StripToolButtonStyle}"
-                    Click="OnFitToViewClick"
-                    IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                    ToolTipService.ToolTip="Fit To View">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="{StaticResource StripFontGlyphSize}" Glyph="&#xE740;"/>
-            </Button>
+        <prim:MapControlsStripSeparator x:Name="MapToolsSeparatorWhere" Width="32" HorizontalAlignment="Left" Margin="0,8"/>
 
-            <prim:MapControlsStripSeparator Margin="12,0"/>
+        <!-- ===== 4 · MARKERS — the marker viewer, a PLACEHOLDER. No Click until the marker window exists (see the header).
+             A teardrop with an eye, the search pin's own shape. ===== -->
+        <Button x:Name="MarkerViewerButton"
+                Style="{StaticResource StripToolButtonStyle}"
+                IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
+                ToolTipService.ToolTip="Markers (coming soon)">
+            <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M9,0 C5.1,0 2,3.1 2,7 C2,12 9,18 9,18 C9,18 16,12 16,7 C16,3.1 12.9,0 9,0 Z M9,4.5 A2.5,2.5 0 1,0 9,9.5 A2.5,2.5 0 1,0 9,4.5 Z"/></Viewbox>
+        </Button>
 
-            <!-- ===== MAP — the basemap's key + its layer flyout (see the header) =====
-                 A pair touching at a 1 px seam: the KEY hides/shows the whole basemap, the narrow CAR opens the
-                 flyout. Plain TwoWay on the key (a click always flips it). -->
-            <StackPanel Orientation="Horizontal" Spacing="1">
-                <ToggleButton x:Name="MapShownToggle"
-                              Style="{StaticResource StripToolToggleStyle}"
-                              IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                              IsChecked="{x:Bind ViewModel.Basemap.IsMapShown, Mode=TwoWay}"
-                              ToolTipService.ToolTip="{x:Bind MapShownTooltip(ViewModel.Basemap.IsMapShown), Mode=OneWay}">
-                    <!-- A folded map: three panels, the middle one set back. Drawn, not an unverified glyph. -->
-                    <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M1,3.6 L5.4,1.8 L5.4,14.6 L1,16.4 Z M6.6,1.8 L11.4,3.6 L11.4,16.4 L6.6,14.6 Z M12.6,3.6 L17,1.8 L17,14.6 L12.6,16.4 Z"/></Viewbox>
-                </ToggleButton>
-                <Button x:Name="MapLayersButton"
-                        Width="16"
-                        IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                        Style="{StaticResource StripToolButtonStyle}"
-                        ToolTipService.ToolTip="Map layers">
-                    <!-- Drawn in its own 10-unit box (centre 5,5), so it overrides the implicit 18 × 18. -->
-                    <PathIcon Data="M1,7 L5,3 L9,7 Z" Width="10" Height="10"/>
-                    <Button.Flyout>
-                        <!-- ⚠️ Windowed (ShouldConstrainToRootBounds=False), like the tier's pickers — else the owned
-                             panel windows paint over it. -->
-                        <Flyout Placement="TopEdgeAlignedRight" ShouldConstrainToRootBounds="False">
-                            <StackPanel Width="220" Spacing="2">
-                                <TextBlock Text="Map layers" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBlock Text="The map is hidden. These apply when you show it."
-                                           TextWrapping="Wrap" FontSize="12" Margin="0,0,0,4"
-                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                           Visibility="{x:Bind HiddenNoteVisibility(ViewModel.Basemap.IsMapShown), Mode=OneWay}"/>
-                                <!-- THE TREE: one row per category (BasemapCategory). Every row reserves a 20 px
-                                     chevron column, so plain rows' boxes line up with the expanders'. An expander's
-                                     box is a ONE-WAY select-all (Click → ToggleAll; ■ = partial), DragMoveLayerExpander's
-                                     rule; its leaves indent 48 (the parent's box column 24 + one more step) and bind TWO-WAY. Wrappers carry
-                                     the tooltips: a disabled CheckBox shows none. -->
-                                <ItemsControl ItemsSource="{x:Bind ViewModel.Basemap.Categories}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:BasemapCategory">
-                                            <StackPanel>
-                                                <Grid ColumnSpacing="4" Background="Transparent"
-                                                      ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="20"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Button Width="20" Height="20" MinWidth="0" MinHeight="0" Padding="0"
-                                                            VerticalAlignment="Center"
-                                                            Background="Transparent" BorderThickness="0" CornerRadius="4"
-                                                            Visibility="{x:Bind comp:MapControlsStrip.VisibleIf(HasChildren)}"
-                                                            AutomationProperties.Name="{x:Bind Label}"
-                                                            Click="{x:Bind ToggleExpanded}">
-                                                        <FontIcon Glyph="&#xE76C;" FontSize="10"
-                                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                                  RenderTransformOrigin="0.5,0.5">
-                                                            <FontIcon.RenderTransform>
-                                                                <RotateTransform Angle="{x:Bind comp:MapControlsStrip.ChevronAngle(IsExpanded), Mode=OneWay}"/>
-                                                            </FontIcon.RenderTransform>
-                                                        </FontIcon>
-                                                    </Button>
-                                                    <CheckBox Grid.Column="1" Content="{x:Bind Label}" MinHeight="32"
-                                                              IsChecked="{x:Bind IsChecked, Mode=OneWay}"
-                                                              IsEnabled="{x:Bind IsAvailable, Mode=OneWay}"
-                                                              Click="{x:Bind ToggleAll}"/>
-                                                </Grid>
-                                                <ItemsControl ItemsSource="{x:Bind Leaves}" Margin="48,0,0,0"
-                                                              Visibility="{x:Bind comp:MapControlsStrip.VisibleIf(IsExpanded), Mode=OneWay}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate x:DataType="vm:BasemapGroupOption">
-                                                            <Grid Background="Transparent"
-                                                                  ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
-                                                                <CheckBox Content="{x:Bind Label}" MinHeight="32"
-                                                                          IsChecked="{x:Bind IsShown, Mode=TwoWay}"
-                                                                          IsEnabled="{x:Bind IsAvailable, Mode=OneWay}"/>
-                                                            </Grid>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Flyout>
-                    </Button.Flyout>
-                </Button>
-            </StackPanel>
-
-            <!-- ===== STATE ISOLATION — THREE CONTROLS COLLAPSED INTO ONE LIST =====
-                 LAST on the right, over the bar's window keys. It replaced the Settings window's Map tab CONUS checkbox,
-                 its "isolate a state (hover & click)" arm checkbox, and its state-name combo. One row each:
-                 No Isolation / Isolate CONUS / Select to Isolate, then the 52 places.
-                 ⚠️ "Select to Isolate" ARMS the map — it is a MODE, not a resting choice. Hovering a state
-                 then highlights it, and the click reports back through states.js, at which point the combo
-                 re-resolves and reads that state's name. Armed-with-nothing-picked keeps reading "Select to
-                 Isolate", which is honest: the map is visibly in hover mode.
-                 The three modes are PINNED above a rule and never scroll away; the places scroll below.
-                 ⚠️ The PLACEHOLDER should be unreachable: the VM resolves every combination to a real row,
-                 "No Isolation" included. Seeing it means the lists failed to build.
-                 ⚠⚠ IT IS Primitives/SectionedComboBox, NOT A ComboBox, FOR A CORRECTNESS REASON — a closed
-                 WinUI ComboBox cycles its selection on the MOUSEWHEEL, and rolling it here froze the map
-                 outright. See that control's header; don't swap it back.
-                 ⚠️ A FIXED width (2026-10-22): it used to stretch to the Atlas key's left edge; the section's alignment
-                 is now MapToolsSpacer's job (controls keep their size, the dot spacers take the slack). -->
-            <prim:SectionedComboBox x:Name="IsolationPicker"
-                                    Width="170"
-                                    Margin="8,0,0,0"
-                                    PlaceholderText="Isolate State"
-                                    IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                                    PinnedItemsSource="{x:Bind ViewModel.StateIso.IsolationModes, Mode=OneWay}"
-                                    ItemsSource="{x:Bind ViewModel.StateIso.IsolationPlaces, Mode=OneWay}"
-                                    SelectedItem="{x:Bind ViewModel.StateIso.SelectedIsolationOption, Mode=TwoWay}"
-                                    ItemTemplate="{StaticResource IsolationRowTemplate}"
-                                    ToolTipService.ToolTip="Mask the map down to CONUS or a single state"/>
-        </StackPanel>
-    </Grid>
+        <!-- ===== 5 · LOCATION — drop / remove your marker. ONE-WAY IsChecked, re-asserted in the handler. ===== -->
+        <ToggleButton x:Name="LocationToggle"
+                      Style="{StaticResource StripToolToggleStyle}"
+                      IsEnabled="{x:Bind FreeAnd(ViewModel.Markers.CanLocate, ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
+                      IsChecked="{x:Bind ViewModel.Markers.HasUserLocationMarker, Mode=OneWay}"
+                      ToolTipService.ToolTip="{x:Bind LocationTooltip(ViewModel.Markers.HasUserLocationMarker, ViewModel.Markers.LocateStatusText), Mode=OneWay}"
+                      Click="OnToggleUserLocation">
+            <!-- Ring (donut 3.6-5.2), SOLID core (r 2.2), four ticks standing off it. -->
+            <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M3.8,9 A5.2,5.2 0 1,0 14.2,9 A5.2,5.2 0 1,0 3.8,9 Z M5.4,9 A3.6,3.6 0 1,0 12.6,9 A3.6,3.6 0 1,0 5.4,9 Z M6.8,9 A2.2,2.2 0 1,0 11.2,9 A2.2,2.2 0 1,0 6.8,9 Z M8.2,0 H9.8 V3 H8.2 Z M8.2,15 H9.8 V18 H8.2 Z M0,8.2 H3 V9.8 H0 Z M15,8.2 H18 V9.8 H15 Z"/></Viewbox>
+        </ToggleButton>
+    </StackPanel>
 </UserControl>

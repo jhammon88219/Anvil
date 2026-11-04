@@ -38,21 +38,44 @@ namespace Anvil
 		/// <summary>DEV-ONLY load-time seeding run. Non-null only in Debug builds; handed to the Dev tab.</summary>
 		public LoadTimeSeedingViewModel? SeedVm { get; }
 
-		// NOTE: ApplyStripOverlap is gone. The map-controls strip used to be an island hung over the bar's
-		// pull-tab by a negative margin, so the tab could rise through a notch cut in its underside; it is a
-		// full-width tier now and the tabs sit on a rail above both tiers. docs/ui-bottom-bar.md.
+		// NOTE: the bottom chrome is GONE (2026-11-04, the user's call): its map tools are the vertical MAP-TOOLS RAIL on the
+		// left (MainWindow.xaml, in the TEMPORAL PANES layer), Pane Mode + Isolation are top-menu-bar items, and the floating
+		// console sits SelectorGap above the window bottom (a XAML margin now — there is nothing to measure).
 
-		// The tools strip's EDGE: a cast shadow onto the map, or — EDGE-HATCH (bolt-on), while the hatch draws
-		// (EdgeHatchBottomChrome) — a hairline. (The rail of tabs this used to seat, and the bar tier whose edge flipped
-		// here, are gone, 2026-11-03: the console floats, the strip is shown from View → Map tools.)
-		private void ApplyRailSeating() =>
-			MapControlsTier.EdgeStyle = ViewModel.EdgeHatch.IsHatch ? BarEdgeStyle.Hairline : BarEdgeStyle.CastShadow;
+		// ===== THE MAP-TOOLS RAIL =====
+		// On the window's left edge, or DOCKED to the left temporal pane's right edge while Now's or Past's pane shows.
+		public Thickness MapToolsRailMargin(bool pastShown, bool nowShown) =>
+			new(pastShown || nowShown ? TemporalPaneLayerLeftPaneWidth : 0, 0, 0, 0);
 
-		// ===== THE FLOATING RADAR CONSOLE (2026-11-03, canvas option C) =====
-		// Centred (XAML), SelectorGap above the bottom chrome — the tools strip + its tab, or the tab alone while the strip
-		// is hidden — so it mirrors the pane selectors under the top bar. In CODE because that height is MEASURED.
-		private void PlaceConsoleIsland() =>
-			ConsoleIslandHost.Margin = new Thickness(0, 0, 0, BottomChrome.ActualHeight + SelectorGap);
+		// The left panes' declared width (Styles.xaml TemporalPaneWidth — read off the declared pane, like the old
+		// AlignSideSections did, so the two can't disagree).
+		private double TemporalPaneLayerLeftPaneWidth => TemporalPaneNowCast?.Width ?? 480;
+
+		// EDGE-HATCH (bolt-on): the rail's hatch hangs OFF its map-side edge, like a pane's.
+		public Thickness MapToolsRailHatchMargin(double width) => new(0, 0, -width, 0);
+
+		public Visibility HiddenWhen(bool on) => on ? Visibility.Collapsed : Visibility.Visible;
+
+		// ===== PANE MODE (top menu bar) =====
+		// Greyed while the PastCast loading screen is up (Radar.AreControlsLocked) — Isolation too.
+		public bool Free(bool locked) => !locked;
+
+		// x:Bind can't compare against an enum literal, so the XAML passes the member's ordinal.
+		public bool IsPaneLayout(PaneLayout layout, int ordinal) => (int)layout == ordinal;
+
+		// ⚠️ Re-assert all three items after the VM answers: a same or refused pick changes no property, so the one-way
+		// IsChecked would leave the clicked item flipped.
+		private void OnPaneModeClick(object sender, RoutedEventArgs e)
+		{
+			if (sender is FrameworkElement { Tag: string tag } && Enum.TryParse<PaneLayout>(tag, out var layout))
+			{
+				ViewModel.Radar.PaneLayout = layout;
+			}
+			var now = ViewModel.Radar.PaneLayout;
+			PaneModeSingleItem.IsChecked = IsPaneLayout(now, 0);
+			PaneModeDoubleItem.IsChecked = IsPaneLayout(now, 1);
+			PaneModeQuadItem.IsChecked = IsPaneLayout(now, 2);
+		}
 
 		// ── SITE MENU ── the menu a map site key's chevron opens. Its items are DECLARED in MainWindow.xaml
 		// (SiteMenu); RadarSiteMenu describes one open (labels, icons, enabled) and does what the items do.
@@ -105,26 +128,9 @@ namespace Anvil
 			if (_siteMenuState is { } s) _siteMenu.ToggleFavorite(s.Row);
 		}
 
-		// ===== Loop holding gate ↔ bottom chrome =====
-		// The gate spans BOTH rows (so the see-through rail strip is dimmed too) and runs under the chrome; its
-		// content must still centre on the VISIBLE map, so it is told the height of the OPAQUE tiers — the chrome
-		// minus its rail row. Re-measured whenever a tier is hidden or shown (the chrome's height changes).
-		// The TEMPORAL PANES end on the same line (the tools tier's top), as the layer's bottom margin.
-		private void OnBottomChromeSizeChanged(object sender, SizeChangedEventArgs e)
-		{
-			var opaque = BottomChrome.ActualHeight; // the strip alone (no rail row since 2026-11-03)
-			LoopGate.ContentBottomInset = opaque;
-			_bottomOpaque = opaque;
-			ApplyPaneLayerMargin();
-			EdgeHatchBottomChrome.Margin = new Thickness(0, 0, 0, opaque); // EDGE-HATCH: the band sits ON the tier's top
-			PlaceConsoleIsland();
-		}
-
-		private double _bottomOpaque;
-
-		// The temporal panes run from the TOP BAR's foot (the window top while it's hidden) to the tools tier's top.
+		// The temporal panes (and the map-tools rail in their layer) run from the TOP BAR's foot to the window bottom.
 		private void ApplyPaneLayerMargin() =>
-			TemporalPaneLayer.Margin = new Thickness(0, TopChrome.SurfaceHeight, 0, _bottomOpaque);
+			TemporalPaneLayer.Margin = new Thickness(0, TopChrome.SurfaceHeight, 0, 0);
 
 		// ===== TOP MENU BAR (2026-11-01) =====
 		// Its height moves the temporal panes' top, the floating selectors (single / two across sit under its tab) and
@@ -217,7 +223,7 @@ namespace Anvil
 		// ===== FLOATING PANE SELECTORS — where each sits in its pane's cell (the user's call, 2026-11-01) =====
 		// SINGLE: centred, just under the top bar's tab. TWO ACROSS: against the divider on each side, same height.
 		// QUAD: all four at the CROSSING, each in its pane's inner corner — the top row hangs its shadow UP (Edge Bottom).
-		// In CODE because the top offset is the top bar's MEASURED height (bar + tab, or the tab alone while hidden);
+		// In CODE because the top offset is the top bar's MEASURED height (no tab since 2026-11-04);
 		// the elements are declared in XAML (Notch0…3), this only sets their alignment, margin and shadow edge.
 		private const double SelectorGap = 8;
 
@@ -288,30 +294,11 @@ namespace Anvil
 			}
 		}
 
-		// ===== The tools strip's right section ↔ the ForeCast pane's INNER edge (the user's call, 2026-10-22) =====
-		// It starts on the inner edge of the edge pane above it (the declared pane's Width from the client edge), whether
-		// or not that pane is shown. Controls keep their size: one stretching dot spacer takes the slack (MapControlsStrip).
-		// The LEFT section's spacer is gone (2026-11-03, the user's call "for now"), so ▣ ⊚ sit at the strip's left padding.
-		private void AlignSideSections()
-		{
-			if (Content is not FrameworkElement root || root.ActualWidth <= 0)
-			{
-				return;
-			}
-			ToolsStrip.AlignToWindowEdges(root.ActualWidth - TemporalPaneForeCast.Width, root);
-		}
+		// (The tools strip's AlignSideSections is GONE with the strip, 2026-11-04 — the map tools are the left rail.)
 
-		// (The bar's activity slot and its AlignActivityBay are GONE, 2026-10-16: activity shows in each temporal
-		// window's activity expander, TemporalPanes/TemporalPaneActivityExpander.)
-
-		// Every measured alignment: the console's top row on its console row, the strip's right section on the ForeCast
-		// pane's inner edge. Each is a no-op below half a pixel, so the passes they cause
-		// settle at once.
-		private void OnBottomBarLayoutUpdated(object? sender, object e)
-		{
-			AlignCentreSection();
-			AlignSideSections();
-		}
+		// The console's top row on its console row, on every layout pass of the console (it is centred, so it MOVES
+		// without resizing). A no-op below half a pixel, so the passes it causes settle at once.
+		private void OnConsoleLayoutUpdated(object? sender, object e) => AlignCentreSection();
 
 		// NOTE: DevVisibility is gone. It existed to collapse the dev bar key in Release; there is no dev key
 		// any more — the dev tools are a tab of the Settings window, and SettingsWindow omits that tab from
@@ -495,7 +482,7 @@ namespace Anvil
 			// tab, selectors and panes are listed too so nothing interactive can ever end up under a caption rect.
 			var rects = new List<RectInt32>(PaneLayoutInfo.MaxPanes + 8);
 			foreach (var notch in new FrameworkElement[]
-				{ MenuBarMenus, PlaceSearchBox, CaptionKey, TopChrome.TabElement, ConsoleIslandHost,
+				{ MenuBarMenus, PlaceSearchBox, CaptionKey, ConsoleIslandHost,
 				  Notch0, Notch1, Notch2, Notch3, TemporalPanePastCast, TemporalPaneNowCast, TemporalPaneForeCast })
 			{
 				if (notch.Visibility != Visibility.Visible || notch.ActualWidth <= 0 || notch.ActualHeight <= 0)
@@ -832,15 +819,7 @@ namespace Anvil
 			ViewModel.PropertyChanged += (_, e) =>
 			{
 				if (e.PropertyName == nameof(MapViewModel.SelectedTheme)) ApplyAppTheme();
-				if (e.PropertyName == nameof(MapViewModel.IsMapControlsStripVisible)) ApplyRailSeating();
 			};
-			// EDGE-HATCH (bolt-on): hatch ⇄ black shadow re-decides the tiers' edge styles.
-			ViewModel.EdgeHatch.PropertyChanged += (_, e) =>
-			{
-				if (e.PropertyName == nameof(EdgeHatchViewModel.IsHatch)) ApplyRailSeating();
-			};
-
-			ApplyRailSeating();
 
 			// FLOATING PANE SELECTORS: re-placed whenever the pane layout changes (and when the top bar does — its SizeChanged).
 			ViewModel.Radar.PropertyChanged += (_, e) =>
@@ -849,14 +828,11 @@ namespace Anvil
 			};
 			PlacePaneSelectors();
 
-			// The console's top row is edge-aligned to its console row (see AlignCentreSection), and the tools strip's right
-			// section starts on the ForeCast pane's inner edge (see AlignSideSections). The window resizing moves that edge.
+			// The console's top row is edge-aligned to its console row (see AlignCentreSection).
 			TimeModule.SizeChanged += (_, _) => AlignCentreSection();
 			RadarConsoleHeader.SizeChanged += (_, _) => AlignCentreSection();
-			ToolsStrip.SizeChanged += (_, _) => AlignSideSections();
-			// The console is centred, so it MOVES without resizing: every alignment also re-runs on layout
-			// (see OnBottomBarLayoutUpdated).
-			BottomChrome.LayoutUpdated += OnBottomBarLayoutUpdated;
+			// The console is centred, so it MOVES without resizing: the alignment also re-runs on layout.
+			ConsoleIslandHost.LayoutUpdated += OnConsoleLayoutUpdated;
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs
 			// THE TITLE BAR block above). Hooked straight after InitializeComponent so the very first layout
@@ -871,14 +847,10 @@ namespace Anvil
 			// to match; content is a fresh section instance bound to this same VM, rendered headerless (the
 			// window caption is the chrome). Each flag is INDEPENDENT — any combination may be open at once.
 			// The radar console (the floating ConsoleIsland) is deliberately NOT here.
-			// ⚠️ The panels' usable band ends at the top of the MAP TOOLS TIER, which is the top of the bottom
-			// chrome in every state: hidden, the tier collapses to zero height ON the bar's top edge, and with
-			// the bar hidden too it sits at the window bottom. (Its cast shadow hangs on a negative margin and
-			// reserves no layout, so it doesn't count.) The rail's tabs stand above it but are centred, so the
-			// edge panels never cover them.
+			// ⚠️ The panels' usable band ends at the WINDOW BOTTOM: the bottom chrome is gone (2026-11-04) — the map tools
+			// are the left rail — so nothing opaque sits across the window's foot any more.
 			_windows.Initialize(this, ViewModel,
-				availableBottom: () =>
-					MapControlsTier.TransformToVisual(Content).TransformPoint(new Windows.Foundation.Point(0, 0)).Y,
+				availableBottom: () => ((FrameworkElement)Content).ActualHeight,
 				monitorMode: () => ViewModel.MonitorMode);
 			_windows.WindowShown += (_, id) => LaunchTiming.LogMoment(_logger, $"window {id} drawn");
 			// LAUNCH TIMING: the home radar's first frame, once (later frames are ordinary use).
@@ -1013,7 +985,7 @@ namespace Anvil
 			{
 				_isClosed = true;
 				PaneNotchLayer.LayoutUpdated -= OnPaneNotchLayerLayoutUpdated;
-				BottomChrome.LayoutUpdated -= OnBottomBarLayoutUpdated;
+				ConsoleIslandHost.LayoutUpdated -= OnConsoleLayoutUpdated;
 
 				// Stop every app-lifetime background loop BEFORE the flush. They resume on this window's
 				// DispatcherQueue and end in property notifications / map pushes, so one still ticking after

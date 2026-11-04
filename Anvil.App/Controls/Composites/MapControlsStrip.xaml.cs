@@ -7,16 +7,13 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The map-tools tier of the bottom chrome: the marker viewer + Location left, map-only tools right (see the XAML
-	/// header for the shape and the rules; the radar tools moved into the floating console's top row). It is pure
-	/// content - the <c>OverlayBar</c> that hosts it owns the surface, the edge and the padding; View → Map tools hides it.
+	/// The map tools as ONE vertical column — map layers, fit to view, reset north, markers, location — the content of
+	/// MainWindow's left MAP-TOOLS RAIL (see the XAML header for the shape and the rules). It is pure content: the rail
+	/// owns the surface, the map-side shade and the padding; View → Map tools hides it.
 	/// </summary>
 	/// <remarks>
-	/// ⚠️ This class used to be half geometry: the strip was a content-sized island floating above the bar
-	/// with a notch cut in its underside that traced the pull-tab, which needed a path builder, a uniform
-	/// clearance, a notch depth, a bar overlap the host applied as a negative margin, and an invariant
-	/// holding the two side columns equal so that a tool could never land on the tab. All of it is gone,
-	/// because a full-width tier has no tab passing through it. docs/ui-bottom-bar.md keeps the story.
+	/// It was the bottom chrome's horizontal tier until 2026-11-04 (and before that a notched island over the bar's
+	/// pull-tab); docs/ui-bottom-bar.md keeps the story. Pane layout and isolation moved to the top menu bar.
 	/// </remarks>
 	public sealed partial class MapControlsStrip : UserControl
 	{
@@ -41,28 +38,8 @@ namespace Anvil.Controls.Composites
 		public bool Free(bool locked) => !locked;
 		public bool FreeAnd(bool enabled, bool locked) => enabled && !locked;
 
-		// (The centre section and its AlignToConsole are GONE, 2026-11-03: the network picker, Inspect and the rings/ruler
-		// picker moved into the floating console's top row, Composites/RadarConsoleHeader.) A spacer never drops below a 3 × 3.
-		private const int SpacerMinColumns = 3;
-
-		// ===== The right section starts on the ForeCast pane's INNER edge (the user's call, 2026-10-22) =====
-		// ▣ ⊚                                                        ┊▥ ⁙⁙ ⌘ ⛶ ─ map ─ [Isolate]
-		//                                           ForeCast's inner edge ↑
-		// Controls keep their size; ONE dot spacer takes the slack. Its width is computed from its own right edge, which
-		// does NOT move with it (the group is right-aligned), so a repeat call in the same layout lands on the same value.
-		// (The left section's SearchSpacer is gone, 2026-11-03 — ▣ ⊚ sit at the left padding for now.)
-
-		/// <summary>Size the right spacer so the pane-layout key's left edge lands on <paramref name="innerRight"/>, in
-		/// <paramref name="root"/>'s coordinates.</summary>
-		public void AlignToWindowEdges(double innerRight, UIElement root)
-		{
-			if (MapToolsSpacer.ActualWidth > 0 && MapControlsStripPaneLayoutPicker.ActualWidth > 0)
-			{
-				var end = MapToolsSpacer.TransformToVisual(root).TransformPoint(default).X + MapToolsSpacer.ActualWidth;
-				var before = MapToolsSpacer.Margin.Left + RightTools.Spacing + MapControlsStripPaneLayoutPicker.ActualWidth;
-				MapToolsSpacer.SetFillWidth(end - before - innerRight, SpacerMinColumns);
-			}
-		}
+		// (The horizontal strip's side-section alignment — AlignToWindowEdges and its dot spacer — is GONE with the bottom
+		// tier, 2026-11-04: this is a vertical column now, centred in the rail by layout alone.)
 
 		// Reset north — animate bearing + pitch back to 0. Fire-and-forget through IMapService, the same
 		// seam the Settings window's Map tab uses.
@@ -85,17 +62,7 @@ namespace Anvil.Controls.Composites
 
 		public static double ChevronAngle(bool expanded) => expanded ? 90 : 0;
 
-		// Pane layout (the square key). ⚠️ Re-assert the key's Layout after setting: a same or refused pick changes no
-		// property, so the one-way binding would never put it back.
-		private void OnPaneLayoutPicked(object? sender, PaneLayout layout)
-		{
-			if (ViewModel is not { } vm)
-			{
-				return;
-			}
-			vm.Radar.PaneLayout = layout;
-			MapControlsStripPaneLayoutPicker.Layout = vm.Radar.PaneLayout;
-		}
+		// (Pane layout moved to the top menu bar's Pane Mode menu, 2026-11-04 — MainWindow.OnPaneModeClick.)
 
 		// Location (moved here from the bar). The transient locate status WINS in the tooltip: there is nowhere
 		// else a failed fix ("Location unavailable") would show — the toggle would simply spring back up.

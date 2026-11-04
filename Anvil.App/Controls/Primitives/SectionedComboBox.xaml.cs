@@ -28,7 +28,34 @@ namespace Anvil.Controls.Primitives
 			InitializeComponent();
 			// WinUI has no public Cursor property — ProtectedCursor is set from inside the control itself.
 			ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.Hand);
+			// GoToState before the tree is up can be a no-op — re-apply the face once it is.
+			Loaded += (_, _) => ApplyFaceStates();
 		}
+
+		/// <summary>Draw the closed face as a flat MENU TITLE (the fixed <see cref="PlaceholderText"/>, no box, no chevron)
+		/// instead of the boxed selection — the top menu bar's Isolation item.</summary>
+		public bool IsMenuTitle
+		{
+			get => (bool)GetValue(IsMenuTitleProperty);
+			set => SetValue(IsMenuTitleProperty, value);
+		}
+
+		public static readonly DependencyProperty IsMenuTitleProperty =
+			DependencyProperty.Register(nameof(IsMenuTitle), typeof(bool), typeof(SectionedComboBox),
+				new PropertyMetadata(false, (d, _) => ((SectionedComboBox)d).ApplyFaceStates()));
+
+		/// <summary>The dropdown's width. NaN (default) = the closed box's own width.</summary>
+		public double DropDownWidth
+		{
+			get => (double)GetValue(DropDownWidthProperty);
+			set => SetValue(DropDownWidthProperty, value);
+		}
+
+		public static readonly DependencyProperty DropDownWidthProperty =
+			DependencyProperty.Register(nameof(DropDownWidth), typeof(double), typeof(SectionedComboBox),
+				new PropertyMetadata(double.NaN));
+
+		private bool _isPointerOver;
 
 		/// <summary>The fixed rows above the rule. Null or empty = no pinned section and no rule.</summary>
 		public IEnumerable? PinnedItemsSource
@@ -176,7 +203,9 @@ namespace Anvil.Controls.Primitives
 		// whichever section holds it. Evaluated per open, so a live collection is picked up too.
 		private void OnDropDownOpening(object? sender, object e)
 		{
-			DropDownPanel.Width = Math.Max(0, Root.ActualWidth - 2);   // less the presenter's 1px border each side
+			var width = double.IsNaN(DropDownWidth) ? Root.ActualWidth : DropDownWidth;
+			DropDownPanel.Width = Math.Max(0, width - 2);   // less the presenter's 1px border each side
+			ApplyFaceStates();
 
 			bool pinned = HasAny(PinnedItemsSource);
 			bool main = HasAny(ItemsSource);
@@ -264,6 +293,31 @@ namespace Anvil.Controls.Primitives
 		{
 			if (!IsEnabled) { DropDown.Hide(); }
 			VisualStateManager.GoToState(this, IsEnabled ? "Normal" : "Disabled", true);
+			ApplyFaceStates();
+		}
+
+		private void OnDropDownClosed(object? sender, object e) => ApplyFaceStates();
+
+		private void OnRootPointerEntered(object sender, PointerRoutedEventArgs e)
+		{
+			_isPointerOver = true;
+			ApplyFaceStates();
+		}
+
+		private void OnRootPointerExited(object sender, PointerRoutedEventArgs e)
+		{
+			_isPointerOver = false;
+			ApplyFaceStates();
+		}
+
+		// ONE place the face lands: boxed, or a menu title that lights under the pointer / while its dropdown is open.
+		private void ApplyFaceStates()
+		{
+			var lit = _isPointerOver || DropDown.IsOpen;
+			VisualStateManager.GoToState(this,
+				!IsMenuTitle ? "BoxFace"
+				: !IsEnabled ? "MenuTitleDisabledFace"
+				: lit ? "MenuTitleLitFace" : "MenuTitleFace", false);
 		}
 	}
 }

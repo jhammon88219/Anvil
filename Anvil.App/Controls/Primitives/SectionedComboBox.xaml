@@ -18,6 +18,12 @@
 
        NO PINNED ITEMS → the pinned list AND the rule collapse; it is a plain dropdown list.
 
+       MENU TITLE (IsMenuTitle — the top menu bar's Isolation, 2026-11-04):
+                    Isolation          the face is FLAT text: the fixed PlaceholderText, no box, no chevron, lit
+                  ┌──────────────┐     on hover / while open (FaceStates). The dropdown is the same two sections,
+                  │ No Isolation │     DropDownWidth wide (the title is narrower than its rows), opening Bottom.
+                  │ …            │
+
        OPTIONAL EXTRAS (the site picker uses all three; the isolation picker none):
                   ┌──────────────────────────┐
        FACE       │ ⌂ KTLX  Oklahoma City  ˅ │   FaceTemplate: the closed face renders SelectedItem through a
@@ -54,7 +60,7 @@
      Host contract: ItemsSource (+ optional PinnedItemsSource) + SelectedItem (TwoWay) + PlaceholderText;
      optional ItemTemplate (applied to BOTH sections; without it rows show ToString()), MaxDropDownHeight,
      DropDownPlacement (Top by default — the strips live at the bottom of the window), FaceTemplate,
-     FooterContent (+ CloseDropDown() for a footer action), ItemPicked. -->
+     FooterContent (+ CloseDropDown() for a footer action), ItemPicked, IsMenuTitle + DropDownWidth. -->
 <UserControl
     x:Class="Anvil.Controls.Primitives.SectionedComboBox"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -77,7 +83,8 @@
 
     <!-- ⚠️ Background="Transparent" is what makes the whole box tappable (a null background does not
          hit-test), NOT a look. The Border below draws the actual face. -->
-    <Grid x:Name="Root" Background="Transparent" Tapped="OnTapped">
+    <Grid x:Name="Root" Background="Transparent" Tapped="OnTapped"
+          PointerEntered="OnRootPointerEntered" PointerExited="OnRootPointerExited">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
@@ -92,6 +99,52 @@
                         <Setter Target="Placeholder.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
                         <Setter Target="DropDownGlyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
                         <Setter Target="Face.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <!-- FACE: the boxed dropdown (default), or a MENU TITLE (IsMenuTitle) — flat, the fixed PlaceholderText as its
+                 words, no chevron, like the top menu bar's other titles. ApplyFaceStates; re-applied on Loaded. -->
+            <VisualStateGroup x:Name="FaceStates">
+                <VisualState x:Name="BoxFace"/>
+                <VisualState x:Name="MenuTitleFace">
+                    <VisualState.Setters>
+                        <Setter Target="Box.Background" Value="Transparent"/>
+                        <Setter Target="Box.BorderThickness" Value="0"/>
+                        <Setter Target="SelectedLabel.Visibility" Value="Collapsed"/>
+                        <Setter Target="Face.Visibility" Value="Collapsed"/>
+                        <Setter Target="Placeholder.Visibility" Value="Visible"/>
+                        <Setter Target="Placeholder.Margin" Value="12,0"/>
+                        <Setter Target="Placeholder.FontSize" Value="13"/>
+                        <Setter Target="Placeholder.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <Setter Target="DropDownGlyph.Visibility" Value="Collapsed"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <!-- A menu title under the pointer or while its dropdown is open: the stock subtle hover. -->
+                <VisualState x:Name="MenuTitleLitFace">
+                    <VisualState.Setters>
+                        <Setter Target="Box.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+                        <Setter Target="Box.BorderThickness" Value="0"/>
+                        <Setter Target="SelectedLabel.Visibility" Value="Collapsed"/>
+                        <Setter Target="Face.Visibility" Value="Collapsed"/>
+                        <Setter Target="Placeholder.Visibility" Value="Visible"/>
+                        <Setter Target="Placeholder.Margin" Value="12,0"/>
+                        <Setter Target="Placeholder.FontSize" Value="13"/>
+                        <Setter Target="Placeholder.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <Setter Target="DropDownGlyph.Visibility" Value="Collapsed"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <!-- A disabled menu title (the PastCast loading screen's lock): greyed words. -->
+                <VisualState x:Name="MenuTitleDisabledFace">
+                    <VisualState.Setters>
+                        <Setter Target="Box.Background" Value="Transparent"/>
+                        <Setter Target="Box.BorderThickness" Value="0"/>
+                        <Setter Target="SelectedLabel.Visibility" Value="Collapsed"/>
+                        <Setter Target="Face.Visibility" Value="Collapsed"/>
+                        <Setter Target="Placeholder.Visibility" Value="Visible"/>
+                        <Setter Target="Placeholder.Margin" Value="12,0"/>
+                        <Setter Target="Placeholder.FontSize" Value="13"/>
+                        <Setter Target="Placeholder.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                        <Setter Target="DropDownGlyph.Visibility" Value="Collapsed"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -153,7 +206,7 @@
             <!-- ⚠️ ShouldConstrainToRootBounds="False" = a WINDOWED popup (its own HWND). Constrained, the
                  dropdown draws inside the main window's surface, and every over-map panel is an OS window
                  OWNED by the main window, so it paints over the dropdown (NowCast hid the site list). -->
-            <Flyout x:Name="DropDown" ShouldConstrainToRootBounds="False" Opening="OnDropDownOpening" Opened="OnDropDownOpened">
+            <Flyout x:Name="DropDown" ShouldConstrainToRootBounds="False" Opening="OnDropDownOpening" Opened="OnDropDownOpened" Closed="OnDropDownClosed">
                 <Flyout.FlyoutPresenterStyle>
                     <Style TargetType="FlyoutPresenter">
                         <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>
