@@ -100,7 +100,25 @@
          harmless). The map fills it; the top bar, the TEMPORAL PANES + the MAP-TOOLS RAIL, the pane selectors and the
          floating console overlay it. Every other panel that pops over the map is a real top-level OS window owned by
          WindowManager. -->
-    <Grid Background="#FF0A0A0A">
+    <!-- FULL-SCREEN (bolt-on): x:Name + KeyboardAcceleratorPlacementMode + the F11 accelerator + the hint storyboard (rules
+         in MainWindow.FullScreen.cs). "Hidden" placement: WinUI otherwise shows the root's accelerator as an "F11" tooltip
+         pill over the map. Esc is NOT an accelerator — it's the root's bubbling KeyDown (code). -->
+    <Grid x:Name="RootGrid" Background="#FF0A0A0A" KeyboardAcceleratorPlacementMode="Hidden">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="F11" Invoked="OnFullScreenAccelerator"/>
+        </Grid.KeyboardAccelerators>
+        <Grid.Resources>
+            <!-- The hint on entering full screen: fades in, holds ~3 s, fades out. -->
+            <Storyboard x:Key="FullScreenHintFlash">
+                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="FullScreenHint" Storyboard.TargetProperty="Opacity">
+                    <LinearDoubleKeyFrame KeyTime="0:0:0" Value="0"/>
+                    <LinearDoubleKeyFrame KeyTime="0:0:0.2" Value="1"/>
+                    <LinearDoubleKeyFrame KeyTime="0:0:3.2" Value="1"/>
+                    <LinearDoubleKeyFrame KeyTime="0:0:3.7" Value="0"/>
+                </DoubleAnimationUsingKeyFrames>
+            </Storyboard>
+        </Grid.Resources>
+        <!-- /FULL-SCREEN (bolt-on) -->
 
         <!-- Full-window map (bottom layer; the bar floats on top of it). -->
         <controls:WebView2 x:Name="MainMapWebView" Grid.Row="0" Grid.RowSpan="2">
@@ -428,6 +446,12 @@
                                     <!-- The tools strip had its own "Tools" tab until 2026-11-03; this item replaced it. -->
                                     <ToggleMenuFlyoutItem x:Name="ViewMapToolsItem" Text="Map tools"
                                                           IsChecked="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=TwoWay}"/>
+                                    <!-- FULL-SCREEN (bolt-on): never remembered. IsChecked is set from code (the window's state). -->
+                                    <MenuFlyoutSeparator/>
+                                    <ToggleMenuFlyoutItem x:Name="ViewFullScreenItem" Text="Full screen"
+                                                          KeyboardAcceleratorTextOverride="F11"
+                                                          Click="OnViewFullScreenClick"/>
+                                    <!-- /FULL-SCREEN (bolt-on) -->
                                 </MenuFlyout>
                             </Button.Flyout>
                         </Button>
@@ -744,5 +768,29 @@
                                   Margin="0,0,0,-3"
                                   ViewModel="{x:Bind ViewModel}"/>
         </Grid>
+
+        <!-- FULL-SCREEN (bolt-on) — the HINT, ~3 s on entering full screen (FullScreenHintFlash), click-through:
+
+               ┌ menu bar ──────────────────────────────── – □ ✕ ┐
+                         ╭──────────────────────────────────────╮
+                         │ Full screen · press F11 or Esc to exit │   ← just under the menu bar, centred
+                         ╰──────────────────────────────────────╯
+             Declared LAST so it paints over the panes and the console. -->
+        <Border x:Name="FullScreenHint"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Margin="0,60,0,0"
+                Padding="16,10"
+                CornerRadius="8"
+                Opacity="0"
+                IsHitTestVisible="False"
+                Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                BorderThickness="1">
+            <TextBlock Text="Full screen · press F11 or Esc to exit"
+                       FontSize="13"
+                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+        </Border>
+        <!-- /FULL-SCREEN (bolt-on) -->
     </Grid>
 </Window>

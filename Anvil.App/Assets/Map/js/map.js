@@ -1062,6 +1062,24 @@ try {
         });
     }
 
+    // ---- FULL-SCREEN (bolt-on): forward F11 / Escape to the host ----------------------------------
+    // While the MAP has keyboard focus, keys go to this page, never to the WinUI window, so its F11 accelerator and Esc
+    // handler would be dead whenever the user last clicked the map. F11 is caught in the CAPTURE phase and
+    // preventDefault'ed (the browser's own full screen must never fight the window's); Escape in the BUBBLE phase and only
+    // if nothing on the page used it. The host decides (MainWindow.OnFullScreenHostKey).
+    function postHostKey(key) {
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage(JSON.stringify({ type: 'hostKey', key: key }));
+        }
+    }
+    window.addEventListener('keydown', function (e) {
+        if (e.key === 'F11' && !e.repeat) { e.preventDefault(); postHostKey('F11'); }
+    }, true);
+    window.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !e.repeat && !e.defaultPrevented) postHostKey('Escape');
+    }, false);
+    // ---- /FULL-SCREEN (bolt-on) -------------------------------------------------------------------
+
     // ---- BOOT ------------------------------------------------------------------------------------
     // Create the launch pane (single; the host switches layout later via setPaneLayout) once the style is
     // resolved against the tile source. Offline resolves synchronously to the style URL, so the default

@@ -396,7 +396,8 @@ namespace Anvil
 		// ⚠️ TOP BAR HIDDEN = NO CAPTION BAND (accepted for now, the user's call): only the tab remains.
 		private void UpdateCaptionBand()
 		{
-			if (_isClosed || Content?.XamlRoot is not { } root)
+			// FULL-SCREEN (bolt-on): never written mid presenter switch (the first attempt's crash) — re-written after it.
+			if (_isClosed || _isSwitchingPresenter || Content?.XamlRoot is not { } root)
 			{
 				return;
 			}
@@ -422,11 +423,15 @@ namespace Anvil
 			}
 		}
 
-		private void OnCaptionMinimize(object? sender, EventArgs e) =>
+		private void OnCaptionMinimize(object? sender, EventArgs e)
+		{
+			if (LeaveFullScreenForCaption(thenMinimize: true)) return; // FULL-SCREEN (bolt-on)
 			(AppWindow.Presenter as OverlappedPresenter)?.Minimize();
+		}
 
 		private void OnCaptionMaximizeRestore(object? sender, EventArgs e)
 		{
+			if (LeaveFullScreenForCaption(thenMinimize: false)) return; // FULL-SCREEN (bolt-on)
 			if (AppWindow.Presenter is not OverlappedPresenter presenter)
 			{
 				return;
@@ -452,7 +457,8 @@ namespace Anvil
 
 		private void UpdateNotchInputRegions()
 		{
-			if (_isClosed)
+			// FULL-SCREEN (bolt-on): never written mid presenter switch (the first attempt's crash) — re-written after it.
+			if (_isClosed || _isSwitchingPresenter)
 			{
 				return;
 			}
@@ -826,6 +832,9 @@ namespace Anvil
 			// pass registers the holes - otherwise the notch is dead until something else forces a relayout.
 			PaneNotchLayer.LayoutUpdated += OnPaneNotchLayerLayoutUpdated;
 
+			// FULL-SCREEN (bolt-on): F11 / Esc / the map's forwarded keys / the probe timer (MainWindow.FullScreen.cs).
+			InitFullScreen();
+
 			// Hide the system caption buttons — they moved to the bar (see the CAPTION BAND block above).
 			AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
 
@@ -937,9 +946,11 @@ namespace Anvil
 			// The Atlas's site-hours clock PAUSES while the main window is minimized. Read the presenter state on
 			// EVERY change rather than trusting one flag — SetMinimized is idempotent, so the extra calls are free.
 			// The same read drives the bar's caption key (Maximize ⇄ Restore) and re-asserts the caption band.
-			AppWindow.Changed += (_, _) =>
+			AppWindow.Changed += (_, args) =>
 			{
 				if (_isClosed) return;
+				// FULL-SCREEN (bolt-on): the chrome follows a presenter change on a FRESH turn, never inside this callback.
+				if (args.DidPresenterChange) DispatcherQueue.TryEnqueue(AfterPresenterSwitch);
 				var state = (AppWindow.Presenter as OverlappedPresenter)?.State;
 				ViewModel.SiteUsage.SetMinimized(state == OverlappedPresenterState.Minimized);
 				CaptionKey.IsMaximized = state == OverlappedPresenterState.Maximized;

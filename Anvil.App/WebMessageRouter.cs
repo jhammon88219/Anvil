@@ -48,6 +48,12 @@ namespace Anvil
 		/// </summary>
 		public event Action<string, double, double>? RadarSiteMenuRequested;
 
+		/// <summary>
+		/// FULL-SCREEN (bolt-on): F11 / Escape pressed while the MAP had keyboard focus (map.js) — a focused WebView2
+		/// swallows keys, so the window's own F11 accelerator and Esc handler never see them. Raised for the host.
+		/// </summary>
+		public event Action<string>? HostKeyPressed;
+
 		public WebMessageRouter(MapViewModel viewModel, ILogger<WebMessageRouter> logger)
 		{
 			_viewModel = viewModel;
@@ -68,6 +74,14 @@ namespace Anvil
 					if (Str(root, "id") is { Length: > 0 } id)
 					{
 						RadarSiteMenuRequested?.Invoke(id, Dbl(root, "x"), Dbl(root, "y"));
+					}
+				},
+				// FULL-SCREEN (bolt-on): F11 / Escape with the map focused (map.js) — full screen is the host's.
+				["hostKey"] = root =>
+				{
+					if (Str(root, "key") is { Length: > 0 } key)
+					{
+						HostKeyPressed?.Invoke(key);
 					}
 				},
 				["stateIsolated"] = HandleStateIsolated,
