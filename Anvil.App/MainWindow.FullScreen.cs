@@ -1,36 +1,42 @@
 // ===== FULL-SCREEN (bolt-on, 2026-11-04 retry) — grep "FULL-SCREEN (bolt-on)" for every hook =====
 //
 //   windowed (maximized, as at launch)          F11 / View → Full screen
-//   ┌ menu bar ──────────────── – □ ✕ ┐   ──►   ┌ menu bar ──────────────── – □ ✕ ┐   the same layout, edge to edge:
-//   ├──┬──────────────────────────────┤         ├──┬──────────────────────────────┤   no taskbar, no window frame
-//   │▤ │  map                         │         │▤ │  map        [hint ~3 s]       │
-//   └──┴──────────────────────────────┘         └──┴──────────────────────────────┘
+//   ┌ menu bar ──────────────── – □ ✕ ┐   ──►   ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔   ← the cursor at the top edge
+//   ├──┬──────────────────────────────┤         ├──┬──────────────────────────────┤     ~150 ms slides the bar DOWN,
+//   │▤ │  map                         │         │▤ │  map        [hint ~3 s]       │     OVER the map; ~600 ms off it
+//   └──┴──────────────────────────────┘         └──┴──────────────────────────────┘     (+8 px) slides it away
+//                                               panes, rail, selectors run to the screen's top in full screen
 //
-// STAGE 1 of the retry (the user's call: careful, easy to back out of). The menu bar STAYS in full screen; an auto-hide is
-// stage 2, only if the PROBE below proves a dependable trigger. Microsoft's documented pattern throughout:
-// • Enter = AppWindow.SetPresenter(FullScreen); exit = SetPresenter(DEFAULT), which re-applies the window's ORIGINAL
-//   presenter ("Manage app windows"), then Maximize again if it was (queued — microsoft-ui-xaml #10439).
+// Microsoft's documented pattern throughout (and the user's research brief):
+// • Enter = AppWindow.SetPresenter(FullScreen); exit = SetPresenter(DEFAULT) — the window's ORIGINAL presenter ("Manage app
+//   windows") — then Maximize again if it was (queued — microsoft-ui-xaml #10439). NEVER remembered: always starts windowed.
 // • NO non-client region writes during the switch (the first attempt fail-fasted in Microsoft.UI.Windowing.dll when
-//   AppWindow.Changed rewrote them mid-switch — docs/bugs.md U11): the regions are cleared first, UpdateCaptionBand /
-//   UpdateNotchInputRegions stand down while _isSwitchingPresenter, and AfterPresenterSwitch re-writes them on the next
-//   dispatcher turn, once layout has caught up.
+//   AppWindow.Changed rewrote them mid-switch — docs/bugs.md U11): cleared first, the writers stand down while
+//   _isSwitchingPresenter, AfterPresenterSwitch re-writes them on a fresh turn. In full screen: NO caption (no dragging),
+//   the WHOLE window passthrough (ApplyFullScreenRegions) — the brief's "don't register drag regions in full screen".
+// • AUTO-HIDE (stage 2 — stage 1's probe proved the trigger over map + pane): ONE timer (50 ms, full screen only) reads the
+//   REAL cursor (GetCursorPos). A hover strip can't do this: the WebView, the non-client band and the system's top edge all
+//   ate its pointer events (the first attempt). The bar stays down while it's in use (IsTopBarBusy) and hides when the
+//   app is deactivated. The slide is the bar's implicit TranslationTransition (XAML) on UIElement.Translation; with
+//   Windows' "Animation effects" off it is dropped, so the bar just appears / disappears.
 // • KEYS: F11 = a root KeyboardAccelerator (placement Hidden — else an "F11" tooltip pill floats over the map). Esc = the
-//   root's BUBBLING KeyDown, so a text box / flyout / dialog that handles Esc keeps it. A focused MAP swallows both
-//   (WebView2), so map.js forwards them as "hostKey" (WebMessageRouter.HostKeyPressed → OnFullScreenHostKey).
-// • NEVER remembered: the app always starts windowed.
-// • PROBE (stage 1 only, logs, draws nothing): while full screen, every 100 ms read the REAL cursor (GetCursorPos) and log
-//   when it reaches / leaves the top 2 px of the window — "Full screen probe: …" in the Serilog log. Reading the cursor
-//   sidesteps everything that sank the first hover strip (the WebView, the non-client band, the system's top edge).
+//   root's BUBBLING KeyDown, so a text box / flyout / dialog that handles Esc keeps it. F10 (the Windows menu-bar key) =
+//   reveal + focus Atlas; tabbing into the hidden bar reveals it too. A focused MAP swallows keys (WebView2), so map.js
+//   forwards F11 / F10 / Escape as "hostKey" (WebMessageRouter.HostKeyPressed → OnFullScreenHostKey).
 //
-// BACK OUT = delete this file + every block tagged FULL-SCREEN (bolt-on) in MainWindow.xaml(.cs), WebMessageRouter.cs, map.js.
+// BACK OUT = delete this file + every block tagged FULL-SCREEN (bolt-on) in MainWindow.xaml(.cs), WebMessageRouter.cs,
+// map.js and Primitives/SectionedComboBox.xaml.cs.
 using System;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Windows.Graphics;
 
@@ -42,20 +48,42 @@ namespace Anvil
 		private bool _isFullScreenSwitchQueued;
 		private bool _isSwitchingPresenter; // the region writers stand down while true
 		private bool _wasMaximizedBeforeFullScreen;
-		private DispatcherQueueTimer? _fullScreenProbe;
-		private bool _probeCursorAtTop;
-		private const int FullScreenProbeMs = 100;
-		private const int FullScreenProbeEdgePx = 2;
+
+		private DispatcherQueueTimer? _topBarWatch;
+		private Vector3Transition? _topBarTransition; // the XAML-declared slide, kept to restore after "animations off"
+		private bool _isTopBarRevealed = true;        // windowed = always in place
+		private int _cursorAtTopMs;
+		private int _cursorAwayMs;
+
+		private const int TopBarWatchMs = 50;
+		private const int TopEdgePx = 2;              // physical px from the screen's top that count as "at the edge"
+		private const int RevealAfterMs = 150;
+		private const int HideAfterMs = 600;
+		private const double HideMarginDip = 8;       // hysteresis below the bar before it counts as "away"
+		private const double TopBarShadowClearance = 20; // the bar's cast shadow hangs below its surface
 
 		private void InitFullScreen()
 		{
 			_router.HostKeyPressed += OnFullScreenHostKey;
 			RootGrid.KeyDown += OnRootKeyDownForFullScreen; // bubbling: only keys nothing below handled
-			_fullScreenProbe = DispatcherQueue.CreateTimer();
-			_fullScreenProbe.Interval = TimeSpan.FromMilliseconds(FullScreenProbeMs);
-			_fullScreenProbe.IsRepeating = true;
-			_fullScreenProbe.Tick += OnFullScreenProbeTick;
+			_topBarTransition = TopChrome.TranslationTransition;
+			_topBarWatch = DispatcherQueue.CreateTimer();
+			_topBarWatch.Interval = TimeSpan.FromMilliseconds(TopBarWatchMs);
+			_topBarWatch.IsRepeating = true;
+			_topBarWatch.Tick += OnTopBarWatchTick;
+			Activated += (_, e) =>
+			{
+				// Switching to another app (Alt+Tab, a click elsewhere) puts the bar away, like the taskbar.
+				if (_isFullScreen && e.WindowActivationState == WindowActivationState.Deactivated)
+				{
+					HideTopBar();
+				}
+			};
 		}
+
+		// The panes' + selectors' top in full screen: the screen's top (the bar slides OVER them). Read by
+		// ApplyPaneLayerMargin / PlacePaneSelectors (tagged hooks).
+		private bool IsTopBarOverlaid => _isFullScreen;
 
 		/// <summary>Enter or leave full screen. Queued: it never runs inside key / menu processing or a windowing callback.</summary>
 		private void SetFullScreen(bool on)
@@ -111,6 +139,23 @@ namespace Anvil
 			_notchRegions = Array.Empty<RectInt32>();
 		}
 
+		// FULL SCREEN's non-client layout: NO caption (a full-screen window isn't dragged), the WHOLE window passthrough — so
+		// no default drag band can sit over the top of the panes / map / the revealed bar. Only written when the size changed.
+		private void ApplyFullScreenRegions()
+		{
+			var whole = new[] { new RectInt32(0, 0, AppWindow.Size.Width, AppWindow.Size.Height) };
+			var source = InputNonClientPointerSource.GetForWindowId(AppWindow.Id);
+			if (source.GetRegionRects(NonClientRegionKind.Caption).Length > 0)
+			{
+				source.ClearRegionRects(NonClientRegionKind.Caption);
+			}
+			if (!SameRegions(_notchRegions, whole))
+			{
+				_notchRegions = whole;
+				source.SetRegionRects(NonClientRegionKind.Passthrough, whole);
+			}
+		}
+
 		// The chrome follows the PRESENTER (from our switch, or AppWindow.Changed if anything else changes it) on a fresh
 		// dispatcher turn. Idempotent: a second call for the same state only re-syncs the menu tick.
 		private void AfterPresenterSwitch()
@@ -127,15 +172,20 @@ namespace Anvil
 			}
 			_isFullScreen = on;
 			_logger.LogInformation("Full screen: chrome → {State}", on ? "full screen" : "windowed");
+			Canvas.SetZIndex(TopChrome, on ? 10 : 0); // full screen: the revealed bar lies OVER the panes
 			if (on)
 			{
+				ApplyAnimationSetting();
+				HideTopBar();
 				((Storyboard)RootGrid.Resources["FullScreenHintFlash"]).Begin();
-				_probeCursorAtTop = false;
-				_fullScreenProbe?.Start();
+				_cursorAtTopMs = 0;
+				_topBarWatch?.Start();
 			}
 			else
 			{
-				_fullScreenProbe?.Stop();
+				_topBarWatch?.Stop();
+				_isTopBarRevealed = true;
+				TopChrome.Translation = Vector3.Zero;
 				// Back to the custom title bar exactly as the ctor set it (Microsoft's title-bar sample re-asserts this on the
 				// way back from full screen). Both are idempotent.
 				ExtendsContentIntoTitleBar = true;
@@ -146,8 +196,127 @@ namespace Anvil
 				}
 			}
 			CaptionKey.IsMaximized = (AppWindow.Presenter as OverlappedPresenter)?.State == OverlappedPresenterState.Maximized;
+			ApplyPaneLayerMargin();
+			PlacePaneSelectors();
 			UpdateCaptionBand();
 			UpdateNotchInputRegions();
+		}
+
+		// Windows' "Animation effects" off → no slide: the bar just appears / disappears.
+		private void ApplyAnimationSetting() =>
+			TopChrome.TranslationTransition = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled ? _topBarTransition : null;
+
+		private void RevealTopBar()
+		{
+			if (!_isFullScreen || _isTopBarRevealed)
+			{
+				return;
+			}
+			_isTopBarRevealed = true;
+			_cursorAwayMs = 0;
+			TopChrome.Translation = Vector3.Zero;
+		}
+
+		private void HideTopBar()
+		{
+			if (!_isFullScreen)
+			{
+				return;
+			}
+			_isTopBarRevealed = false;
+			_cursorAtTopMs = 0;
+			TopChrome.Translation = new Vector3(0, -(float)(TopChrome.ActualHeight + TopBarShadowClearance), 0);
+		}
+
+		// A hidden bar whose height changed stays fully out of sight (tagged hook in OnTopChromeSizeChanged).
+		private void KeepHiddenTopBarHidden()
+		{
+			if (_isFullScreen && !_isTopBarRevealed)
+			{
+				HideTopBar();
+			}
+		}
+
+		// ONE timer while full screen: at the edge long enough → reveal; away from the bar long enough (and not in use) → hide.
+		private void OnTopBarWatchTick(DispatcherQueueTimer sender, object args)
+		{
+			if (_isClosed || !_isFullScreen || !GetCursorPos(out var cursor) || Content?.XamlRoot is not { } root)
+			{
+				return;
+			}
+			var top = AppWindow.Position.Y; // full screen: the window's top = the screen's top (physical px)
+			if (!_isTopBarRevealed)
+			{
+				var atTop = cursor.Y >= top && cursor.Y - top <= TopEdgePx;
+				_cursorAtTopMs = atTop ? _cursorAtTopMs + TopBarWatchMs : 0;
+				if (_cursorAtTopMs >= RevealAfterMs)
+				{
+					RevealTopBar();
+				}
+				return;
+			}
+			var yDip = (cursor.Y - top) / root.RasterizationScale;
+			var overBar = yDip <= TopChrome.ActualHeight + HideMarginDip;
+			if (overBar || IsTopBarBusy())
+			{
+				_cursorAwayMs = 0;
+				return;
+			}
+			_cursorAwayMs += TopBarWatchMs;
+			if (_cursorAwayMs >= HideAfterMs)
+			{
+				HideTopBar();
+			}
+		}
+
+		// The bar stays down while it's being USED: a menu or the Isolation list open, the place search focused (typing, its
+		// suggestions), or keyboard focus anywhere in it. Pointer focus left on a menu title doesn't count. ⚠️ Explicit checks,
+		// not GetOpenPopupsForXamlRoot: these flyouts are WINDOWED (ShouldConstrainToRootBounds=False).
+		private bool IsTopBarBusy()
+		{
+			if (ViewMenuButton.Flyout?.IsOpen == true || TemporalModeMenuButton.Flyout?.IsOpen == true
+				|| PaneModeMenuButton.Flyout?.IsOpen == true || IsolationMenuPicker.IsDropDownOpen)
+			{
+				return true;
+			}
+			if (Content?.XamlRoot is { } root && FocusManager.GetFocusedElement(root) is DependencyObject focused
+				&& IsInsideTopBar(focused))
+			{
+				return focused is TextBox || focused is Control { FocusState: FocusState.Keyboard };
+			}
+			return false;
+		}
+
+		private bool IsInsideTopBar(DependencyObject element)
+		{
+			for (var node = element; node is not null; node = VisualTreeHelper.GetParent(node))
+			{
+				if (ReferenceEquals(node, TopChrome))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		// Tab landing keyboard focus in the hidden bar brings it down (tagged GotFocus hook on TopChrome).
+		private void OnTopChromeGotFocus(object sender, RoutedEventArgs e)
+		{
+			if (_isFullScreen && !_isTopBarRevealed && e.OriginalSource is Control { FocusState: FocusState.Keyboard })
+			{
+				RevealTopBar();
+			}
+		}
+
+		// F10 — the Windows menu-bar key: in full screen, reveal the bar with keyboard focus on Atlas.
+		private void RevealTopBarFromKeyboard()
+		{
+			if (!_isFullScreen)
+			{
+				return;
+			}
+			RevealTopBar();
+			AtlasMenuButton.Focus(FocusState.Keyboard);
 		}
 
 		private void OnViewFullScreenClick(object sender, RoutedEventArgs e) => SetFullScreen(ViewFullScreenItem.IsChecked);
@@ -156,6 +325,15 @@ namespace Anvil
 		{
 			SetFullScreen(!_isFullScreen);
 			args.Handled = true;
+		}
+
+		private void OnRevealTopBarAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+		{
+			if (_isFullScreen)
+			{
+				RevealTopBarFromKeyboard();
+				args.Handled = true;
+			}
 		}
 
 		// Esc leaves full screen only when nothing below wanted it (a text box, a flyout, a dialog handles it first).
@@ -168,16 +346,23 @@ namespace Anvil
 			}
 		}
 
-		// F11 / Escape pressed while the MAP had focus (map.js FULL-SCREEN keys; Escape only if the page didn't use it).
+		// F11 / F10 / Escape pressed while the MAP had focus (map.js FULL-SCREEN keys; Escape only if the page didn't use it).
 		private void OnFullScreenHostKey(string key)
 		{
-			if (key == "F11")
+			switch (key)
 			{
-				SetFullScreen(!_isFullScreen);
-			}
-			else if (key == "Escape" && _isFullScreen)
-			{
-				SetFullScreen(false);
+				case "F11":
+					SetFullScreen(!_isFullScreen);
+					break;
+				case "F10":
+					RevealTopBarFromKeyboard();
+					break;
+				case "Escape":
+					if (_isFullScreen)
+					{
+						SetFullScreen(false);
+					}
+					break;
 			}
 		}
 
@@ -196,23 +381,6 @@ namespace Anvil
 					(AppWindow.Presenter as OverlappedPresenter)?.Minimize()));
 			}
 			return true;
-		}
-
-		// ===== PROBE (stage 1): does the cursor reach the top edge, wherever it is (map, pane, rail)? =====
-		private void OnFullScreenProbeTick(DispatcherQueueTimer sender, object args)
-		{
-			if (_isClosed || !_isFullScreen || !GetCursorPos(out var cursor))
-			{
-				return;
-			}
-			var top = AppWindow.Position.Y; // full screen: the window's top = the screen's top (physical px)
-			var atTop = cursor.Y - top <= FullScreenProbeEdgePx && cursor.Y >= top;
-			if (atTop != _probeCursorAtTop)
-			{
-				_probeCursorAtTop = atTop;
-				_logger.LogInformation("Full screen probe: cursor {Where} the top edge at ({X},{Y}), window top {Top}",
-					atTop ? "REACHED" : "left", cursor.X, cursor.Y, top);
-			}
 		}
 
 		[StructLayout(LayoutKind.Sequential)]

@@ -1063,8 +1063,8 @@ try {
     }
 
     // ---- FULL-SCREEN (bolt-on): forward F11 / Escape to the host ----------------------------------
-    // While the MAP has keyboard focus, keys go to this page, never to the WinUI window, so its F11 accelerator and Esc
-    // handler would be dead whenever the user last clicked the map. F11 is caught in the CAPTURE phase and
+    // While the MAP has keyboard focus, keys go to this page, never to the WinUI window, so its F11 / F10 accelerators and
+    // Esc handler would be dead whenever the user last clicked the map. F11 / F10 are caught in the CAPTURE phase and
     // preventDefault'ed (the browser's own full screen must never fight the window's); Escape in the BUBBLE phase and only
     // if nothing on the page used it. The host decides (MainWindow.OnFullScreenHostKey).
     function postHostKey(key) {
@@ -1073,7 +1073,8 @@ try {
         }
     }
     window.addEventListener('keydown', function (e) {
-        if (e.key === 'F11' && !e.repeat) { e.preventDefault(); postHostKey('F11'); }
+        // F10 = the Windows menu-bar key (reveals the auto-hidden bar in full screen).
+        if ((e.key === 'F11' || e.key === 'F10') && !e.repeat) { e.preventDefault(); postHostKey(e.key); }
     }, true);
     window.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && !e.repeat && !e.defaultPrevented) postHostKey('Escape');

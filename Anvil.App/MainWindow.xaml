@@ -106,6 +106,8 @@
     <Grid x:Name="RootGrid" Background="#FF0A0A0A" KeyboardAcceleratorPlacementMode="Hidden">
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="F11" Invoked="OnFullScreenAccelerator"/>
+            <!-- F10, the Windows menu-bar key: in full screen, reveal the auto-hidden bar with focus on Atlas. -->
+            <KeyboardAccelerator Key="F10" Invoked="OnRevealTopBarAccelerator"/>
         </Grid.KeyboardAccelerators>
         <Grid.Resources>
             <!-- The hint on entering full screen: fades in, holds ~3 s, fades out. -->
@@ -377,7 +379,14 @@
                         Edge="Top"
                         ShowTab="False"
                         EdgeStyle="CastShadow"
-                        SizeChanged="OnTopChromeSizeChanged">
+                        SizeChanged="OnTopChromeSizeChanged"
+                        GotFocus="OnTopChromeGotFocus">
+            <!-- FULL-SCREEN (bolt-on): the auto-hide SLIDE — WinUI's implicit transition on Translation (0 = in place; the
+                 code sets -height to hide). Dropped in code while Windows' "Animation effects" is off. -->
+            <ctl:OverlayBar.TranslationTransition>
+                <Vector3Transition Duration="0:0:0.2"/>
+            </ctl:OverlayBar.TranslationTransition>
+            <!-- /FULL-SCREEN (bolt-on) -->
             <ctl:OverlayBar.BarContent>
                 <!-- MinHeight 32 = the caption height; the CENTRED place search makes it taller (its box + 7 px above and
                      below, the tools strip's old margins — the user's call, 2026-11-03). -->
@@ -773,7 +782,8 @@
 
                ┌ menu bar ──────────────────────────────── – □ ✕ ┐
                          ╭──────────────────────────────────────╮
-                         │ Full screen · press F11 or Esc to exit │   ← just under the menu bar, centred
+                         │ Full screen · move the pointer to the top for the menu · press F11 or Esc to exit │
+                                                                    ← near the top, centred (the bar is hidden then)
                          ╰──────────────────────────────────────╯
              Declared LAST so it paints over the panes and the console. -->
         <Border x:Name="FullScreenHint"
@@ -787,7 +797,7 @@
                 Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                 BorderThickness="1">
-            <TextBlock Text="Full screen · press F11 or Esc to exit"
+            <TextBlock Text="Full screen · move the pointer to the top for the menu · press F11 or Esc to exit"
                        FontSize="13"
                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
         </Border>

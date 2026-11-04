@@ -247,6 +247,9 @@ namespace Anvil.Controls.Primitives
 			ItemPicked?.Invoke(this, e.ClickedItem);
 		}
 
+		/// <summary>FULL-SCREEN (bolt-on): whether the dropdown is open now — the auto-hidden top bar stays down while it is.</summary>
+		public bool IsDropDownOpen => DropDown.IsOpen;
+
 		/// <summary>Close the dropdown — for a <see cref="FooterContent"/> action.</summary>
 		public void CloseDropDown() => DropDown.Hide();
 

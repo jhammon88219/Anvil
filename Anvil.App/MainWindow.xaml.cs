@@ -130,13 +130,15 @@ namespace Anvil
 
 		// The temporal panes (and the map-tools rail in their layer) run from the TOP BAR's foot to the window bottom.
 		private void ApplyPaneLayerMargin() =>
-			TemporalPaneLayer.Margin = new Thickness(0, TopChrome.SurfaceHeight, 0, 0);
+			// FULL-SCREEN (bolt-on): from the screen's top in full screen — the auto-hidden bar slides OVER the panes.
+			TemporalPaneLayer.Margin = new Thickness(0, IsTopBarOverlaid ? 0 : TopChrome.SurfaceHeight, 0, 0);
 
 		// ===== TOP MENU BAR (2026-11-01) =====
 		// Its height moves the temporal panes' top, the floating selectors (single / two across sit under its tab) and
 		// the caption band (the bar IS the caption now).
 		private void OnTopChromeSizeChanged(object sender, SizeChangedEventArgs e)
 		{
+			KeepHiddenTopBarHidden(); // FULL-SCREEN (bolt-on)
 			ApplyPaneLayerMargin();
 			PlacePaneSelectors();
 			UpdateCaptionBand();
@@ -242,7 +244,7 @@ namespace Anvil
 		private void PlacePaneSelectors()
 		{
 			var layout = ViewModel.Radar.PaneLayout;
-			var top = TopChrome.ActualHeight + SelectorGap;
+			var top = (IsTopBarOverlaid ? 0 : TopChrome.ActualHeight) + SelectorGap; // FULL-SCREEN (bolt-on): bar overlaid
 			var notches = new[] { Notch0, Notch1, Notch2, Notch3 };
 			for (var i = 0; i < notches.Length; i++)
 			{
@@ -401,6 +403,11 @@ namespace Anvil
 			{
 				return;
 			}
+			if (_isFullScreen)
+			{
+				ApplyFullScreenRegions(); // FULL-SCREEN (bolt-on): no caption, the whole window passthrough
+				return;
+			}
 
 			var height = (int)Math.Ceiling(TopChrome.SurfaceHeight * root.RasterizationScale);
 			var bands = height > 0
@@ -458,7 +465,8 @@ namespace Anvil
 		private void UpdateNotchInputRegions()
 		{
 			// FULL-SCREEN (bolt-on): never written mid presenter switch (the first attempt's crash) — re-written after it.
-			if (_isClosed || _isSwitchingPresenter)
+			// FULL-SCREEN (bolt-on): in full screen the whole window is ONE passthrough rect (UpdateCaptionBand) — no holes.
+			if (_isClosed || _isSwitchingPresenter || _isFullScreen)
 			{
 				return;
 			}
