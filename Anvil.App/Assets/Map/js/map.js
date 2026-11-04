@@ -1062,6 +1062,31 @@ try {
         });
     }
 
+    // ---- HOST KEYS (full screen, 2026-11-04) --------------------------------------------------------
+    // While the MAP has keyboard focus, keystrokes go to this page, never to the WinUI window, so its F11 / Esc / Alt
+    // accelerators would be dead whenever the user had last clicked the map. Forward just those three; the host decides
+    // what they do (MainWindow.OnHostKey: F11 = toggle full screen, Esc = leave it, Alt = reveal the hidden menu bar).
+    // F11 is preventDefault'ed so the browser's own full-screen never fights the window's. Alt posts on KEY UP and only
+    // when pressed ALONE (the Windows menu rule) — so Alt+Tab, Alt+drag etc. never pop the bar.
+    var altAlone = false;
+    function postHostKey(key) {
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage(JSON.stringify({ type: 'hostKey', key: key }));
+        }
+    }
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Alt') { if (!e.repeat) altAlone = true; return; }
+        altAlone = false;
+        if (e.repeat || (e.key !== 'F11' && e.key !== 'Escape')) return;
+        if (e.key === 'F11') e.preventDefault();
+        postHostKey(e.key);
+    }, true);
+    document.addEventListener('keyup', function (e) {
+        if (e.key === 'Alt' && altAlone) { e.preventDefault(); postHostKey('Alt'); }
+        altAlone = false;
+    }, true);
+    window.addEventListener('blur', function () { altAlone = false; });
+
     // ---- BOOT ------------------------------------------------------------------------------------
     // Create the launch pane (single; the host switches layout later via setPaneLayout) once the style is
     // resolved against the tile source. Offline resolves synchronously to the style URL, so the default
