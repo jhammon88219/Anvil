@@ -227,12 +227,13 @@ namespace Anvil
 		// the elements are declared in XAML (Notch0…3), this only sets their alignment, margin and shadow edge.
 		private const double SelectorGap = 8;
 
-		// The top bar's PLACE SEARCH is as wide as the SINGLE-pane selector centred right under it (the user's call,
-		// 2026-11-03). Measured, because the selector sizes to its content (its legend, compact or not, a model form).
-		// In two-across / quad the box keeps its last single-pane width — those selectors aren't under it.
+		// The top bar's PLACE SEARCH is as wide as the pane selector (the user's call, 2026-11-03) — and KEEPS that width
+		// whether or not the selector shows (2026-11-04): a hidden selector is invisible but still laid out (IsNotchShown),
+		// so it is measured from launch. Pane 0's selector in its FULL radar form: Single or two across (only Quad is
+		// compact); while a ForeCast model draws it wears the model form, so the box keeps its last radar-form width.
 		private void OnPaneSelectorSizeChanged(object sender, SizeChangedEventArgs e)
 		{
-			if (ViewModel.Radar.PaneLayout == PaneLayout.Single && e.NewSize.Width > 0)
+			if (ViewModel.Radar.PaneLayout != PaneLayout.Quad && !ViewModel.ShortRange.IsDrawing && e.NewSize.Width > 0)
 			{
 				PlaceSearchBox.Width = e.NewSize.Width;
 			}
@@ -275,29 +276,9 @@ namespace Anvil
 			}
 		}
 
-		// ===== The console's top row ↔ its console row =====
-		// The section rules (docs/ui-bottom-bar.md), now INSIDE the card (canvas card A, 2026-11-03): the header's rings/ruler
-		// picker ends on the end of the LONGEST SCAN LINE's text (it follows the VCP text as it changes — the user's call,
-		// 2026-10-06; the reserved scan column is wider than its text). The site picker centres by layout. (The network
-		// picker that started on the clock's left edge moved to the map-tools rail, 2026-11-04.) MEASURED, and run on
-		// LayoutUpdated + a console width change; the header ignores sub-pixel no-ops.
-		private void AlignCentreSection()
-		{
-			if (Content is UIElement root)
-			{
-				// MODEL MODE: the right end follows the VISIBLE console's text (ModelConsole's lines differ from radar's).
-				var scanRight = ModelConsole.Visibility == Visibility.Visible
-					? ModelConsole.ScanTextRight(root)
-					: TimeModule.ScanTextRight(root);
-				RadarConsoleHeader.AlignToConsole(scanRight, root);
-			}
-		}
-
-		// (The tools strip's AlignSideSections is GONE with the strip, 2026-11-04 — the map tools are the left rail.)
-
-		// The console's top row on its console row, on every layout pass of the console (it is centred, so it MOVES
-		// without resizing). A no-op below half a pixel, so the passes it causes settle at once.
-		private void OnConsoleLayoutUpdated(object? sender, object e) => AlignCentreSection();
+		// (AlignCentreSection is GONE, 2026-11-04: the console's top row it edge-aligned went when Inspect + rings/ruler moved
+		// to the map-tools rail; the site picker is the console's TAB again, centred by layout alone. The tools strip's
+		// AlignSideSections went with the strip.)
 
 		// NOTE: DevVisibility is gone. It existed to collapse the dev bar key in Release; there is no dev key
 		// any more — the dev tools are a tab of the Settings window, and SettingsWindow omits that tab from
@@ -326,9 +307,16 @@ namespace Anvil
 		/// <para>⚠️ NO SITE, NO SELECTOR (the user's call, 2026-11-04, alongside the console's same rule). It used to
 		/// show from launch, DORMANT (dimmed, controls off — PaneNotchContent.IsDormant) as "yours once you pick a
 		/// site"; now the map is bare until a site is picked, and the selector arrives with its loop.</para>
+		///
+		/// <para>⚠️ HIDDEN = INVISIBLE, NOT COLLAPSED (2026-11-04): a hidden selector stays LAID OUT (Opacity 0, not
+		/// hit-testable), so its width is always measured and the top bar's place search keeps it whether or not the selector
+		/// shows (OnPaneSelectorSizeChanged). Only a pane that isn't in the layout collapses its selector (Visibility).</para>
 		/// </summary>
-		public Visibility NotchVisibility(bool selectorsVisible, bool paneVisible, bool hasSite, bool modelDrawing) =>
-			selectorsVisible && paneVisible && (hasSite || modelDrawing) ? Visibility.Visible : Visibility.Collapsed;
+		public bool IsNotchShown(bool selectorsVisible, bool hasSite, bool modelDrawing) =>
+			selectorsVisible && (hasSite || modelDrawing);
+
+		public double NotchOpacity(bool selectorsVisible, bool hasSite, bool modelDrawing) =>
+			IsNotchShown(selectorsVisible, hasSite, modelDrawing) ? 1 : 0;
 
 		/// <summary>A temporal pane shows while its pane flag is set (MapViewModel; never past its mode).</summary>
 		public Visibility PaneVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
@@ -488,7 +476,8 @@ namespace Anvil
 				{ MenuBarMenus, PlaceSearchBox, CaptionKey, ConsoleIslandHost,
 				  Notch0, Notch1, Notch2, Notch3, TemporalPanePastCast, TemporalPaneNowCast, TemporalPaneForeCast })
 			{
-				if (notch.Visibility != Visibility.Visible || notch.ActualWidth <= 0 || notch.ActualHeight <= 0)
+				// A hidden pane selector is invisible but laid out (IsNotchShown) — not hit-testable, so it is no hole either.
+				if (notch.Visibility != Visibility.Visible || !notch.IsHitTestVisible || notch.ActualWidth <= 0 || notch.ActualHeight <= 0)
 				{
 					continue;
 				}
@@ -831,11 +820,6 @@ namespace Anvil
 			};
 			PlacePaneSelectors();
 
-			// The console's top row is edge-aligned to its console row (see AlignCentreSection).
-			TimeModule.SizeChanged += (_, _) => AlignCentreSection();
-			RadarConsoleHeader.SizeChanged += (_, _) => AlignCentreSection();
-			// The console is centred, so it MOVES without resizing: the alignment also re-runs on layout.
-			ConsoleIslandHost.LayoutUpdated += OnConsoleLayoutUpdated;
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs
 			// THE TITLE BAR block above). Hooked straight after InitializeComponent so the very first layout
@@ -988,7 +972,6 @@ namespace Anvil
 			{
 				_isClosed = true;
 				PaneNotchLayer.LayoutUpdated -= OnPaneNotchLayerLayoutUpdated;
-				ConsoleIslandHost.LayoutUpdated -= OnConsoleLayoutUpdated;
 
 				// Stop every app-lifetime background loop BEFORE the flush. They resume on this window's
 				// DispatcherQueue and end in property notifications / map pushes, so one still ticking after

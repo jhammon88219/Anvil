@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ============================================================================
-     MapControlsStripRangeToolsPicker — the RANGE RINGS and the RANGE RULER as ONE square key on the tools tier (the
-     user's mock-up, 2026-10-21; it replaced the two side-by-side toggles, the network picker's pattern). The right-most
-     key of the console tools, Inspect beside it on its left.
+     MapControlsStripRangeToolsPicker — the RANGE RINGS and the RANGE RULER as ONE square key (the user's mock-up,
+     2026-10-21; it replaced the two side-by-side toggles, the network picker's pattern). Since 2026-11-04 it is the LAST
+     key of the vertical map-tools rail (Composites/MapControlsStrip), Inspect just above it.
 
-           ┌──────────────────────┐
-           │ ☑ ◎  Range rings      │   ← the list opens UP (TopEdgeAlignedLeft), its left edge on the key's
-           │ ☐ ⊢  Range ruler      │     each row = a CheckBox: box · the tool's mark · name
-           └──────────────────────┘
-           ┌───▴┐
-           │ ◎  │  ← the face: the rings mark + a small ▴ (the way it opens) in the top-right corner
-           └────┘     LIT (the strip toggles' Checked look) while EITHER is on (LitStates);
-                      Elevated face while the list is open (FlyoutStates)
+                  ┌──────────────────────┐
+                  │ ☑ ◎  Range rings      │   ← the list opens to the RIGHT (RightEdgeAlignedBottom), its foot on the
+           ┌───▸┐ │ ☐ ⊢  Range ruler      │     key's (the key is low on the rail); each row = a CheckBox: box · mark · name
+           │ ◎  │ └──────────────────────┘
+           └────┘  ← the face: the rings mark + a small ▸ (the way it opens) in the top-right corner;
+                     LIT (the strip toggles' Checked look) while EITHER is on (LitStates); Elevated while open (FlyoutStates)
 
      RINGS = the MASTER show/hide for every range ring, its labels and the label handle (Radar.RangeRings.RingsVisible,
      PERSISTED) — a switch you can set ahead, so never disabled for want of a loop. Which rings, and their look, stay in
@@ -21,7 +19,7 @@
      (ticked, greyed) and draws itself at the next site, on the bearing you left it. Sticky on purpose (the old toggle's rule).
      ⚠️ NOT a ComboBox (mousewheel cycling over the map — the site picker's trap): a Button + a windowed Flyout
      (ShouldConstrainToRootBounds=False — else the owned panel windows paint over it), and the list STAYS OPEN while you tick.
-     ⚠️ The face's look copies MapControlsStrip's StripToolToggleStyle (32 × 32, GROUND hover pair — on the floating console since 2026-11-03 — accent-edged lit
+     ⚠️ The face's look copies MapControlsStrip's StripToolToggleStyle (32 × 32, RAISED hover pair — on the raised rail since 2026-11-04 — accent-edged lit
      state) — that style is local to the strip, so a tune there should come here too.
      ============================================================================ -->
 <UserControl x:Class="Anvil.Controls.Primitives.MapControlsStripRangeToolsPicker"
@@ -61,7 +59,7 @@
                                         <VisualState x:Name="Normal"/>
                                         <VisualState x:Name="PointerOver">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
                                                 <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
                                             </VisualState.Setters>
                                         </VisualState>
@@ -130,15 +128,15 @@
                 <Viewbox Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <PathIcon Data="M9,0.5 A8.5,8.5 0 1 0 9,17.5 A8.5,8.5 0 1 0 9,0.5 Z M9,1.9 A7.1,7.1 0 1 0 9,16.1 A7.1,7.1 0 1 0 9,1.9 Z M9,3.9 A5.1,5.1 0 1 0 9,14.1 A5.1,5.1 0 1 0 9,3.9 Z M9,5.3 A3.7,3.7 0 1 0 9,12.7 A3.7,3.7 0 1 0 9,5.3 Z M9,7.4 A1.6,1.6 0 1 0 9,10.6 A1.6,1.6 0 1 0 9,7.4 Z"/>
                 </Viewbox>
-                <!-- ▴ = the list opens UP (the network picker's caret). -->
+                <!-- ▸ = the list opens to the RIGHT (the network picker's caret). -->
                 <Viewbox Width="6" Height="6" Margin="0,3,3,0"
                          HorizontalAlignment="Right" VerticalAlignment="Top">
-                    <PathIcon Data="M1,7 L5,3 L9,7 Z" Width="10" Height="10"/>
+                    <PathIcon Data="M3,1 L7,5 L3,9 Z" Width="10" Height="10"/>
                 </Viewbox>
             </Grid>
             <Button.Flyout>
                 <Flyout x:Name="RangeToolsPickerFlyout"
-                        Placement="TopEdgeAlignedLeft" ShouldConstrainToRootBounds="False"
+                        Placement="RightEdgeAlignedBottom" ShouldConstrainToRootBounds="False"
                         Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
                     <StackPanel Width="200" Spacing="2">
                         <CheckBox x:Name="RangeToolsPickerRingsCheckBox" MinHeight="32"

@@ -16,13 +16,16 @@
          │ ⁘  │░       ─ separator
          │ ◍  │░   4 · MARKERS — the marker viewer, a PLACEHOLDER (no Click yet)
          │ ⊚  │░   5 · LOCATION (lit = your marker is out)
+         │ ⁘  │░       ─ separator
+         │ ⌕  │░   6 · INSPECT (needs a loop)
+         │ ◎▸ │░   7 · RINGS / RULER (list opens RIGHT)
          │    │░
          └────┘     48 wide: 8 padding + a 32 key + the 8 px car on the map key's row
 
      ⚠️ PANE MODE AND ISOLATION LEFT THIS STRIP (2026-11-04): both are top-menu-bar items now (MainWindow.xaml, TOP MENU
-     BAR — Pane Mode menu, Isolation = a SectionedComboBox drawn as a menu title). The SITE PICKER, INSPECT and RINGS/RULER
-     live in the floating console's top row (Composites/RadarConsoleHeader); the NETWORK PICKER came back here (2026-11-04),
-     on top — it decides which site keys the MAP shows, so it belongs with the map's tools. Place search is centred on
+     BAR — Pane Mode menu, Isolation = a SectionedComboBox drawn as a menu title). The NETWORK PICKER (on top) and INSPECT +
+     RINGS/RULER (last) came here from the floating console's top row (2026-11-04); the SITE PICKER is the console's TAB
+     again (Composites/RadarConsoleSiteTab). Place search is centred on
      the top menu bar (Composites/PlaceSearchBox).
      ─ = Primitives/MapControlsStripSeparator, a faint 3 × 3 DOT GRID between GROUPS, centred under the keys (Width 32)
          with generous vertical margins. Tune dot size/gap/brush on the control, not here.
@@ -393,5 +396,26 @@
             <!-- Ring (donut 3.6-5.2), SOLID core (r 2.2), four ticks standing off it. -->
             <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M3.8,9 A5.2,5.2 0 1,0 14.2,9 A5.2,5.2 0 1,0 3.8,9 Z M5.4,9 A3.6,3.6 0 1,0 12.6,9 A3.6,3.6 0 1,0 5.4,9 Z M6.8,9 A2.2,2.2 0 1,0 11.2,9 A2.2,2.2 0 1,0 6.8,9 Z M8.2,0 H9.8 V3 H8.2 Z M8.2,15 H9.8 V18 H8.2 Z M0,8.2 H3 V9.8 H0 Z M15,8.2 H18 V9.8 H15 Z"/></Viewbox>
         </ToggleButton>
+
+        <prim:MapControlsStripSeparator x:Name="MapToolsSeparatorRadarTools" Width="32" HorizontalAlignment="Left" Margin="0,8"/>
+
+        <!-- ===== 6 · INSPECT — read the active product under the pointer in every pane (moved here from the console's top
+             row, 2026-11-04). Plain TwoWay; DISABLED until a loop is loaded (IsTransportEnabled) and disarms when it clears.
+             The mark is a MAGNIFIER (E721, not verified), never a reticle — the reticle is Location's. ===== -->
+        <ToggleButton x:Name="InspectToggle"
+                      Style="{StaticResource StripToolToggleStyle}"
+                      IsEnabled="{x:Bind ViewModel.Radar.IsTransportEnabled, Mode=OneWay}"
+                      IsChecked="{x:Bind ViewModel.Radar.IsInspecting, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Inspect - read radar values under the cursor (click again to turn it off)">
+            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="{StaticResource StripFontGlyphSize}" Glyph="&#xE721;"/>
+        </ToggleButton>
+
+        <!-- ===== 7 · RINGS / RULER — the rings master + the ruler row (Primitives/MapControlsStripRangeToolsPicker; the ruler
+             row needs a radar on screen). LAST on the rail; its list opens to the RIGHT. ===== -->
+        <prim:MapControlsStripRangeToolsPicker x:Name="MapControlsStripRangeToolsPicker"
+                                               IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
+                                               AreRingsOn="{x:Bind ViewModel.Radar.RangeRings.RingsVisible, Mode=TwoWay}"
+                                               IsRulerOn="{x:Bind ViewModel.Radar.IsRangeRulerOn, Mode=TwoWay}"
+                                               CanUseRuler="{x:Bind ViewModel.Radar.HasRadarDisplay, Mode=OneWay}"/>
     </StackPanel>
 </UserControl>

@@ -12,14 +12,15 @@
        │↻ │              │Ref ▓▒░  │┃│Vel ▓▒░  │                   │  CROSSING; two across = against the divider;
        │⁘ │              ╰─────────╯┃╰─────────╯                   │  single = centred under the bar.
        │◍ │  map pane 0  (MAIN)     ┃        map pane 1            │  View → Pane selectors hides all.
-       │⊚ │       ╭──────────────────────────────────────────╮     │  FLOATING RADAR CONSOLE (2026-11-03) —
-       │  │       │         [⌂ KTLX Oklahoma ˅]       ⌕ ◎▴ │     │  TOP ROW (RadarConsoleHeader): site
-       │  │       │ ──────────────────────────────────────── │     │  picker (on play) · Inspect + rings,
-       │  │       │ 1:07 PM ═══ scrubber ═══ ◀ ▶ ▶ ↺  VCP: 212 │     │  over a rule (card A); then the console,
-       │  │       │ 2 min ago      3/10        Mode: precip   │     │  rounded, centred, SelectorGap above the
-       │  │       ╰──────────────────────────────────────────╯     │  window bottom. View → Radar console.
+       │⊚ │                  ╭────────────────────╮           │  SITE TAB (RadarConsoleSiteTab) — home +
+       │⁘ │                  │ ⌂ KTLX Oklahoma ˅  │           │  favorites, centred on the console's top
+       │⌕ │       ╭──────────┴────────────────────┴─────────╮ │  FLOATING RADAR CONSOLE (2026-11-03) —
+       │◎▸│       │ 1:07 PM ═══ scrubber ═══ ◀ ▶ ▶ ↺  VCP: 212 │ │  rounded, centred (play = the midpoint),
+       │  │       │ 2 min ago      3/10        Mode: precip   │ │  SelectorGap above the window bottom.
+       │  │       ╰──────────────────────────────────────────╯ │  View → Radar console. Site needed.
        └──┴──────────────────────── ↑ window midpoint ─────────────┘
-        ↑ the MAP-TOOLS RAIL (2026-11-04): radar networks · map layers · fit · reset north · markers · location, CENTRED top to bottom;
+        ↑ the MAP-TOOLS RAIL (2026-11-04): radar networks · map layers · fit · reset north · markers · location ·
+          inspect · rings/ruler, CENTRED top to bottom;
           on the window's left edge, DOCKED to the NowCast / PastCast pane's right edge while one shows (TEMPORAL PANES block).
 
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, drawn by whichever side owns it: the top bar casts its
@@ -28,10 +29,10 @@
             (Composites/MapControlsStrip, vertical now); its pane-layout key became the top bar's PANE MODE menu and its
             isolation picker the top bar's ISOLATION item. So the temporal panes and the rail run to the window bottom.
           ↑ The console never shrinks; in a narrow window it overlaps the panes' bottoms (it is declared after them).
-          ↑ [⌂ KTLX ˅] = the SITE PICKER (home + favorites), centred in the floating console's TOP ROW with the network
-            picker left and Inspect + rings/ruler right (2026-11-03). It replaced the old bar's Home key AND the side car
-            that used to hang off the Atlas key — two doors to one list. See Composites/RadarConsoleHeader. Don't re-add a
-            Home key.
+          ↑ [⌂ KTLX ˅] = the SITE PICKER (home + favorites), the console's centred TAB (back 2026-11-04, after a day as the
+            centre of a console top row whose other tools moved to the rail). It replaced the old bar's Home key AND the side
+            car that used to hang off the Atlas key — two doors to one list. See Composites/RadarConsoleSiteTab. Don't
+            re-add a Home key.
           ↑ Atlas, Settings and the temporal modes are TOP MENU BAR items (2026-11-03); activity shows in each temporal
             pane's ACTIVITY EXPANDER (TemporalPaneActivityExpander, 2026-10-16).
           ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map (notches included; the top
@@ -177,7 +178,9 @@
              bar so the bar draws over it and stays clickable where the two overlap.
 
              ⚠️ NO SITE, NO SELECTOR (the user's call, 2026-11-04): a selector shows only while a radar site is selected
-             (Radar.HasRadarLoop, Now and Past alike) or a ForeCast model draws (its read-only model form) — NotchVisibility.
+             (Radar.HasRadarLoop, Now and Past alike) or a ForeCast model draws (its read-only model form) — IsNotchShown.
+             ⚠️ "Hidden" is Opacity 0 + not hit-testable, NOT Collapsed: the selector stays laid out, so the top bar's place
+             search always knows its width (OnPaneSelectorSizeChanged). Visibility only drops a pane that isn't in the layout.
              ⚠️ ONE show/hide for all four now (View → Pane selectors, persisted) — the per-notch tabs went with
              the attachment (2026-11-01). They used to be four independent view-state toggles. -->
         <!-- ⚠️ THE SITE CHECK TOAST IS GONE from the map band: the announced site check now shows in the NowCast
@@ -215,7 +218,9 @@
                             IsRaised="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
-                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane0.IsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                            Visibility="{x:Bind PaneVisibility(ViewModel.Radar.Pane0.IsVisible), Mode=OneWay}"
+                            Opacity="{x:Bind NotchOpacity(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                            IsHitTestVisible="{x:Bind IsNotchShown(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
@@ -235,7 +240,9 @@
                             IsRaised="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
-                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane1.IsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                            Visibility="{x:Bind PaneVisibility(ViewModel.Radar.Pane1.IsVisible), Mode=OneWay}"
+                            Opacity="{x:Bind NotchOpacity(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                            IsHitTestVisible="{x:Bind IsNotchShown(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
@@ -255,7 +262,9 @@
                             IsRaised="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
-                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane2.IsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                            Visibility="{x:Bind PaneVisibility(ViewModel.Radar.Pane2.IsVisible), Mode=OneWay}"
+                            Opacity="{x:Bind NotchOpacity(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                            IsHitTestVisible="{x:Bind IsNotchShown(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
@@ -275,7 +284,9 @@
                             IsRaised="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
-                            Visibility="{x:Bind NotchVisibility(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.Pane3.IsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                            Visibility="{x:Bind PaneVisibility(ViewModel.Radar.Pane3.IsVisible), Mode=OneWay}"
+                            Opacity="{x:Bind NotchOpacity(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                            IsHitTestVisible="{x:Bind IsNotchShown(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
@@ -661,13 +672,12 @@
                  │◗│                            ╭──────────────────╮   ← floating pane selector(s)
                  │▤│
                  │⛶│                ...map...
-                 │↻│ ╭──────────────────────────────────────────────────────────╮
-                 │◍│ │                  [ ⌂ KTLX  Oklahoma City  ˅ ]        ⌕ ◎▴  │  ← THIS: the TOP ROW (RadarConsoleHeader)
-                 │⊚│ │ ──────────────────────────────────────────────────────── │    over its rule (canvas card A),
-                 │ │ │ 1:07 PM  ▮▮▮▮▮▮▮▮▮▮ scrubber ▮▮▮▮▮▮▮▮▮  ◀ ▶ ▶ ↺  VCP: 212    │    then the console exactly as it
-                 │ │ │ 2 min ago                              3/10      Mode: precip │    was on the bar, rounded, floating
+                 │↻│                ╭──────────────────────────────╮
+                 │◍│                │  ⌂ KTLX  Oklahoma City     ˅ │      ← the SITE TAB (RadarConsoleSiteTab), centred
+                 │⊚│ ╭──────────────┴──────────────────────────────┴───────────╮
+                 │⌕│ │ 1:07 PM  ▮▮▮▮▮▮▮▮▮▮ scrubber ▮▮▮▮▮▮▮▮▮  ◀ ▶ ▶ ↺  VCP: 212    │  ← THIS: the console exactly as it
+                 │◎│ │ 2 min ago                              3/10      Mode: precip │    was on the bar, rounded, floating
                  │ │ ╰──────────────────────────────────────────────────────────╯
-                 │ │                                           scan text's end ┤   ← the top row's right group aligns here
                  └─┘ ↑ the map-tools rail (left)                                     SelectorGap above the window bottom
 
              Centred on the window (play = the midpoint, RadarControls.CentreOnPlay), SelectorGap (8) above the window
@@ -680,13 +690,13 @@
              is selected (Radar.HasRadarLoop) — pick a site on the map to bring it up. The one exception is MODEL MODE
              (ShortRange.IsModelConsoleShown): ModelConsole plays a ForeCast run here with or without a site.
              (MainWindow.ConsoleVisibility.)
-             ⚠️ THE TOP ROW (2026-11-03, replacing the site TAB that stood on the card): site picker (centred, on play) ·
-             Inspect + rings/ruler, over a hairline rule; the right group is EDGE-ALIGNED to the console row's scan text
-             (AlignCentreSection → RadarConsoleHeader.AlignToConsole). The network picker left for the rail (2026-11-04).
+             ⚠️ THE SITE TAB IS BACK (2026-11-04, the user's call): the console's short-lived TOP ROW (RadarConsoleHeader:
+             networks · site · Inspect + rings/ruler) is gone — its tools moved to the map-tools rail, leaving only the site
+             picker, so it stands on the console as a tab again. Centred by layout, so nothing is measured.
              ⚠️ MODEL MODE: while ForeCast's Short Range draws, ModelConsole plays the run IN THIS SAME CELL, over
              RadarControls — NOT while comparing with radar (ShortRange.IsModelConsoleShown): then radar's console runs and
-             the model follows it. RadarControls stays LAID OUT underneath (Opacity 0, not hit-testable — never Collapsed):
-             the top row's alignment measures it (AlignCentreSection), and ModelConsole has its exact widths.
+             the model follows it. RadarControls stays LAID OUT underneath (Opacity 0, not hit-testable — never Collapsed),
+             so the console keeps its width, and ModelConsole has its exact widths.
              ⚠️ CENTRED ONLY BECAUSE IT IS A FIXED WIDTH: the clock reserves a two-digit hour (RadarControls). -->
         <Grid x:Name="ConsoleIslandHost"
               Grid.Row="0" Grid.RowSpan="2"
@@ -694,31 +704,30 @@
               VerticalAlignment="Bottom"
               Margin="0,0,0,8"
               Visibility="{x:Bind ConsoleVisibility(ViewModel.IsRadarConsoleVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}">
+            <!-- The host: the SITE TAB (row 0, Composites/RadarConsoleSiteTab, centred) standing on the console (row 1).
+                 ⚠️ The tab is declared AFTER the console so it paints over the console's top hairline: its -3 bottom margin
+                 reaches 3 px INTO the console (not 1 — at a display scale above 100% the hairline lands on fractional pixels and
+                 a 1 px overlap let it show as a line under the tab); the tab pads +2 at its foot so its content doesn't move.
+                 Its own halo stops at its foot, so neither shadow crosses the other plate. -->
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- the site tab -->
+                <RowDefinition Height="Auto"/> <!-- the console -->
+            </Grid.RowDefinitions>
         <ctl:OverlayBar x:Name="ConsoleIsland"
+                        Grid.Row="1"
                         Edge="Bottom"
                         IsFloating="True"
                         ShowTab="False"
                         EdgeStyle="CastShadow">
             <ctl:OverlayBar.BarContent>
-                <Grid x:Name="ConsoleIslandContent" RowSpacing="8">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/> <!-- the top row: network · site · tools, over its rule -->
-                        <RowDefinition Height="Auto"/> <!-- the console row -->
-                    </Grid.RowDefinitions>
-                    <!-- THE TOP ROW (Composites/RadarConsoleHeader, canvas card A): stretches to the console row's width, so
-                         its centred site picker sits on play; its side groups are edge-aligned by AlignCentreSection. -->
-                    <comp:RadarConsoleHeader x:Name="RadarConsoleHeader"
-                                             HorizontalAlignment="Stretch"
-                                             ViewModel="{x:Bind ViewModel}"/>
+                <Grid x:Name="ConsoleIslandContent">
                     <comp:RadarControls x:Name="TimeModule"
-                                        Grid.Row="1"
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
                                         Opacity="{x:Bind RadarConsoleOpacity(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
                                         IsHitTestVisible="{x:Bind IsRadarConsoleLive(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
                                         ViewModel="{x:Bind ViewModel.Radar}"/>
                     <comp:ModelConsole x:Name="ModelConsole"
-                                       Grid.Row="1"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"
                                        Visibility="{x:Bind ModelConsoleVisibility(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
@@ -729,6 +738,11 @@
                 </Grid>
             </ctl:OverlayBar.BarContent>
         </ctl:OverlayBar>
+        <comp:RadarConsoleSiteTab x:Name="RadarConsoleSiteTab"
+                                  Grid.Row="0"
+                                  HorizontalAlignment="Center"
+                                  Margin="0,0,0,-3"
+                                  ViewModel="{x:Bind ViewModel}"/>
         </Grid>
     </Grid>
 </Window>
