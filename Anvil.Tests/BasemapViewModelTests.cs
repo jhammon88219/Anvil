@@ -87,7 +87,7 @@ namespace Anvil.Tests
 		public void Tree_ExpandersAreTheMultiGroupCategories_AndCoverEveryGroupOnce()
 		{
 			var r = new Rig();
-			Assert.Equal(new[] { "Roads", "Place names" }, r.Vm.Categories.Where(c => c.HasChildren).Select(c => c.Label));
+			Assert.Equal(new[] { "Roads", "Counties", "Place names" }, r.Vm.Categories.Where(c => c.HasChildren).Select(c => c.Label));
 			Assert.Equal(BasemapGroups.Roads, r.Vm.Categories.Single(c => c.Label == "Roads").Leaves.Select(l => l.Id));
 			Assert.Equal(r.Vm.Groups.Select(g => g.Id), r.Vm.Categories.SelectMany(c => c.Leaves).Select(l => l.Id));
 			Assert.All(r.Vm.Categories, c => Assert.False(c.IsExpanded));
@@ -182,6 +182,7 @@ namespace Anvil.Tests
 			Assert.False(r.Group(BasemapGroups.Counties).IsAvailable);
 			Assert.NotNull(r.Group(BasemapGroups.Counties).ToolTip);
 			Assert.True(r.Group(BasemapGroups.Highways).IsAvailable);
+			Assert.True(r.Group(BasemapGroups.CountyNames).IsAvailable); // names are our own file, in every style
 
 			r.Vm.SetStyle(new StyleProvider().GetStyles().Single(s => s.Id == "dataVizBlack"));
 			Assert.True(r.Group(BasemapGroups.Counties).IsAvailable);

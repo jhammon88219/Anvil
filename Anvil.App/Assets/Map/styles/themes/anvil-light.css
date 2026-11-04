@@ -65,6 +65,11 @@
     /* The basemap's own earth rather than the (darker) ground: blank here should read as paper. */
     --anvil-map-blank: #e0e0e0;
 
+    /* ── COUNTY NAMES ───────────────────────────────────────────────────────────────────────── */
+    /* A deep amber (the dark theme's would wash out on paper), with a light halo. */
+    --anvil-county-name: #a15c00;
+    --anvil-county-name-halo: rgba(255, 255, 255, 0.9);
+
     /* ── USER LOCATION ──────────────────────────────────────────────────────────────────────── */
     /* ⚠️ The casing INVERTS — it exists to separate the reticle from the map, so it is dark here. */
     --anvil-marker-reticle: #1668c9;

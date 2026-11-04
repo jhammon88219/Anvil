@@ -132,6 +132,7 @@ try {
     var Layers = null;      // layers.js — the user's overlay ORDER (see setOverlayOrder below)
     var pendingOrder = null;
     var Basemap = null;     // basemap.js — hide the map / which basemap groups (setBasemap below)
+    var Counties = null;    // counties.js — county NAMES (a basemap group, from a bundled file)
 
     // Restore every overlay onto one map, in stack order. TWO callers: applyStyle (setStyle drops all
     // custom sources/layers) and a NEWLY CREATED pane (which starts with nothing but the basemap). One
@@ -151,7 +152,8 @@ try {
         if (StormCells) StormCells.reAdd(map);           // radar storm cells: tracks, TVS, meso, hail (restack orders them)
         if (ModelField) ModelField.reAdd(map);           // ForeCast's model field (a WebGL layer; restack puts it above radar)
         if (window.RadarLayer) window.RadarLayer.reAdd(map);  // this pane's own radar layer + range ring
-        if (States) States.reAdd(map);                   // re-add LAST so the isolation mask lands on top of everything
+        if (Counties) Counties.reAdd(map);               // county names: over every overlay, under the mask
+        if (States) States.reAdd(map);                  // re-add LAST so the isolation mask lands on top of everything
     }
 
     // ---- Camera sync ------------------------------------------------------------------------------
@@ -501,6 +503,14 @@ try {
         Basemap = m;
         if (pendingBasemap) window.setBasemap.apply(null, pendingBasemap);
     }).catch(function (e) { console.error('basemap.js load failed: ' + e); });
+    // County NAMES (counties.js): the tiles have county lines but no names, so a bundled point file. Its
+    // on/off is the basemap group `county_names` — basemap.js apply() reaches its layer, nothing to push here.
+    import('./counties.js').then(function (m) {
+        Counties = m;
+        // 'idle', not 'load': isStyleLoaded() is false while tiles are still arriving even AFTER 'load' fired,
+        // and a missed 'load' never fires again. reAdd is idempotent, and a later style switch re-adds via reAddAll.
+        forEachMap(function (map) { if (map.isStyleLoaded()) Counties.reAdd(map); else map.once('idle', function () { Counties.reAdd(map); }); });
+    }).catch(function (e) { console.error('counties.js load failed: ' + e); });
     window.setBasemap = function (hidden, offGroupsJson) {
         pendingBasemap = [hidden, offGroupsJson];
         if (!Basemap) return;

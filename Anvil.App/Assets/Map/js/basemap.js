@@ -10,7 +10,8 @@
 //
 // GROUPS are the protomaps SOURCE-LAYERS, not layer ids, so one rule covers all five styles:
 //   land (earth, landcover, landuse) · water · buildings (+ addresses) · borders (boundaries) · counties
-//   (boundaries_county — only Data Viz Black has it) · THREE LABEL groups by the symbol's source-layer:
+//   (boundaries_county — only Data Viz Black has it) · county_names (NOT a style layer: counties.js's own
+//   `county-names`, from a bundled file — the one group matched by layer id) · THREE LABEL groups by the symbol's source-layer:
 //   cities (places — also state + country names) · water_names (water + earth: rivers, lakes, seas, islands)
 //   · pois (pois + any other label) · and FIVE ROAD groups cut from the one `roads` source-layer by each
 //   FEATURE's `kind` (road names + shields ride with their road, not with the labels):
@@ -48,7 +49,12 @@ const ROAD_KINDS = {
 };
 const ROAD_GROUPS = ['highways', 'major_roads', 'minor_roads', 'paths', 'rail'];
 const NAMED_KINDS = [].concat(ROAD_KINDS.highways, ROAD_KINDS.major_roads, ROAD_KINDS.minor_roads, ROAD_KINDS.rail);
-const ALL_GROUPS = ['land', 'water', 'buildings', 'borders', 'counties', 'cities', 'pois', 'water_names'].concat(ROAD_GROUPS);
+const ALL_GROUPS = ['land', 'water', 'buildings', 'borders', 'counties', 'county_names', 'cities', 'pois', 'water_names'].concat(ROAD_GROUPS);
+
+// COUNTY NAMES are not in the style: counties.js adds them from a bundled file (the tiles carry no county
+// names). Their ONE layer is named here so the group's tick and the Map key's hide-all reach it like any
+// style layer. ⚠️ Mirrors counties.js LAYER_ID.
+const COUNTY_NAMES_LAYER = 'county-names';
 
 let hidden = false;
 let off = new Set();   // groups the user unticked
@@ -65,8 +71,12 @@ export function isHidden() { return hidden; }
 /** The blank ground colour — states.js's mask colour while the map is hidden. */
 export function blank() { return blankColor(); }
 
+/** Whether a group draws right now (not unticked, map not hidden) — counties.js's visibility at add time. */
+export function isGroupShown(group) { return !hidden && !off.has(group); }
+
 /** Which basemap group a style layer belongs to ('roads' for every road layer), or null for non-basemap. */
 function groupOf(layer) {
+    if (layer.id === COUNTY_NAMES_LAYER) return 'county_names';
     const sl = layer['source-layer'];
     if (!sl) return null; // background, or one of OUR layers (geojson / custom)
     if (sl === 'boundaries') return /county/i.test(layer.id) ? 'counties' : 'borders';

@@ -27,6 +27,9 @@ namespace Anvil.Models
 		public const string Buildings = "buildings";
 		public const string Borders = "borders";
 		public const string Counties = "counties";
+
+		/// <summary>County NAMES — not a tile layer: counties.js draws them from a bundled Census file.</summary>
+		public const string CountyNames = "county_names";
 		public const string Cities = "cities";
 		public const string Pois = "pois";
 		public const string WaterNames = "water_names";
@@ -54,7 +57,11 @@ namespace Anvil.Models
 				}),
 				("Buildings", new[] { (Buildings, "Buildings") }),
 				("Borders", new[] { (Borders, "Borders") }),
-				("Counties", new[] { (Counties, "Counties") }),
+				("Counties", new[]
+				{
+					(Counties, "County lines"),
+					(CountyNames, "County names"),
+				}),
 				("Place names", new[]
 				{
 					(Cities, "Cities"),

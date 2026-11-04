@@ -124,6 +124,11 @@
        toward. The GROUND itself, so a hidden map runs seamlessly into the pane gutters. */
     --anvil-map-blank: #0a0a0a;
 
+    /* ── COUNTY NAMES (counties.js) ────────────────────────────────────────────────────────────
+       A HIGHLIGHT, so county names never read as one of the basemap's grey city / water names. */
+    --anvil-county-name: #f2b544;
+    --anvil-county-name-halo: rgba(0, 0, 0, 0.85);
+
     /* ── USER LOCATION (markers.js) ────────────────────────────────────────────────────────────*/
     --anvil-marker-reticle: #2f8fff;
     --anvil-marker-ring: #ffffff;
