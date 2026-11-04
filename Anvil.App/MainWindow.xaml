@@ -5,7 +5,7 @@
 
        ┌ Atlas View Settings Temporal Mode Pane Mode Isolation ── [ Search places ✕ ⌕ ] ── drag ── – □ ✕ ┐  TOP MENU BAR
        ├──┬──────────────────────────────────────────────────────────────────────────────────────────────┤  (always shown,
-       │  │                           ┃                              │  no tab); search CENTRED, its box + margins
+       │◗▸│                           ┃                              │  no tab); search CENTRED, its box + margins
        │▤▸│              ╭─────────╮┃╭─────────╮                   │  set the bar's height (46)
        │⁘ │  map pane 2  │SRV ▓▒░  │┃│CC  ▓▒░  │   map pane 3      │  FLOATING PANE SELECTORS — product, colour-ramp
        │⛶ ├━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┤  legend, tilt. Quad shown: all four at the
@@ -13,13 +13,13 @@
        │⁘ │              ╰─────────╯┃╰─────────╯                   │  single = centred under the bar.
        │◍ │  map pane 0  (MAIN)     ┃        map pane 1            │  View → Pane selectors hides all.
        │⊚ │       ╭──────────────────────────────────────────╮     │  FLOATING RADAR CONSOLE (2026-11-03) —
-       │  │       │ ◗▴      [⌂ KTLX Oklahoma ˅]       ⌕ ◎▴ │     │  TOP ROW (RadarConsoleHeader): networks ·
-       │  │       │ ──────────────────────────────────────── │     │  site picker (on play) · Inspect + rings,
+       │  │       │         [⌂ KTLX Oklahoma ˅]       ⌕ ◎▴ │     │  TOP ROW (RadarConsoleHeader): site
+       │  │       │ ──────────────────────────────────────── │     │  picker (on play) · Inspect + rings,
        │  │       │ 1:07 PM ═══ scrubber ═══ ◀ ▶ ▶ ↺  VCP: 212 │     │  over a rule (card A); then the console,
        │  │       │ 2 min ago      3/10        Mode: precip   │     │  rounded, centred, SelectorGap above the
        │  │       ╰──────────────────────────────────────────╯     │  window bottom. View → Radar console.
        └──┴──────────────────────── ↑ window midpoint ─────────────┘
-        ↑ the MAP-TOOLS RAIL (2026-11-04): map layers · fit · reset north · markers · location, CENTRED top to bottom;
+        ↑ the MAP-TOOLS RAIL (2026-11-04): radar networks · map layers · fit · reset north · markers · location, CENTRED top to bottom;
           on the window's left edge, DOCKED to the NowCast / PastCast pane's right edge while one shows (TEMPORAL PANES block).
 
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, drawn by whichever side owns it: the top bar casts its
@@ -658,15 +658,16 @@
         <!-- ===== THE FLOATING RADAR CONSOLE (the user's call, 2026-11-03 — canvas option C, "mirror") =====
 
                  ┌ Menu bar ─────────────────────────────────────────────────────────────────────────────┐
-                 │▤│                            ╭──────────────────╮   ← floating pane selector(s)
+                 │◗│                            ╭──────────────────╮   ← floating pane selector(s)
+                 │▤│
                  │⛶│                ...map...
                  │↻│ ╭──────────────────────────────────────────────────────────╮
-                 │◍│ │ ◗▴               [ ⌂ KTLX  Oklahoma City  ˅ ]        ⌕ ◎▴  │  ← THIS: the TOP ROW (RadarConsoleHeader)
+                 │◍│ │                  [ ⌂ KTLX  Oklahoma City  ˅ ]        ⌕ ◎▴  │  ← THIS: the TOP ROW (RadarConsoleHeader)
                  │⊚│ │ ──────────────────────────────────────────────────────── │    over its rule (canvas card A),
                  │ │ │ 1:07 PM  ▮▮▮▮▮▮▮▮▮▮ scrubber ▮▮▮▮▮▮▮▮▮  ◀ ▶ ▶ ↺  VCP: 212    │    then the console exactly as it
                  │ │ │ 2 min ago                              3/10      Mode: precip │    was on the bar, rounded, floating
                  │ │ ╰──────────────────────────────────────────────────────────╯
-                 │ │   ├ clock's left edge                     scan text's end ┤   ← the top row's side groups align here
+                 │ │                                           scan text's end ┤   ← the top row's right group aligns here
                  └─┘ ↑ the map-tools rail (left)                                     SelectorGap above the window bottom
 
              Centred on the window (play = the midpoint, RadarControls.CentreOnPlay), SelectorGap (8) above the window
@@ -679,9 +680,9 @@
              is selected (Radar.HasRadarLoop) — pick a site on the map to bring it up. The one exception is MODEL MODE
              (ShortRange.IsModelConsoleShown): ModelConsole plays a ForeCast run here with or without a site.
              (MainWindow.ConsoleVisibility.)
-             ⚠️ THE TOP ROW (2026-11-03, replacing the site TAB that stood on the card): network picker · site picker
-             (centred, on play) · Inspect + rings/ruler, over a hairline rule. Its side groups are EDGE-ALIGNED to the
-             console row (AlignCentreSection → RadarConsoleHeader.AlignToConsole).
+             ⚠️ THE TOP ROW (2026-11-03, replacing the site TAB that stood on the card): site picker (centred, on play) ·
+             Inspect + rings/ruler, over a hairline rule; the right group is EDGE-ALIGNED to the console row's scan text
+             (AlignCentreSection → RadarConsoleHeader.AlignToConsole). The network picker left for the rail (2026-11-04).
              ⚠️ MODEL MODE: while ForeCast's Short Range draws, ModelConsole plays the run IN THIS SAME CELL, over
              RadarControls — NOT while comparing with radar (ShortRange.IsModelConsoleShown): then radar's console runs and
              the model follows it. RadarControls stays LAID OUT underneath (Opacity 0, not hit-testable — never Collapsed):

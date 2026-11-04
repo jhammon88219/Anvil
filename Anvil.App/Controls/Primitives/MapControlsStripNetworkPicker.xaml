@@ -1,18 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ============================================================================
-     MapControlsStripNetworkPicker — WHICH radar networks' site keys show on the map, as ONE square key on the tools
-     tier (the user's mock-up, 2026-10-20). It replaced three side-by-side toggles (NEXRAD / TDWR / research) to give
-     the tier its width back: 32 px instead of three keys and their gaps.
+     MapControlsStripNetworkPicker — WHICH radar networks' site keys show on the map, as ONE square key at the TOP of the
+     vertical map-tools rail (Composites/MapControlsStrip, 2026-11-04; it was on the console's top row, and before that the
+     tools tier). It replaced three side-by-side toggles (NEXRAD / TDWR / research): 32 px instead of three keys.
 
-           ┌───────────────────────┐
-           │ ☑ ◗  Show NEXRAD       │   ← the list opens UP (TopEdgeAlignedLeft), its left edge on the key's
-           │ ☑ ✈  Show TDWR airport │     each row = a CheckBox: box · the network's on-map glyph · name
-           │ ☐ ⚗  Show research     │     the glyph wears its NETWORK HUE; an unticked row's glyph fades
-           └───────────────────────┘
-           ┌───▴┐
-           │ ◗  │  ← the face: the NEXRAD sweep + a small ▴ (the way it opens) in the top-right corner
-           └────┘     primary ink while ANY network shows, secondary while none (ShownStates)
-                      Elevated face while the list is open (FlyoutStates)
+           ┌───▸┐ ┌───────────────────────┐
+           │ ◗  │ │ ☑ ◗  Show NEXRAD       │   ← the list opens to the RIGHT (RightEdgeAlignedTop), its top on the key's
+           └────┘ │ ☑ ✈  Show TDWR airport │     each row = a CheckBox: box · the network's on-map glyph · name
+                  │ ☐ ⚗  Show research     │     the glyph wears its NETWORK HUE; an unticked row's glyph fades
+                  └───────────────────────┘
+             ↑ the face: the NEXRAD sweep + a small ▸ (the way it opens) in the top-right corner;
+               primary ink while ANY network shows, secondary while none (ShownStates); Elevated while open (FlyoutStates)
 
      ⚠️ NOT a ComboBox: a closed ComboBox cycles its selection on the mousewheel over the map (the site picker's
      trap). It is a Button + a windowed Flyout (ShouldConstrainToRootBounds=False — else the owned panel windows paint
@@ -22,8 +20,8 @@
      ⚠️ The hues are DATA (same in both themes) and MIRROR radar-sites.js's k-ink (.radar-site-btn.nexrad / .tdwr /
      .research) — change both. The glyphs are the on-map keys' (radar-sites.js CLASS_GLYPH), redrawn FILLED in the
      18-unit box (a PathIcon only fills).
-     ⚠️ The face's look copies MapControlsStrip's StripToolButtonStyle (32 × 32), but hovers on the GROUND pair — it sits on the floating console (RadarConsoleHeader) since 2026-11-03 — that style is
-     local to the strip, so a tune there should come here too.
+     ⚠️ The face's look copies MapControlsStrip's StripToolButtonStyle (32 × 32) and hovers on the RAISED pair, like the
+     rail's other keys (the rail is raised) — that style is local to the strip, so a tune there should come here too.
      ============================================================================ -->
 <UserControl x:Class="Anvil.Controls.Primitives.MapControlsStripNetworkPicker"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -67,7 +65,7 @@
                                         <VisualState x:Name="Normal"/>
                                         <VisualState x:Name="PointerOver">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
                                                 <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                                                 <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
                                             </VisualState.Setters>
@@ -138,15 +136,15 @@
                 <Viewbox Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <PathIcon Data="M2.9,13.5 A1.6,1.6 0 1 1 6.1,13.5 A1.6,1.6 0 1 1 2.9,13.5 Z M4.5,8 A5.5,5.5 0 0 1 10,13.5 A1,1 0 0 1 8,13.5 A3.5,3.5 0 0 0 4.5,10 A1,1 0 0 1 4.5,8 Z M4.5,3 A10.5,10.5 0 0 1 15,13.5 A1,1 0 0 1 13,13.5 A8.5,8.5 0 0 0 4.5,5 A1,1 0 0 1 4.5,3 Z"/>
                 </Viewbox>
-                <!-- ▴ = the list opens UP. The map-layers car's caret (10-unit box), shrunk into the top-right corner. -->
+                <!-- ▸ = the list opens to the RIGHT. A caret in a 10-unit box, shrunk into the top-right corner. -->
                 <Viewbox Width="6" Height="6" Margin="0,3,3,0"
                          HorizontalAlignment="Right" VerticalAlignment="Top">
-                    <PathIcon Data="M1,7 L5,3 L9,7 Z" Width="10" Height="10"/>
+                    <PathIcon Data="M3,1 L7,5 L3,9 Z" Width="10" Height="10"/>
                 </Viewbox>
             </Grid>
             <Button.Flyout>
                 <Flyout x:Name="NetworkPickerFlyout"
-                        Placement="TopEdgeAlignedLeft" ShouldConstrainToRootBounds="False"
+                        Placement="RightEdgeAlignedTop" ShouldConstrainToRootBounds="False"
                         Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
                     <StackPanel Width="200" Spacing="2">
                         <CheckBox x:Name="NetworkPickerNexradCheckBox" MinHeight="32"

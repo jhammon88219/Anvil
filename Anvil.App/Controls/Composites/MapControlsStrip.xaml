@@ -7,6 +7,8 @@
          ┌ top menu bar ─────────────
          ├────┐                         one COLUMN, CENTRED top to bottom in the rail, in the user's order:
          │    │░
+         │ ◗▸ │░   0 · RADAR NETWORKS — which networks' site keys show (NEXRAD / TDWR / research; list opens RIGHT)
+         │ ⁘  │░       ─ separator
          │ ▤▸ │░   1 · MAP LAYERS — the map key + its car (the layers flyout opens to the RIGHT)
          │ ⁘  │░       ─ separator
          │ ⛶  │░   2 · FIT TO VIEW
@@ -18,8 +20,9 @@
          └────┘     48 wide: 8 padding + a 32 key + the 8 px car on the map key's row
 
      ⚠️ PANE MODE AND ISOLATION LEFT THIS STRIP (2026-11-04): both are top-menu-bar items now (MainWindow.xaml, TOP MENU
-     BAR — Pane Mode menu, Isolation = a SectionedComboBox drawn as a menu title). The NETWORK PICKER, SITE PICKER, INSPECT
-     and RINGS/RULER live in the floating console's top row (Composites/RadarConsoleHeader). Place search is centred on
+     BAR — Pane Mode menu, Isolation = a SectionedComboBox drawn as a menu title). The SITE PICKER, INSPECT and RINGS/RULER
+     live in the floating console's top row (Composites/RadarConsoleHeader); the NETWORK PICKER came back here (2026-11-04),
+     on top — it decides which site keys the MAP shows, so it belongs with the map's tools. Place search is centred on
      the top menu bar (Composites/PlaceSearchBox).
      ─ = Primitives/MapControlsStripSeparator, a faint 3 × 3 DOT GRID between GROUPS, centred under the keys (Width 32)
          with generous vertical margins. Tune dot size/gap/brush on the control, not here.
@@ -252,6 +255,16 @@
          more place the rail's colour is written. ONE column, top to bottom in the user's order (the header). Keys are
          Left-aligned at the rail's 8 px padding so the map key's car can sit beside it on the map side. -->
     <StackPanel x:Name="MapToolsColumn" Orientation="Vertical" Spacing="4">
+        <!-- ===== 0 · RADAR NETWORKS — which networks' site keys show on the map (Primitives/MapControlsStripNetworkPicker,
+             moved here from the console's top row, 2026-11-04). TwoWay + persisted; its list opens to the RIGHT. ===== -->
+        <prim:MapControlsStripNetworkPicker x:Name="MapControlsStripNetworkPicker"
+                                            IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
+                                            ShowNexrad="{x:Bind ViewModel.Radar.ShowNexradSites, Mode=TwoWay}"
+                                            ShowTdwr="{x:Bind ViewModel.Radar.ShowTdwrs, Mode=TwoWay}"
+                                            ShowResearch="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"/>
+
+        <prim:MapControlsStripSeparator x:Name="MapToolsSeparatorNetworks" Width="32" HorizontalAlignment="Left" Margin="0,8"/>
+
         <!-- ===== 1 · MAP LAYERS — the basemap's key + its layer flyout (see the header) =====
              A pair: the KEY hides/shows the whole basemap, the narrow CAR opens the flyout to the right. Plain TwoWay on
              the key (a click always flips it). -->

@@ -1,26 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ============================================================================
      RadarConsoleHeader — the floating radar console's TOP ROW: WHICH radar (the console row below answers WHEN). The user's
-     canvas card A, 2026-11-03: it replaced the site TAB that stood on the console, and took the network picker, Inspect and
-     the rings/ruler picker off the tools strip. The card just grows a row taller.
+     canvas card A, 2026-11-03: it replaced the site TAB that stood on the console, and took Inspect and the rings/ruler
+     picker off the tools strip. The card just grows a row taller.
 
          ░╭──────────────────────────────────────────────────────────────╮░
-         ░│    (◗▴)            [ ⌂ KTLX  Oklahoma City   ˅ ]         (⌕)(◎▴) │░   ← THIS
+         ░│                    [ ⌂ KTLX  Oklahoma City   ˅ ]         (⌕)(◎▴) │░   ← THIS
          ░│  ─────────────────────────────────────────────────────────────  │░   ← the RULE (card A), inset 11 from the card
          ░│    1:07 PM ═══ scrubber ═══  ◀ ▶ ▶ ↺        VCP: 212             │░   ← the console row (MainWindow ConsoleIsland)
          ░╰──────────────────────────────────────────────────────────────╯░
-              ├ the clock's left edge                 scan text's end ┤
+                                                      scan text's end ┤
 
-     ⚠️ EDGE-ALIGNED TO THE CONSOLE ROW (AlignToConsole, from MainWindow.AlignCentreSection): the network picker's left
-     edge = the clock's left edge; the rings/ruler picker's right edge = the end of the LONGEST scan line's TEXT, so it
-     moves as the VCP text changes. Both are MEASURED margins. The site picker is centred by layout — on the card's
-     midpoint, which is play (RadarControls.CentreOnPlay) and the window's midpoint.
+     ⚠️ EDGE-ALIGNED TO THE CONSOLE ROW (AlignToConsole, from MainWindow.AlignCentreSection): the rings/ruler picker's right
+     edge = the end of the LONGEST scan line's TEXT, so it moves as the VCP text changes — a MEASURED margin. The site
+     picker is centred by layout — on the card's midpoint, which is play (RadarControls.CentreOnPlay) and the window's
+     midpoint. The LEFT is empty: the NETWORK PICKER moved to the top of the map-tools rail (2026-11-04, the user's call).
      ⚠️ It sits on the console's GROUND face (not raised): every face here hovers to OverlayBarSurfaceHoverBrush.
      ⚠️ Greyed while the PastCast loading screen is up (Free(AreControlsLocked)); Inspect follows IsTransportEnabled.
-
-     NETWORK PICKER (◗▴, Primitives/MapControlsStripNetworkPicker): which networks' site keys show on the MAP (NEXRAD /
-     TDWR / research), TwoWay + persisted; MAP MARKERS ONLY. Beside the site picker because showing sites and picking one
-     are the same question.
 
      SITE PICKER — also the "which radar is selected" readout: the FACE is the site on the map now (⌂ home, ★ favorite,
      bare otherwise), and the PINNED top row is that same site (SelectedSites). Below the rule: home first, then the
@@ -178,16 +174,7 @@
             <RowDefinition Height="Auto"/> <!-- the rule (card A) -->
         </Grid.RowDefinitions>
 
-        <!-- LEFT: the network picker. Its left margin is MEASURED (AlignToConsole) = the clock's left edge. -->
-        <StackPanel x:Name="NetworkGroup"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Left" VerticalAlignment="Center">
-            <prim:MapControlsStripNetworkPicker x:Name="MapControlsStripNetworkPicker"
-                                                IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                                                ShowNexrad="{x:Bind ViewModel.Radar.ShowNexradSites, Mode=TwoWay}"
-                                                ShowTdwr="{x:Bind ViewModel.Radar.ShowTdwrs, Mode=TwoWay}"
-                                                ShowResearch="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"/>
-        </StackPanel>
+        <!-- (LEFT is EMPTY since 2026-11-04: the network picker moved to the top of the map-tools rail, MapControlsStrip.) -->
 
         <!-- CENTRE: the site picker, centred by layout on the card's midpoint (= play). The wrapper carries the tooltip
              (a disabled control shows none); Transparent so it hit-tests. -->

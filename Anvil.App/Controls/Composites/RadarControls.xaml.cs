@@ -286,11 +286,6 @@ namespace Anvil.Controls.Composites
 			return edge;
 		}
 
-		/// <summary>The VISIBLE module's left edge (the clock's) in <paramref name="root"/>'s coordinates — excludes the
-		/// centring margin. NaN before layout.</summary>
-		public double ConsoleLeft(UIElement root) =>
-			Assembly.ActualWidth > 0 ? Assembly.TransformToVisual(root).TransformPoint(default).X : double.NaN;
-
 		/// <summary>The VISIBLE module's right edge (the scan block's column end) in <paramref name="root"/>'s
 		/// coordinates — excludes the centring margin. NaN before layout.</summary>
 		public double ConsoleRight(UIElement root) =>

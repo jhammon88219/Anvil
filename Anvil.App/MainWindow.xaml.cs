@@ -276,21 +276,20 @@ namespace Anvil
 		}
 
 		// ===== The console's top row ↔ its console row =====
-		// The section rules (docs/ui-bottom-bar.md), now INSIDE the card (canvas card A, 2026-11-03): the header's network
-		// picker starts on the clock's left edge and its rings/ruler picker ends on the end of the LONGEST SCAN LINE's text
-		// (it follows the VCP text as it changes — the user's call, 2026-10-06; the reserved scan column is wider than its
-		// text). The site picker between them centres by layout. MEASURED, and run on LayoutUpdated + a console width
-		// change; the header ignores sub-pixel no-ops.
+		// The section rules (docs/ui-bottom-bar.md), now INSIDE the card (canvas card A, 2026-11-03): the header's rings/ruler
+		// picker ends on the end of the LONGEST SCAN LINE's text (it follows the VCP text as it changes — the user's call,
+		// 2026-10-06; the reserved scan column is wider than its text). The site picker centres by layout. (The network
+		// picker that started on the clock's left edge moved to the map-tools rail, 2026-11-04.) MEASURED, and run on
+		// LayoutUpdated + a console width change; the header ignores sub-pixel no-ops.
 		private void AlignCentreSection()
 		{
 			if (Content is UIElement root)
 			{
-				// MODEL MODE: the right end follows the VISIBLE console's text (ModelConsole's lines differ from radar's); the
-				// left edge is the same in both (ModelConsole copies radar's widths), so it stays on TimeModule.
+				// MODEL MODE: the right end follows the VISIBLE console's text (ModelConsole's lines differ from radar's).
 				var scanRight = ModelConsole.Visibility == Visibility.Visible
 					? ModelConsole.ScanTextRight(root)
 					: TimeModule.ScanTextRight(root);
-				RadarConsoleHeader.AlignToConsole(TimeModule.ConsoleLeft(root), scanRight, root);
+				RadarConsoleHeader.AlignToConsole(scanRight, root);
 			}
 		}
 
