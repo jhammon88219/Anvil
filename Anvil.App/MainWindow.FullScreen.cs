@@ -20,7 +20,8 @@
 //   app is deactivated. The slide is the bar's implicit TranslationTransition (XAML) on UIElement.Translation; with
 //   Windows' "Animation effects" off it is dropped, so the bar just appears / disappears.
 // • KEYS: F11 = a root KeyboardAccelerator (placement Hidden — else an "F11" tooltip pill floats over the map). Esc = the
-//   root's BUBBLING KeyDown, so a text box / flyout / dialog that handles Esc keeps it. F10 (the Windows menu-bar key) =
+//   root's BUBBLING KeyDown, so a text box / flyout / dialog that handles Esc keeps it; it backs out ONE LEVEL (an open menu
+//   closes → focus in the bar goes back to the map and the bar hides → full screen ends). F10 (the Windows menu-bar key) =
 //   reveal + focus Atlas; tabbing into the hidden bar reveals it too. A focused MAP swallows keys (WebView2), so map.js
 //   forwards F11 / F10 / Escape as "hostKey" (WebMessageRouter.HostKeyPressed → OnFullScreenHostKey).
 //
@@ -336,14 +337,27 @@ namespace Anvil
 			}
 		}
 
-		// Esc leaves full screen only when nothing below wanted it (a text box, a flyout, a dialog handles it first).
+		// Esc backs out ONE LEVEL at a time (the Windows menu-bar convention — Notepad, Explorer):
+		//   1. a menu / the Isolation list is open → it closes itself (the flyout handles that Esc; it never reaches here);
+		//   2. focus is IN the bar (a menu title after F10 / Tab / a closed menu, or the search box) → focus goes back to the
+		//      map and the bar slides away;
+		//   3. otherwise → leave full screen.
+		// Only keys nothing below handled reach this bubbling handler (a dialog or another control's Esc wins).
 		private void OnRootKeyDownForFullScreen(object sender, KeyRoutedEventArgs e)
 		{
-			if (e.Key == Windows.System.VirtualKey.Escape && _isFullScreen && !e.Handled)
+			if (e.Key != Windows.System.VirtualKey.Escape || !_isFullScreen || e.Handled)
 			{
-				SetFullScreen(false);
-				e.Handled = true;
+				return;
 			}
+			e.Handled = true;
+			if (Content?.XamlRoot is { } root && FocusManager.GetFocusedElement(root) is DependencyObject focused
+				&& IsInsideTopBar(focused))
+			{
+				MainMapWebView.Focus(FocusState.Programmatic);
+				HideTopBar();
+				return;
+			}
+			SetFullScreen(false);
 		}
 
 		// F11 / F10 / Escape pressed while the MAP had focus (map.js FULL-SCREEN keys; Escape only if the page didn't use it).
