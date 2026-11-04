@@ -100,10 +100,12 @@
          harmless). The map fills it; the top bar, the TEMPORAL PANES + the MAP-TOOLS RAIL, the pane selectors and the
          floating console overlay it. Every other panel that pops over the map is a real top-level OS window owned by
          WindowManager. -->
-    <Grid x:Name="RootGrid" Background="#FF0A0A0A">
+    <Grid x:Name="RootGrid" Background="#FF0A0A0A" KeyboardAcceleratorPlacementMode="Hidden">
         <!-- ===== FULL SCREEN (the user's call, 2026-11-04) — the animations and keys; the rules are at MainWindow.xaml.cs
              FULL SCREEN. F11 toggles; Esc leaves (never while typing); both also arrive from the MAP via map.js HOST KEYS,
-             because a focused WebView swallows them. ===== -->
+             because a focused WebView swallows them.
+             ⚠️ KeyboardAcceleratorPlacementMode="Hidden": WinUI otherwise shows an element's accelerators as a TOOLTIP, and
+             on the ROOT grid that put an "F11" pill over the map on hover (2026-11-04). The View item shows "F11" instead. ===== -->
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="F11" Invoked="OnFullScreenAccelerator"/>
             <KeyboardAccelerator Key="Escape" Invoked="OnEscapeAccelerator"/>

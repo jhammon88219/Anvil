@@ -111,41 +111,96 @@ namespace Anvil
 		private double TopBarHiddenOffset => TopChrome.ActualHeight + TopBarShadowClearance;
 
 		/// <summary>Enter or leave full screen (the View item, F11, Esc, the caption key). Never persisted.</summary>
+		/// <remarks>
+		/// ⚠️ CRASH FIX (2026-11-04, docs/bugs.md): switching the presenter straight from the F11 handler, with the caption /
+		/// passthrough regions still set and AppWindow.Changed re-writing them mid-switch, FAIL-FASTED in
+		/// Microsoft.UI.Windowing.dll (0xe0464645). Now: the switch runs QUEUED on the dispatcher (out of key / menu
+		/// processing), the non-client regions are CLEARED before entering, and the chrome follow-up (ApplyFullScreenState)
+		/// is queued too — never re-entered from inside AppWindow.Changed. Each step logs, so a repeat shows where it died.
+		/// </remarks>
 		private void SetFullScreen(bool on)
+		{
+			if (_isClosed || _isFullScreenSwitchQueued)
+			{
+				return;
+			}
+			ViewFullScreenItem.IsChecked = _isFullScreen; // the item flipped itself; the window's state answers
+			if (on == _isFullScreen)
+			{
+				return;
+			}
+			_isFullScreenSwitchQueued = true;
+			DispatcherQueue.TryEnqueue(() =>
+			{
+				_isFullScreenSwitchQueued = false;
+				if (_isClosed)
+				{
+					return;
+				}
+				try
+				{
+					if (on)
+					{
+						_wasMaximizedBeforeFullScreen =
+							(AppWindow.Presenter as OverlappedPresenter)?.State == OverlappedPresenterState.Maximized;
+						_logger.LogInformation("Full screen: entering (was maximized {Max})", _wasMaximizedBeforeFullScreen);
+						_isEnteringFullScreen = true; // the region writers stand down from here on
+						ClearNonClientRegions();
+						AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
+						_logger.LogInformation("Full screen: presenter set");
+					}
+					else
+					{
+						_logger.LogInformation("Full screen: leaving");
+						AppWindow.SetPresenter(AppWindowPresenterKind.Overlapped);
+						if (_wasMaximizedBeforeFullScreen)
+						{
+							(AppWindow.Presenter as OverlappedPresenter)?.Maximize();
+						}
+						_logger.LogInformation("Full screen: presenter restored");
+					}
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Full screen: presenter switch failed");
+				}
+				finally
+				{
+					_isEnteringFullScreen = false;
+				}
+				QueueApplyFullScreenState();
+			});
+		}
+
+		private bool _isFullScreenSwitchQueued;
+		private bool _isEnteringFullScreen;
+
+		// The chrome follows the presenter, but never from INSIDE a windowing callback (AppWindow.Changed or the switch
+		// itself) — always on a fresh dispatcher turn.
+		private void QueueApplyFullScreenState() => DispatcherQueue.TryEnqueue(ApplyFullScreenState);
+
+		private void ClearNonClientRegions()
+		{
+			var source = InputNonClientPointerSource.GetForWindowId(AppWindow.Id);
+			source.ClearRegionRects(NonClientRegionKind.Caption);
+			source.ClearRegionRects(NonClientRegionKind.Passthrough);
+			_notchRegions = Array.Empty<RectInt32>();
+		}
+
+		// Follows the PRESENTER, so the chrome can never disagree with the window.
+		private void ApplyFullScreenState()
 		{
 			if (_isClosed)
 			{
 				return;
 			}
-			if (on != _isFullScreen)
-			{
-				if (on)
-				{
-					_wasMaximizedBeforeFullScreen =
-						(AppWindow.Presenter as OverlappedPresenter)?.State == OverlappedPresenterState.Maximized;
-					AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
-				}
-				else
-				{
-					AppWindow.SetPresenter(AppWindowPresenterKind.Overlapped);
-					if (_wasMaximizedBeforeFullScreen)
-					{
-						(AppWindow.Presenter as OverlappedPresenter)?.Maximize();
-					}
-				}
-			}
-			ApplyFullScreenState();
-		}
-
-		// Follows the PRESENTER (also from AppWindow.Changed), so the chrome can never disagree with the window.
-		private void ApplyFullScreenState()
-		{
 			var on = AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
 			ViewFullScreenItem.IsChecked = on;
 			if (on == _isFullScreen)
 			{
 				return;
 			}
+			_logger.LogInformation("Full screen: chrome → {State}", on ? "full screen" : "windowed");
 			_isFullScreen = on;
 			_revealTimer?.Stop();
 			Canvas.SetZIndex(TopChrome, on ? 10 : 0); // full screen: the revealed bar lies OVER the panes
@@ -717,13 +772,14 @@ namespace Anvil
 		// ⚠️ TOP BAR HIDDEN = NO CAPTION BAND (accepted for now, the user's call): only the tab remains.
 		private void UpdateCaptionBand()
 		{
-			if (_isClosed || Content?.XamlRoot is not { } root)
+			// FULL SCREEN: no caption at all — a full-screen window can't be dragged; the regions were cleared on the way in
+			// (ClearNonClientRegions) and nothing writes them until the window is back (crash fix, see SetFullScreen).
+			if (_isClosed || _isFullScreen || _isEnteringFullScreen || Content?.XamlRoot is not { } root)
 			{
 				return;
 			}
 
-			// FULL SCREEN: no caption at all — a full-screen window can't be dragged, and the hidden bar has no band.
-			var height = _isFullScreen ? 0 : (int)Math.Ceiling(TopChrome.SurfaceHeight * root.RasterizationScale);
+			var height = (int)Math.Ceiling(TopChrome.SurfaceHeight * root.RasterizationScale);
 			var bands = height > 0
 				? new[] { new RectInt32(0, 0, AppWindow.Size.Width, height) }
 				: Array.Empty<RectInt32>();
@@ -747,7 +803,12 @@ namespace Anvil
 		// FULL SCREEN: minimize leaves full screen first (the FullScreen presenter can't minimize); □ just leaves it.
 		private void OnCaptionMinimize(object? sender, EventArgs e)
 		{
-			SetFullScreen(false);
+			if (_isFullScreen)
+			{
+				SetFullScreen(false); // queued — the minimize queues BEHIND it, onto the restored Overlapped presenter
+				DispatcherQueue.TryEnqueue(() => (AppWindow.Presenter as OverlappedPresenter)?.Minimize());
+				return;
+			}
 			(AppWindow.Presenter as OverlappedPresenter)?.Minimize();
 		}
 
@@ -783,7 +844,8 @@ namespace Anvil
 
 		private void UpdateNotchInputRegions()
 		{
-			if (_isClosed)
+			// FULL SCREEN: no caption, so no holes are needed — and none are written mid-switch (crash fix, SetFullScreen).
+			if (_isClosed || _isFullScreen || _isEnteringFullScreen)
 			{
 				return;
 			}
@@ -1278,7 +1340,8 @@ namespace Anvil
 			AppWindow.Changed += (_, args) =>
 			{
 				if (_isClosed) return;
-				if (args.DidPresenterChange) ApplyFullScreenState(); // FULL SCREEN follows the presenter, however it changed
+				// FULL SCREEN follows the presenter however it changed — QUEUED, never re-entered from this callback (crash fix).
+				if (args.DidPresenterChange) QueueApplyFullScreenState();
 				var state = (AppWindow.Presenter as OverlappedPresenter)?.State;
 				ViewModel.SiteUsage.SetMinimized(state == OverlappedPresenterState.Minimized);
 				CaptionKey.IsMaximized = state == OverlappedPresenterState.Maximized;
