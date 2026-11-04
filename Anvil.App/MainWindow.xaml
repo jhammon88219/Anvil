@@ -673,6 +673,10 @@
              too narrow for both edge panes it overlaps their bottoms — DECLARED AFTER the temporal panes so it paints over
              them and stays clickable, and after the loop holding gate, so it stays live over the frost like the bar did.
              View → Radar console hides it (IsRadarConsoleVisible, persisted).
+             ⚠️ NO SITE, NO CONSOLE (the user's call, 2026-11-04): in NowCast AND PastCast it shows only while a radar site
+             is selected (Radar.HasRadarLoop) — pick a site on the map to bring it up. The one exception is MODEL MODE
+             (ShortRange.IsModelConsoleShown): ModelConsole plays a ForeCast run here with or without a site.
+             (MainWindow.ConsoleVisibility.)
              ⚠️ THE TOP ROW (2026-11-03, replacing the site TAB that stood on the card): network picker · site picker
              (centred, on play) · Inspect + rings/ruler, over a hairline rule. Its side groups are EDGE-ALIGNED to the
              console row (AlignCentreSection → RadarConsoleHeader.AlignToConsole).
@@ -686,7 +690,7 @@
               HorizontalAlignment="Center"
               VerticalAlignment="Bottom"
               Margin="0,0,0,8"
-              Visibility="{x:Bind PaneVisibility(ViewModel.IsRadarConsoleVisible), Mode=OneWay}">
+              Visibility="{x:Bind ConsoleVisibility(ViewModel.IsRadarConsoleVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}">
         <ctl:OverlayBar x:Name="ConsoleIsland"
                         Edge="Bottom"
                         IsFloating="True"

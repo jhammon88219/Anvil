@@ -335,6 +335,11 @@ namespace Anvil
 		/// <summary>A temporal pane shows while its pane flag is set (MapViewModel; never past its mode).</summary>
 		public Visibility PaneVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
 
+		/// <summary>The floating console: View → Radar console on, AND a radar site selected (Now and Past alike, the
+		/// user's call 2026-11-04) — or a ForeCast model playing in it, which needs no site.</summary>
+		public Visibility ConsoleVisibility(bool consoleOn, bool hasSite, bool modelConsole) =>
+			consoleOn && (hasSite || modelConsole) ? Visibility.Visible : Visibility.Collapsed;
+
 		/// <summary>MODEL MODE (the bar's console cell): RadarControls goes INVISIBLE, never Collapsed, while ModelConsole
 		/// plays over it — the tools tier's alignment keeps measuring it (see MainWindow.xaml at TimeModule). The argument is
 		/// ShortRange.IsModelConsoleShown (drawing and NOT comparing with radar).</summary>
