@@ -144,7 +144,7 @@ namespace Anvil
 						_wasMaximizedBeforeFullScreen =
 							(AppWindow.Presenter as OverlappedPresenter)?.State == OverlappedPresenterState.Maximized;
 						_logger.LogInformation("Full screen: entering (was maximized {Max})", _wasMaximizedBeforeFullScreen);
-						_isEnteringFullScreen = true; // the region writers stand down from here on
+						_isSwitchingPresenter = true; // the region writers stand down from here on
 						ClearNonClientRegions();
 						AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
 						_logger.LogInformation("Full screen: presenter set");
@@ -152,6 +152,7 @@ namespace Anvil
 					else
 					{
 						_logger.LogInformation("Full screen: leaving");
+						_isSwitchingPresenter = true; // the region writers stand down until the chrome follows
 						AppWindow.SetPresenter(AppWindowPresenterKind.Overlapped);
 						if (_wasMaximizedBeforeFullScreen)
 						{
@@ -166,18 +167,37 @@ namespace Anvil
 				}
 				finally
 				{
-					_isEnteringFullScreen = false;
+					_isSwitchingPresenter = false;
 				}
 				QueueApplyFullScreenState();
 			});
 		}
 
 		private bool _isFullScreenSwitchQueued;
-		private bool _isEnteringFullScreen;
+		private bool _isSwitchingPresenter;
 
 		// The chrome follows the presenter, but never from INSIDE a windowing callback (AppWindow.Changed or the switch
 		// itself) — always on a fresh dispatcher turn.
 		private void QueueApplyFullScreenState() => DispatcherQueue.TryEnqueue(ApplyFullScreenState);
+
+		// FULL SCREEN's non-client layout: NO caption, and the WHOLE window PASSTHROUGH. ⚠️ Without the passthrough the top
+		// edge stayed a default drag band (ExtendsContentIntoTitleBar keeps one when nothing claims the area), which swallowed
+		// the pointer over the 3 px reveal strip — the bar never came back on hover (2026-11-04). Written only between
+		// switches (UpdateCaptionBand stands down while _isSwitchingPresenter), and only when the window's size changed.
+		private void ApplyFullScreenRegions()
+		{
+			var whole = new[] { new RectInt32(0, 0, AppWindow.Size.Width, AppWindow.Size.Height) };
+			var source = InputNonClientPointerSource.GetForWindowId(AppWindow.Id);
+			if (source.GetRegionRects(NonClientRegionKind.Caption).Length > 0)
+			{
+				source.ClearRegionRects(NonClientRegionKind.Caption);
+			}
+			if (!SameRegions(_notchRegions, whole))
+			{
+				_notchRegions = whole;
+				source.SetRegionRects(NonClientRegionKind.Passthrough, whole);
+			}
+		}
 
 		private void ClearNonClientRegions()
 		{
@@ -774,8 +794,13 @@ namespace Anvil
 		{
 			// FULL SCREEN: no caption at all — a full-screen window can't be dragged; the regions were cleared on the way in
 			// (ClearNonClientRegions) and nothing writes them until the window is back (crash fix, see SetFullScreen).
-			if (_isClosed || _isFullScreen || _isEnteringFullScreen || Content?.XamlRoot is not { } root)
+			if (_isClosed || _isSwitchingPresenter || Content?.XamlRoot is not { } root)
 			{
+				return;
+			}
+			if (_isFullScreen)
+			{
+				ApplyFullScreenRegions();
 				return;
 			}
 
@@ -845,7 +870,7 @@ namespace Anvil
 		private void UpdateNotchInputRegions()
 		{
 			// FULL SCREEN: no caption, so no holes are needed — and none are written mid-switch (crash fix, SetFullScreen).
-			if (_isClosed || _isFullScreen || _isEnteringFullScreen)
+			if (_isClosed || _isFullScreen || _isSwitchingPresenter)
 			{
 				return;
 			}
