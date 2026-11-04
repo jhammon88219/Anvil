@@ -48,12 +48,6 @@ namespace Anvil
 		/// </summary>
 		public event Action<string, double, double>? RadarSiteMenuRequested;
 
-		/// <summary>
-		/// F11 / Escape pressed while the MAP had keyboard focus (map.js HOST KEYS) — the window's own accelerators never
-		/// see keys the page has. A VIEW concern (full screen), so raised for the host.
-		/// </summary>
-		public event Action<string>? HostKeyPressed;
-
 		public WebMessageRouter(MapViewModel viewModel, ILogger<WebMessageRouter> logger)
 		{
 			_viewModel = viewModel;
@@ -74,14 +68,6 @@ namespace Anvil
 					if (Str(root, "id") is { Length: > 0 } id)
 					{
 						RadarSiteMenuRequested?.Invoke(id, Dbl(root, "x"), Dbl(root, "y"));
-					}
-				},
-				// F11 / Escape with the map focused (map.js HOST KEYS) — full screen is the host's.
-				["hostKey"] = root =>
-				{
-					if (Str(root, "key") is { Length: > 0 } key)
-					{
-						HostKeyPressed?.Invoke(key);
 					}
 				},
 				["stateIsolated"] = HandleStateIsolated,

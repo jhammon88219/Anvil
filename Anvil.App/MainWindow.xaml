@@ -100,27 +100,7 @@
          harmless). The map fills it; the top bar, the TEMPORAL PANES + the MAP-TOOLS RAIL, the pane selectors and the
          floating console overlay it. Every other panel that pops over the map is a real top-level OS window owned by
          WindowManager. -->
-    <Grid x:Name="RootGrid" Background="#FF0A0A0A" KeyboardAcceleratorPlacementMode="Hidden">
-        <!-- ===== FULL SCREEN (the user's call, 2026-11-04) — the animations and keys; the rules are at MainWindow.xaml.cs
-             FULL SCREEN. F11 toggles; Esc leaves (never while typing); both also arrive from the MAP via map.js HOST KEYS,
-             because a focused WebView swallows them.
-             ⚠️ KeyboardAcceleratorPlacementMode="Hidden": WinUI otherwise shows an element's accelerators as a TOOLTIP, and
-             on the ROOT grid that put an "F11" pill over the map on hover (2026-11-04). The View item shows "F11" instead. ===== -->
-        <Grid.KeyboardAccelerators>
-            <KeyboardAccelerator Key="F11" Invoked="OnFullScreenAccelerator"/>
-            <KeyboardAccelerator Key="Escape" Invoked="OnEscapeAccelerator"/>
-        </Grid.KeyboardAccelerators>
-        <Grid.Resources>
-            <!-- The hint on entering full screen: fades in, holds ~3 s, fades out. -->
-            <Storyboard x:Key="FullScreenHintFlash">
-                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="FullScreenHint" Storyboard.TargetProperty="Opacity">
-                    <LinearDoubleKeyFrame KeyTime="0:0:0" Value="0"/>
-                    <LinearDoubleKeyFrame KeyTime="0:0:0.2" Value="1"/>
-                    <LinearDoubleKeyFrame KeyTime="0:0:3.2" Value="1"/>
-                    <LinearDoubleKeyFrame KeyTime="0:0:3.7" Value="0"/>
-                </DoubleAnimationUsingKeyFrames>
-            </Storyboard>
-        </Grid.Resources>
+    <Grid Background="#FF0A0A0A">
 
         <!-- Full-window map (bottom layer; the bar floats on top of it). -->
         <controls:WebView2 x:Name="MainMapWebView" Grid.Row="0" Grid.RowSpan="2">
@@ -448,12 +428,6 @@
                                     <!-- The tools strip had its own "Tools" tab until 2026-11-03; this item replaced it. -->
                                     <ToggleMenuFlyoutItem x:Name="ViewMapToolsItem" Text="Map tools"
                                                           IsChecked="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=TwoWay}"/>
-                                    <MenuFlyoutSeparator/>
-                                    <!-- FULL SCREEN (2026-11-04): never remembered — the app always starts windowed. IsChecked is
-                                         set from code (SetFullScreen), the key is the root grid's F11 accelerator. -->
-                                    <ToggleMenuFlyoutItem x:Name="ViewFullScreenItem" Text="Full screen"
-                                                          KeyboardAcceleratorTextOverride="F11"
-                                                          Click="OnViewFullScreenClick"/>
                                 </MenuFlyout>
                             </Button.Flyout>
                         </Button>
@@ -770,30 +744,5 @@
                                   Margin="0,0,0,-3"
                                   ViewModel="{x:Bind ViewModel}"/>
         </Grid>
-
-        <!-- ===== FULL SCREEN — the HINT (2026-11-04; rules at MainWindow.xaml.cs FULL SCREEN) =====
-
-               ┌ menu bar ──────────────────────────────── – □ ✕ ┐
-                         ╭──────────────────────────────────╮
-                         │ Full screen · press F11 or Esc   │   ← ~3 s on entering (FullScreenHintFlash), click-through,
-                         │ to exit                          │     just under the menu bar
-                         ╰──────────────────────────────────╯
-             (An auto-hide REVEAL STRIP lived here too — removed 2026-11-04 with the auto-hide, the user's call.)
-             Declared LAST so it paints over the panes and the console. -->
-        <Border x:Name="FullScreenHint"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Top"
-                Margin="0,60,0,0"
-                Padding="16,10"
-                CornerRadius="8"
-                Opacity="0"
-                IsHitTestVisible="False"
-                Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                BorderThickness="1">
-            <TextBlock Text="Full screen · press F11 or Esc to exit"
-                       FontSize="13"
-                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-        </Border>
     </Grid>
 </Window>

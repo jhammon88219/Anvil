@@ -2,8 +2,6 @@
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
 using Anvil.Models;
@@ -57,165 +55,6 @@ namespace Anvil
 		public Thickness MapToolsRailHatchMargin(double width) => new(0, 0, -width, 0);
 
 		public Visibility HiddenWhen(bool on) => on ? Visibility.Collapsed : Visibility.Visible;
-
-		// ===== FULL SCREEN (the user's call, 2026-11-04) =====
-		//
-		//   windowed (maximized, as at launch)          F11 / View → Full screen
-		//   ┌ menu bar ──────────────── – □ ✕ ┐   ──►   ┌ menu bar ──────────────── – □ ✕ ┐   the SAME layout, edge to
-		//   ├──┬──────────────────────────────┤         ├──┬──────────────────────────────┤   edge: no taskbar, no frame
-		//   │▤ │  map                         │         │▤ │  map           [hint ~3 s]    │
-		//   └──┴──────────────────────────────┘         └──┴──────────────────────────────┘
-		//
-		// • The FullScreen presenter: no taskbar, no frame. NEVER REMEMBERED — the app always starts windowed (the ctor's
-		//   Maximize); leaving restores maximized if it was. Exits: F11, Esc, View → Full screen, the caption key.
-		// • The menu bar STAYS in full screen. (An auto-hide — the bar sliding away and back on a top-edge hover — was built
-		//   and REMOVED the same day, the user's call: the hover reveal never worked; to be re-approached later.)
-		// • KEYS: F11 toggles; Esc leaves (not while typing). A focused MAP swallows keys, so map.js forwards F11 / Esc as
-		//   "hostKey" (WebMessageRouter.HostKeyPressed → OnHostKey).
-		private bool _isFullScreen;
-		private bool _wasMaximizedBeforeFullScreen;
-
-		private void InitFullScreen() => _router.HostKeyPressed += OnHostKey;
-
-		/// <summary>Enter or leave full screen (the View item, F11, Esc, the caption key). Never persisted.</summary>
-		/// <remarks>
-		/// ⚠️ CRASH FIX (2026-11-04, docs/bugs.md): switching the presenter straight from the F11 handler, with the caption /
-		/// passthrough regions still set and AppWindow.Changed re-writing them mid-switch, FAIL-FASTED in
-		/// Microsoft.UI.Windowing.dll (0xe0464645). Now: the switch runs QUEUED on the dispatcher (out of key / menu
-		/// processing), the non-client regions are CLEARED before entering, and the chrome follow-up (ApplyFullScreenState)
-		/// is queued too — never re-entered from inside AppWindow.Changed. Each step logs, so a repeat shows where it died.
-		/// </remarks>
-		private void SetFullScreen(bool on)
-		{
-			if (_isClosed || _isFullScreenSwitchQueued)
-			{
-				return;
-			}
-			ViewFullScreenItem.IsChecked = _isFullScreen; // the item flipped itself; the window's state answers
-			if (on == _isFullScreen)
-			{
-				return;
-			}
-			_isFullScreenSwitchQueued = true;
-			DispatcherQueue.TryEnqueue(() =>
-			{
-				_isFullScreenSwitchQueued = false;
-				if (_isClosed)
-				{
-					return;
-				}
-				try
-				{
-					if (on)
-					{
-						_wasMaximizedBeforeFullScreen =
-							(AppWindow.Presenter as OverlappedPresenter)?.State == OverlappedPresenterState.Maximized;
-						_logger.LogInformation("Full screen: entering (was maximized {Max})", _wasMaximizedBeforeFullScreen);
-						_isSwitchingPresenter = true; // the region writers stand down from here on
-						ClearNonClientRegions();
-						AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
-						_logger.LogInformation("Full screen: presenter set");
-					}
-					else
-					{
-						_logger.LogInformation("Full screen: leaving");
-						_isSwitchingPresenter = true; // the region writers stand down until the chrome follows
-						AppWindow.SetPresenter(AppWindowPresenterKind.Overlapped);
-						if (_wasMaximizedBeforeFullScreen)
-						{
-							(AppWindow.Presenter as OverlappedPresenter)?.Maximize();
-						}
-						_logger.LogInformation("Full screen: presenter restored");
-					}
-				}
-				catch (Exception ex)
-				{
-					_logger.LogError(ex, "Full screen: presenter switch failed");
-				}
-				finally
-				{
-					_isSwitchingPresenter = false;
-				}
-				QueueApplyFullScreenState();
-			});
-		}
-
-		private bool _isFullScreenSwitchQueued;
-		private bool _isSwitchingPresenter;
-
-		// The chrome follows the presenter, but never from INSIDE a windowing callback (AppWindow.Changed or the switch
-		// itself) — always on a fresh dispatcher turn.
-		private void QueueApplyFullScreenState() => DispatcherQueue.TryEnqueue(ApplyFullScreenState);
-
-		private void ClearNonClientRegions()
-		{
-			var source = InputNonClientPointerSource.GetForWindowId(AppWindow.Id);
-			source.ClearRegionRects(NonClientRegionKind.Caption);
-			source.ClearRegionRects(NonClientRegionKind.Passthrough);
-			_notchRegions = Array.Empty<RectInt32>();
-		}
-
-		// Follows the PRESENTER, so the chrome can never disagree with the window. The regions are re-written here (cleared
-		// on the way in): the bar stays in full screen, so its controls need their passthrough holes as when windowed.
-		private void ApplyFullScreenState()
-		{
-			if (_isClosed)
-			{
-				return;
-			}
-			var on = AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
-			ViewFullScreenItem.IsChecked = on;
-			if (on == _isFullScreen)
-			{
-				return;
-			}
-			_logger.LogInformation("Full screen: chrome → {State}", on ? "full screen" : "windowed");
-			_isFullScreen = on;
-			if (on)
-			{
-				((Storyboard)RootGrid.Resources["FullScreenHintFlash"]).Begin();
-			}
-			UpdateCaptionBand();
-			UpdateNotchInputRegions();
-		}
-
-		private bool IsTextInputFocused() =>
-			Content?.XamlRoot is { } root && FocusManager.GetFocusedElement(root) is TextBox;
-
-		private void OnViewFullScreenClick(object sender, RoutedEventArgs e) => SetFullScreen(ViewFullScreenItem.IsChecked);
-
-		private void OnFullScreenAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
-		{
-			SetFullScreen(!_isFullScreen);
-			args.Handled = true;
-		}
-
-		private void OnEscapeAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
-		{
-			if (!_isFullScreen || IsTextInputFocused())
-			{
-				return; // not ours: windowed, or Esc belongs to the text box
-			}
-			args.Handled = true;
-			SetFullScreen(false);
-		}
-
-		// F11 / Escape pressed while the MAP had focus (map.js HOST KEYS).
-		private void OnHostKey(string key)
-		{
-			switch (key)
-			{
-				case "F11":
-					SetFullScreen(!_isFullScreen);
-					break;
-				case "Escape":
-					if (_isFullScreen)
-					{
-						SetFullScreen(false);
-					}
-					break;
-			}
-		}
 
 		// ===== PANE MODE (top menu bar) =====
 		// Greyed while the PastCast loading screen is up (Radar.AreControlsLocked) — Isolation too.
@@ -557,9 +396,7 @@ namespace Anvil
 		// ⚠️ TOP BAR HIDDEN = NO CAPTION BAND (accepted for now, the user's call): only the tab remains.
 		private void UpdateCaptionBand()
 		{
-			// FULL SCREEN: nothing is written MID-SWITCH (crash fix, see SetFullScreen); the regions were cleared on the way in
-			// and ApplyFullScreenState re-writes them once the presenter has changed.
-			if (_isClosed || _isSwitchingPresenter || Content?.XamlRoot is not { } root)
+			if (_isClosed || Content?.XamlRoot is not { } root)
 			{
 				return;
 			}
@@ -585,25 +422,11 @@ namespace Anvil
 			}
 		}
 
-		// FULL SCREEN: minimize leaves full screen first (the FullScreen presenter can't minimize); □ just leaves it.
-		private void OnCaptionMinimize(object? sender, EventArgs e)
-		{
-			if (_isFullScreen)
-			{
-				SetFullScreen(false); // queued — the minimize queues BEHIND it, onto the restored Overlapped presenter
-				DispatcherQueue.TryEnqueue(() => (AppWindow.Presenter as OverlappedPresenter)?.Minimize());
-				return;
-			}
+		private void OnCaptionMinimize(object? sender, EventArgs e) =>
 			(AppWindow.Presenter as OverlappedPresenter)?.Minimize();
-		}
 
 		private void OnCaptionMaximizeRestore(object? sender, EventArgs e)
 		{
-			if (_isFullScreen)
-			{
-				SetFullScreen(false);
-				return;
-			}
 			if (AppWindow.Presenter is not OverlappedPresenter presenter)
 			{
 				return;
@@ -629,8 +452,7 @@ namespace Anvil
 
 		private void UpdateNotchInputRegions()
 		{
-			// FULL SCREEN: none are written mid-switch (crash fix, SetFullScreen).
-			if (_isClosed || _isSwitchingPresenter)
+			if (_isClosed)
 			{
 				return;
 			}
@@ -1004,9 +826,6 @@ namespace Anvil
 			// pass registers the holes - otherwise the notch is dead until something else forces a relayout.
 			PaneNotchLayer.LayoutUpdated += OnPaneNotchLayerLayoutUpdated;
 
-			// FULL SCREEN: the reveal / hide timers, the keys (see the FULL SCREEN block). The app always STARTS windowed.
-			InitFullScreen();
-
 			// Hide the system caption buttons — they moved to the bar (see the CAPTION BAND block above).
 			AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
 
@@ -1118,11 +937,9 @@ namespace Anvil
 			// The Atlas's site-hours clock PAUSES while the main window is minimized. Read the presenter state on
 			// EVERY change rather than trusting one flag — SetMinimized is idempotent, so the extra calls are free.
 			// The same read drives the bar's caption key (Maximize ⇄ Restore) and re-asserts the caption band.
-			AppWindow.Changed += (_, args) =>
+			AppWindow.Changed += (_, _) =>
 			{
 				if (_isClosed) return;
-				// FULL SCREEN follows the presenter however it changed — QUEUED, never re-entered from this callback (crash fix).
-				if (args.DidPresenterChange) QueueApplyFullScreenState();
 				var state = (AppWindow.Presenter as OverlappedPresenter)?.State;
 				ViewModel.SiteUsage.SetMinimized(state == OverlappedPresenterState.Minimized);
 				CaptionKey.IsMaximized = state == OverlappedPresenterState.Maximized;

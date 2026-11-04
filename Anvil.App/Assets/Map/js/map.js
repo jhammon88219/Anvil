@@ -1062,17 +1062,6 @@ try {
         });
     }
 
-    // ---- HOST KEYS (full screen, 2026-11-04) --------------------------------------------------------
-    // While the MAP has keyboard focus, keystrokes go to this page, never to the WinUI window, so its F11 / Esc
-    // accelerators would be dead whenever the user had last clicked the map. Forward just those two; the host decides
-    // what they do (MainWindow.OnHostKey: F11 = toggle full screen, Esc = leave it). F11 is preventDefault'ed so the
-    // browser's own full-screen never fights the window's.
-    document.addEventListener('keydown', function (e) {
-        if (e.repeat || (e.key !== 'F11' && e.key !== 'Escape') || !(window.chrome && window.chrome.webview)) return;
-        if (e.key === 'F11') e.preventDefault();
-        window.chrome.webview.postMessage(JSON.stringify({ type: 'hostKey', key: e.key }));
-    }, true);
-
     // ---- BOOT ------------------------------------------------------------------------------------
     // Create the launch pane (single; the host switches layout later via setPaneLayout) once the style is
     // resolved against the tile source. Offline resolves synchronously to the style URL, so the default
