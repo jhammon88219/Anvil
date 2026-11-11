@@ -15,7 +15,7 @@ velocity, storm-relative velocity, correlation coefficient, differential reflect
 differential phase, and spectrum width on ramps built for the app), dealiases velocity with a validated
 port of Py-ART's region-based algorithm, and derives storm motion automatically from a full-volume VAD
 wind profile. Elevation cuts, SAILS re-scans, and split-cut Doppler companions all resolve from the
-volume's own tables. Curated Doppler On Wheels mobile-radar frames render through the same pipeline.
+volume's own tables.
 
 <img width="3840" height="2088" alt="One KTLX volume rendered as four products at once — storm-relative velocity, correlation coefficient, reflectivity and velocity — each pane carrying its own product selector, colour ramp and elevation angle" src="media/multipane-quad.png" />
 
@@ -74,8 +74,7 @@ web layer), `Anvil.Tests`, and `tools/TiltCheck`. The map is [MapLibre GL JS](ht
 a single WebView2, because WebGL rendering can't happen in C#; that web layer is kept narrow, and
 everything that can be C# is. [`CLAUDE.md`](CLAUDE.md) is the working map of the codebase — where things
 live, how to build, and the gotchas — and `docs/` holds one deep-reference file per area (radar tilts,
-velocity dealiasing, the live frame path, product history, decode validation, the replay and DOW
-viewers).
+velocity dealiasing, the live frame path, product history, decode validation, the replay viewer).
 
 **UI is defined before runtime, never during.** Every component's structure and look is declared ahead of
 time — in XAML (templates, styles, visual states) on the WinUI side, and as `<template>`s in `map.html`
@@ -92,13 +91,11 @@ thing code may hand over as values. See `Anvil.App/Assets/Map/README.md` for the
 | Outlooks, watches, warnings, storm reports | [NOAA/NWS Storm Prediction Center](https://www.spc.noaa.gov/) and NWS map/alert services |
 | Basemap | [Protomaps](https://github.com/protomaps/basemaps) — a local archive or the hosted API — © [OpenStreetMap](https://openstreetmap.org) contributors |
 
-The bundled DOW sample comes from NSF NCAR EOL by way of the open-radar-data archive; any `.dow.json`
-you add redistributes research data, so use openly licensed archives and carry the citation. Built with
-MapLibre GL JS, [PMTiles](https://github.com/protomaps/PMTiles), the `nexrad-level-2-data` decoder,
+Built with MapLibre GL JS, [PMTiles](https://github.com/protomaps/PMTiles), the `nexrad-level-2-data` decoder,
 seek-bzip, and SharpCompress.
 
 Anvil is an independent project — not affiliated with, endorsed by, or supported by NOAA, the National
-Weather Service, Unidata, or NSF NCAR.
+Weather Service, or Unidata.
 
 ## About this project
 
