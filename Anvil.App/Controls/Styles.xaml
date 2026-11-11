@@ -93,6 +93,10 @@
                  (#1A1A1A) so a hovered row never reads as the card. -->
             <SolidColorBrush x:Key="SectionRowHoverBrush" Color="#FF141414"/>
             <StaticResource x:Key="SectionBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
+
+            <!-- The hover outline + open-list border of the map's PICKERS (pane notch Product/Tilt + the radar console's
+                 transport): almost white so it reads against the black chrome and the map (the user's call, 2026-11-11). -->
+            <SolidColorBrush x:Key="PickerHairlineBrush" Color="#FFE6E6E6"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="#FFF3F3F3"/>
@@ -119,6 +123,9 @@
             <SolidColorBrush x:Key="SectionBodyBackground" Color="#FFF3F3F3"/>
             <SolidColorBrush x:Key="SectionRowHoverBrush" Color="#FFEAEAEA"/>
             <StaticResource x:Key="SectionBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
+
+            <!-- The pickers' hairline — the light mirror of the dark theme's near-white: near-black. -->
+            <SolidColorBrush x:Key="PickerHairlineBrush" Color="#FF1F1F1F"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
@@ -147,6 +154,7 @@
             <SolidColorBrush x:Key="SectionBodyBackground" Color="{ThemeResource SystemColorWindowColor}"/>
             <SolidColorBrush x:Key="SectionRowHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="SectionBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            <SolidColorBrush x:Key="PickerHairlineBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
@@ -391,18 +399,79 @@
 
     <!-- ───────────────────────────── Button ───────────────────────────── -->
 
-    <!-- Square transport button base: no min-size padding, centered glyph, rounded. Applied by the radar
-         transport (prev / play-stop / next).
-         ⚠️ Deliberately NOT on BarChromeButtonStyle yet — the transport was left on the stock look when
-         the rest of the bar chrome moved over, so it is the one cluster still speaking the old language.
-         Rebasing it is a one-line change (BasedOn) when that is wanted. -->
-    <Style x:Key="TransportButtonStyle" TargetType="Button">
+    <!-- THE PICKER LOOK on a Button — the radar console's transport keys (RadarControls + ModelConsole), so the console
+         answers the pointer exactly like the pane notch's Product/Tilt selectors (the user's call, 2026-11-11):
+           rest      transparent, no outline
+           hover     OverlayBarSurfaceRaisedHoverBrush fill + PickerHairlineBrush 1 px outline, content lifts 1 px
+           pressed   fill + outline, the lift drops (reads as pushing it back down)
+           disabled  content greys
+         The outline lives on Surface, a backdrop SIBLING of the content, so its thickness never moves the glyph.
+         ⚠️ Keep it in step with ProductComboBox/TiltComboBox's PointerOver/Pressed setters (they are UserControls with
+         their own states). -->
+    <Style x:Key="PickerLookButtonStyle" TargetType="Button">
         <Setter Property="MinWidth" Value="0"/>
         <Setter Property="MinHeight" Value="0"/>
         <Setter Property="Padding" Value="0"/>
-        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid Background="Transparent">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource PickerHairlineBrush}"/>
+                                        <Setter Target="Surface.BorderThickness" Value="1"/>
+                                        <Setter Target="Lift.Y" Value="-1"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource PickerHairlineBrush}"/>
+                                        <Setter Target="Surface.BorderThickness" Value="1"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+
+                        <Border x:Name="Surface"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"/>
+
+                        <ContentPresenter x:Name="ContentPresenter"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          ContentTransitions="{TemplateBinding ContentTransitions}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          AutomationProperties.AccessibilityView="Raw">
+                            <ContentPresenter.RenderTransform>
+                                <TranslateTransform x:Name="Lift"/>
+                            </ContentPresenter.RenderTransform>
+                        </ContentPresenter>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- A bar key that ACTS rather than latching — today just the pane-layout key, which cycles

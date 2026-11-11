@@ -13,7 +13,7 @@
                   └───────────────────────┘
 
      Transparent at rest; hover/pressed wear the SAME look as ProductComboBox (the two sit in one notch, so
-     they answer the pointer alike — user's call 2026-11-11, along with the ControlStrongStroke hairline on
+     they answer the pointer alike — user's call 2026-11-11, along with the near-white PickerHairlineBrush on
      both the hover outline and the open list). Disabled mutes the label + chevron. The dropdown is given an
      explicit fully-OPAQUE theme-aware surface, since the default flyout brush is acrylic and washes out over
      the map. The hover outline lives on Box, an empty backdrop sibling, so its BorderThickness costs no layout.
@@ -53,7 +53,7 @@
                 <VisualState x:Name="PointerOver">
                     <VisualState.Setters>
                         <Setter Target="Box.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
-                        <Setter Target="Box.BorderBrush" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}"/>
+                        <Setter Target="Box.BorderBrush" Value="{ThemeResource PickerHairlineBrush}"/>
                         <Setter Target="Box.BorderThickness" Value="1"/>
                         <Setter Target="LabelLift.Y" Value="-1"/>
                         <Setter Target="GlyphLift.Y" Value="-1"/>
@@ -62,7 +62,7 @@
                 <VisualState x:Name="Pressed">
                     <VisualState.Setters>
                         <Setter Target="Box.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
-                        <Setter Target="Box.BorderBrush" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}"/>
+                        <Setter Target="Box.BorderBrush" Value="{ThemeResource PickerHairlineBrush}"/>
                         <Setter Target="Box.BorderThickness" Value="1"/>
                     </VisualState.Setters>
                 </VisualState>
@@ -118,7 +118,7 @@
                 <Flyout.FlyoutPresenterStyle>
                     <Style TargetType="FlyoutPresenter">
                         <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>
-                        <Setter Property="BorderBrush" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}"/>
+                        <Setter Property="BorderBrush" Value="{ThemeResource PickerHairlineBrush}"/>
                         <Setter Property="BorderThickness" Value="1"/>
                         <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}"/>
                         <Setter Property="Padding" Value="0,4,0,4"/>

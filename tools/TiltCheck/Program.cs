@@ -216,6 +216,9 @@ if (args.Length > 0 && args[0] == "--tropical")
 // --hrrr [yyyyMMddHH] [--png DIR]: the HRRR data path (HrrrService + Grib2Decoder) against the live bucket — see HrrrCheck.
 if (args.Length > 0 && args[0] == "--hrrr") return await HrrrCheck.RunAsync(args);
 
+// --basemap-sizes: each offline-map area's real cost + the overlaps on the newest Protomaps build — see BasemapSizeCheck.
+if (args.Length > 0 && args[0] == "--basemap-sizes") return await BasemapSizeCheck.RunAsync();
+
 // --spec SITE yyyy/MM/dd [FULL]: the decode audit's open items (A7, B7-B10 in docs/RadarEngineSpecs/digests/decode.md)
 // measured on real data — every volume's Message 5, FULL whole volumes' radial statuses (default 4), the chunk kinds.
 if (args.Length > 0 && args[0] == "--spec")

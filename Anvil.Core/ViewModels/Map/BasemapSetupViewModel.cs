@@ -290,8 +290,8 @@ namespace Anvil.ViewModels
 			{
 				var areas = CheckedAreas;
 				if (areas.Count == 0) return "";
-				// + the whole-world overview every offline map carries (BasemapAreas.WorldOverview)
-				var megabytes = areas.Sum(a => IsFullDetail ? a.FullMegabytes : a.StandardMegabytes) + BasemapAreas.WorldOverviewMegabytes;
+				// the areas + the whole-world overview, LESS what overlapping areas share (BasemapAreas.EstimateMegabytes)
+				var megabytes = BasemapAreas.EstimateMegabytes(areas, IsFullDetail);
 				var which = areas.Count == 1 ? areas[0].Name : $"{areas.Count} areas";
 				return $"{(IsFullDetail ? "Every street and building" : "Streets at city zoom")} · {which} · about {SizeWords(megabytes)}";
 			}
