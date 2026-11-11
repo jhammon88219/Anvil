@@ -187,6 +187,14 @@ namespace Anvil.Controls.Windows
 			selected == mine ? Visibility.Visible : Visibility.Collapsed;
 
 		/// <summary>
+		/// The preview's column: an equal share (half the body) on a page with the live preview, else 0 so the
+		/// sections column takes the whole body. A star column keeps its share even with its child Collapsed,
+		/// hence a bound width rather than Visibility alone.
+		/// </summary>
+		public GridLength PreviewColumnWidth(bool hasPreview) =>
+			hasPreview ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+
+		/// <summary>
 		/// Whether to CONSTRUCT the dev tab's body at all. Hard false in Release — the tab is not in the strip
 		/// there and its two engine view models are null, so the body must never be built, not merely hidden.
 		/// </summary>

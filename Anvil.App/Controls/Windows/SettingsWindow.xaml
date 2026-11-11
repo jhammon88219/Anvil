@@ -8,15 +8,16 @@
        │ [logo] Anvil Settings ←35→ VERSION │ BUILD   LICENSE   SOURCE    ░░░ lock pin ─ □ ✕ ░│ ← THE BAND (raised):
        │ (slot)                     1.0.0.0 │ Debug   AGPL-3.0  GitHub    ░ reserved 220 px ░ │   about-Anvil facts,
        ├──────────────────┬───────────────────────────────────────────────────────────────────┤   label OVER value
-       │▌▓ ⛰  Map  ▓▓▓▓▓▓▓│  ┌────────────────────┐ ┌──────────────────────────┐              │
-       │   ◎  Radar       │  │ the selected page's│ │  LIVE MAP PREVIEW        │              │ ← Composites/MapPreview,
-       │   ⊙  Radar Range │  │ body — ONE fixed   │ │      ┌┄┄┄┄┄┄┐            │              │   only on Map + Radar
-       │   ▤  Storage     │  │ 400 px column (one │ │     ┆   ╳   ┆    ◉       │              │   Range Ring
-       │   …              │  │ UserControl per    │ │      └┄┄┄┄┄┄┘            │              │   (HasSettingsPreview)
-       │ ──────────────── │  │ page, Composites)  │ │                          │              │
-       │   ⚒  Dev         │  └────────────────────┘ └──────────────────────────┘              │
+       │▌▓ ⛰  Map  ▓▓▓▓▓▓▓│  ┌──────────────────────────────┐ ┌──────────────────────────────┐ │
+       │   ◎  Radar       │  │ the selected page's body —   │ │  LIVE MAP PREVIEW            │ │ ← Composites/MapPreview,
+       │   ⊙  Radar Range │  │ sections FULL WIDTH (one     │ │      ┌┄┄┄┄┄┄┐                │ │   only on Map + Radar
+       │   ▤  Storage     │  │ UserControl per page,        │ │     ┆   ╳   ┆    ◉           │ │   Range Ring
+       │   …              │  │ Composites)                  │ │      └┄┄┄┄┄┄┘                │ │   (HasSettingsPreview):
+       │ ──────────────── │  │            ½                 │ │             ½                │ │   body split HALF/HALF
+       │   ⚒  Dev         │  └──────────────────────────────┘ └──────────────────────────────┘ │
        └──────────────────┴───────────────────────────────────────────────────────────────────┘
         ↑ Primitives/TabStrip, 220 wide, raised, hairline on its right
+          No preview → the sections column takes the WHOLE body (the preview column is 0 wide).
 
      The top bar's Settings menu lists the SAME pages (MainWindow.xaml's SETTINGS MENU, one declared item per
      page, Tag = its index) — clicking one opens this window on it.
@@ -119,12 +120,13 @@
             </ScrollViewer>
         </Border>
 
-        <!-- The body: a FIXED-width sections column, and the live map preview in the rest. Pages without a preview
-             keep the same narrow column — the left edge and the column width never move as you switch pages. -->
+        <!-- The body: the sections column FILLS it (every SettingsExpander stretches edge to edge — option A, the
+             user's call 2026-11-11). A page with the live preview splits the body HALF AND HALF, column | preview;
+             without one the preview column is 0 wide. The rows INSIDE a section keep their own widths. -->
         <Grid x:Name="BodyHost" Grid.Row="1" Grid.Column="1" Margin="24,18,16,14">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="400"/> <!-- ⚠️ THE sections column; the header sketch's width -->
-                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/> <!-- THE sections column -->
+                <ColumnDefinition Width="{x:Bind PreviewColumnWidth(ViewModel.HasSettingsPreview), Mode=OneWay}"/>
             </Grid.ColumnDefinitions>
 
             <!-- Bodies. Exactly one is visible; the rest keep their state because they stay loaded. -->
