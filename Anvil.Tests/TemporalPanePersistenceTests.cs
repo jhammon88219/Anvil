@@ -104,7 +104,7 @@ namespace Anvil.Tests
 				});
 
 				Radar = new RadarViewModel(map, Null<IRadarSiteProvider>.Create(), Null<ILevel2RadarService>.Create(),
-					Null<IDowEventProvider>.Create(), settingsService, null);
+					settingsService, null);
 				Warnings = new WarningsViewModel(map, Null<IWarningService>.Create(), dispatcher, NullLogger<WarningsViewModel>.Instance);
 				Watches = new WatchesViewModel(map, Null<ISpcWatchService>.Create(), dispatcher, NullLogger<WatchesViewModel>.Instance);
 				Reports = new StormReportsViewModel(map, Null<IStormReportService>.Create(), Radar, dispatcher, NullLogger<StormReportsViewModel>.Instance);

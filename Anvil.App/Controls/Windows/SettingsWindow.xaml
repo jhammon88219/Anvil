@@ -1,51 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- SettingsWindow — ONE window for every setting, organized as tabs. Hosted in its own OS window by
-     WindowManager (the native caption is the only chrome), so there is no panel frame: the root is the dark
-     surface, stretched to fill the window.
+<!-- SettingsWindow — ONE window for every setting, its pages picked from a LEFT NAV RAIL. Hosted in its own OS
+     window by WindowManager (content extends into the caption), so there is no panel frame: the root is the
+     dark surface, stretched to fill the window. Laid out like the Anvil Atlas on purpose (the user's call,
+     2026-11-11): a raised title BAND, then the raised rail | the body.
 
-       ┌─ Settings ──────────────────────────────[lock][pin]─┐
-       │  Settings                                            │
-       │  ┌────┬──────┬──────────────────┬─────────┬─────────────┬───────────────┬─────────┬───────────┬─────────┬───────┬─────┐
-       │  │ ⛰  │  ◎   │        ⊙         │    ▤    │      ▭      │       ▶       │    ⏻    │     ≋     │    ▦    │   ▦   │  ⚒  │  ← Primitives/TabStrip
-       │  │Map │Radar │ Radar Range Ring │ Storage │ Window Mode │ Radar Console │ Startup │ Live Data │ Basemap │ Units │ Edges │ Dev │
-       │  │▀▀▀▀│      │                  │         │             │               │         │           │         │       │     │
-       │  └────┴──────┴──────────────────┴─────────┴─────────────┴───────────────┴─────────┴───────────┴─────────┴───────┴─────┘
-       │  ┌────────────────────┐ ┌──────────────────────────┐    │
-       │  │ the selected tab's │ │  LIVE MAP PREVIEW   [⛶] │    │  ← Composites/MapPreview, only
-       │  │ body — ONE fixed   │ │      ┌┄┄┄┄┄┄┐          │    │     on Map + Radar Range Ring
-       │  │ 400 px column (one │ │     ┆   ╳   ┆    ◉     │    │     (MapViewModel.HasSettingsPreview);
-       │  │ UserControl per    │ │      └┄┄┄┄┄┄┘          │    │     other tabs: the column alone,
-       │  │ tab, Composites)   │ │                          │    │     same left edge, same width
-       │  └────────────────────┘ └──────────────────────────┘    │
-       └──────────────────────────────────────────────────────┘
+       ┌──────────────────────────────────────────────────────────────────────────────────────┐
+       │ [logo] Anvil Settings ←35→ VERSION │ BUILD   LICENSE   SOURCE    ░░░ lock pin ─ □ ✕ ░│ ← THE BAND (raised):
+       │ (slot)                     1.0.0.0 │ Debug   AGPL-3.0  GitHub    ░ reserved 220 px ░ │   about-Anvil facts,
+       ├──────────────────┬───────────────────────────────────────────────────────────────────┤   label OVER value
+       │▌▓ ⛰  Map  ▓▓▓▓▓▓▓│  ┌────────────────────┐ ┌──────────────────────────┐              │
+       │   ◎  Radar       │  │ the selected page's│ │  LIVE MAP PREVIEW        │              │ ← Composites/MapPreview,
+       │   ⊙  Radar Range │  │ body — ONE fixed   │ │      ┌┄┄┄┄┄┄┐            │              │   only on Map + Radar
+       │   ▤  Storage     │  │ 400 px column (one │ │     ┆   ╳   ┆    ◉       │              │   Range Ring
+       │   …              │  │ UserControl per    │ │      └┄┄┄┄┄┄┘            │              │   (HasSettingsPreview)
+       │ ──────────────── │  │ page, Composites)  │ │                          │              │
+       │   ⚒  Dev         │  └────────────────────┘ └──────────────────────────┘              │
+       └──────────────────┴───────────────────────────────────────────────────────────────────┘
+        ↑ Primitives/TabStrip, 220 wide, raised, hairline on its right
 
-     THE PREVIEW (2026-10-06): the sections used to stretch the full window width; now they keep one column
-     and the space left over shows the EFFECT of the settings — the real map page code, fed the same look
-     commands as the main map (IMapService mirror), so it cannot show a look the map wouldn't.
+     The top bar's Settings menu lists the SAME pages (MainWindow.xaml's SETTINGS MENU, one declared item per
+     page, Tag = its index) — clicking one opens this window on it.
 
-     WHAT THIS REPLACED: three separate windows and three bar keys — App Settings, Map Controls and Dev
-     Tools. They are now tabs, which is why the bar's right cluster is down to Panes / Atlas / Settings. A
-     NEW GROUP OF SETTINGS IS A TAB, NOT A WINDOW: add a SettingsTab enum member (never reorder — the ordinal
-     is the persisted index — and add it BEFORE Dev, which must stay last), a TabEntry in BuildTabs below
-     (before the #if DEBUG block), and a body UserControl in Composites at that index.
+     A NEW GROUP OF SETTINGS IS A PAGE, NOT A WINDOW: add a SettingsTab enum member (never reorder — the ordinal
+     is the persisted index — and add it BEFORE Dev, which must stay last), a TabEntry in BuildTabs (before the
+     #if DEBUG block), a body UserControl in Composites at that index, AND its item in the top bar's Settings
+     menu (same mark, same name).
 
-     ⚠️ THE SELECTED TAB IS NOT VIEW STATE. It lives on MapViewModel.SettingsTabIndex so it survives close/
+     ⚠️ THE SELECTED PAGE IS NOT VIEW STATE. It lives on MapViewModel.SettingsTabIndex so it survives close/
      reopen, persists across launches, and can be targeted from anywhere via MapViewModel.OpenSettings(tab).
-     The strip binds it TwoWay; the bodies below key their visibility off the same index.
 
-     ⚠️ VISIBILITY, NOT x:Load, for the shipping tabs. x:Load bound to a bool UNLOADS again when it
-     goes false, so every tab switch would tear down and rebuild a body — and these bodies are cheap. The
-     dev tab is the deliberate exception: it must NEVER be constructed in Release (its two engine VMs are
-     null there), and x:Load is exactly the tool for "do not build this at all".
+     ⚠️ VISIBILITY, NOT x:Load, for the shipping pages (x:Load bound to a bool UNLOADS again when it goes false).
+     The dev page is the deliberate exception: it must NEVER be constructed in Release (its engine VMs are null
+     there), and x:Load is exactly the tool for "do not build this at all".
 
-     TOP RAIL OR SIDE RAIL. The rail can also run down the left (right-click it → "Tabs on the side"),
-     persisted in AppSettings.SettingsTabPlacement. Top is the default because it costs no width, and this
-     window has a 360px-wide URL box in its Map tab; a side rail earns its keep once there are enough tabs
-     that a horizontal row would wrap. See ApplyPlacement in the code-behind.
-
-     ⚠️ The strip is not a WinUI TabView. TabView is a DOCUMENT-tab host — drag-reorder, tear-out, close and
-     add buttons, overflow scrolling — none of which a settings window wants, and all of which live in a
-     template you would have to copy wholesale to restyle. TabStrip is a UserControl we own outright. -->
+     (The rail used to be a TOP strip with a right-click "Tabs on top / on the side" switch — removed 2026-11-11.) -->
 
 <UserControl x:Class="Anvil.Controls.Windows.SettingsWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -59,124 +47,96 @@
 
     <!-- Dark surface fills the whole window. -->
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
-        <!-- THE TWO PLACEMENTS of the rail — [strip OVER body] for a top rail, [strip BESIDE body] for a side rail.
-             Each state sets the strip's, the hairline's and the body's Grid.Row/Column/Span and margins; the code-behind
-             only picks the state (ApplyPlacement). ⚠️ Every value is set in BOTH states: these are long-lived
-             elements, so anything one state left unset would keep whatever the other last wrote and the rail would
-             come back half-rotated. The markup below carries the TabsTop values, so the first paint is right too. -->
-        <VisualStateManager.VisualStateGroups>
-            <VisualStateGroup x:Name="PlacementStates">
-                <VisualState x:Name="TabsTop">
-                    <VisualState.Setters>
-                        <Setter Target="Strip.(Grid.Row)" Value="0"/>
-                        <Setter Target="Strip.(Grid.Column)" Value="0"/>
-                        <Setter Target="Strip.(Grid.RowSpan)" Value="1"/>
-                        <Setter Target="Strip.(Grid.ColumnSpan)" Value="2"/>
-                        <Setter Target="Strip.Margin" Value="12,10,12,0"/>
-                        <Setter Target="StripDivider.(Grid.Row)" Value="0"/>
-                        <Setter Target="StripDivider.(Grid.Column)" Value="0"/>
-                        <Setter Target="StripDivider.(Grid.RowSpan)" Value="1"/>
-                        <Setter Target="StripDivider.(Grid.ColumnSpan)" Value="2"/>
-                        <Setter Target="StripDivider.Width" Value="Auto"/>
-                        <Setter Target="StripDivider.Height" Value="1"/>
-                        <Setter Target="StripDivider.HorizontalAlignment" Value="Stretch"/>
-                        <Setter Target="StripDivider.VerticalAlignment" Value="Bottom"/>
-                        <Setter Target="StripDivider.Margin" Value="12,0,12,0"/>
-                        <Setter Target="BodyHost.(Grid.Row)" Value="1"/>
-                        <Setter Target="BodyHost.(Grid.Column)" Value="0"/>
-                        <Setter Target="BodyHost.(Grid.RowSpan)" Value="1"/>
-                        <Setter Target="BodyHost.(Grid.ColumnSpan)" Value="2"/>
-                        <Setter Target="BodyHost.Margin" Value="16,14,16,14"/>
-                    </VisualState.Setters>
-                </VisualState>
-                <VisualState x:Name="TabsLeft">
-                    <VisualState.Setters>
-                        <Setter Target="Strip.(Grid.Row)" Value="0"/>
-                        <Setter Target="Strip.(Grid.Column)" Value="0"/>
-                        <Setter Target="Strip.(Grid.RowSpan)" Value="2"/>
-                        <Setter Target="Strip.(Grid.ColumnSpan)" Value="1"/>
-                        <Setter Target="Strip.Margin" Value="10,10,0,10"/>
-                        <Setter Target="StripDivider.(Grid.Row)" Value="0"/>
-                        <Setter Target="StripDivider.(Grid.Column)" Value="0"/>
-                        <Setter Target="StripDivider.(Grid.RowSpan)" Value="2"/>
-                        <Setter Target="StripDivider.(Grid.ColumnSpan)" Value="1"/>
-                        <Setter Target="StripDivider.Width" Value="1"/>
-                        <Setter Target="StripDivider.Height" Value="Auto"/>
-                        <Setter Target="StripDivider.HorizontalAlignment" Value="Right"/>
-                        <Setter Target="StripDivider.VerticalAlignment" Value="Stretch"/>
-                        <Setter Target="StripDivider.Margin" Value="0,10,0,10"/>
-                        <Setter Target="BodyHost.(Grid.Row)" Value="0"/>
-                        <Setter Target="BodyHost.(Grid.Column)" Value="1"/>
-                        <Setter Target="BodyHost.(Grid.RowSpan)" Value="2"/>
-                        <Setter Target="BodyHost.(Grid.ColumnSpan)" Value="1"/>
-                        <Setter Target="BodyHost.Margin" Value="16,14,16,14"/>
-                    </VisualState.Setters>
-                </VisualState>
-            </VisualStateGroup>
-        </VisualStateManager.VisualStateGroups>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- title -->
-            <RowDefinition Height="*"/>    <!-- strip + body -->
+            <RowDefinition Height="Auto"/> <!-- the title band -->
+            <RowDefinition Height="*"/>    <!-- rail | body -->
         </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/> <!-- the rail -->
+            <ColumnDefinition Width="*"/>   <!-- the body -->
+        </Grid.ColumnDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Settings" Margin="16,14,16,0"
-                   FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        <!-- THE BAND — raised, full width, a hairline under it. The SAME grammar as the Atlas's band: logo slot,
+             name, then each fact as its LABEL over its VALUE, left-aligned. ⚠️ Its right 220 px are RESERVED for
+             the lock, pin and caption buttons that sit over that corner. -->
+        <Border x:Name="SettingsBand" Grid.ColumnSpan="2"
+                Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}" BorderThickness="0,0,0,1">
+            <Grid Padding="16,12,0,12" ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/> <!-- logo slot -->
+                    <ColumnDefinition Width="Auto"/> <!-- name -->
+                    <ColumnDefinition Width="Auto"/> <!-- facts -->
+                    <ColumnDefinition Width="*"/>    <!-- empty -->
+                    <ColumnDefinition Width="220"/>  <!-- lock / pin / caption corner -->
+                </Grid.ColumnDefinitions>
 
-        <!-- ⚠️ The strip, its hairline and the body are placed by the PlacementStates above: a top rail wants
-             [strip over body] and a side rail wants [strip beside body], which is a different Grid.Row/Column/Span
-             for all three. That grid has BOTH an Auto row and an Auto column so either arrangement fits without
-             re-templating. The values in markup here are TabsTop's (the first paint before a state is applied). -->
-        <Grid x:Name="ContentHost" Grid.Row="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
+                <!-- LOGO SLOT — a placeholder until the app has a logo (the Atlas's, the same size). -->
+                <Grid Width="40" Height="40" VerticalAlignment="Center">
+                    <Rectangle RadiusX="8" RadiusY="8" StrokeThickness="1" StrokeDashArray="3,3"
+                               Stroke="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    <FontIcon Glyph="&#xE713;" FontSize="16"
+                              Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                </Grid>
+
+                <TextBlock Grid.Column="1" Text="Anvil Settings" VerticalAlignment="Center"
+                           FontSize="22" FontWeight="SemiBold"/>
+
+                <!-- ABOUT ANVIL: version first, rule, then the rest. -->
+                <StackPanel x:Name="SettingsBandAbout" Grid.Column="2" Orientation="Horizontal" Spacing="20"
+                            VerticalAlignment="Center" Margin="21,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="VERSION" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
+                        <TextBlock Text="{x:Bind AppVersion}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                    <Border Width="1" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                    <StackPanel>
+                        <TextBlock Text="BUILD" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
+                        <TextBlock Text="{x:Bind BuildKind}" FontSize="20" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="LICENSE" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
+                        <TextBlock Text="AGPL-3.0" FontSize="20" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="SOURCE" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
+                        <HyperlinkButton x:Name="SettingsBandSourceLink" Content="GitHub" Padding="0" Margin="0,2,0,0"
+                                         NavigateUri="https://github.com/jhammon88219/Anvil"
+                                         ToolTipService.ToolTip="Anvil's source code on GitHub"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- THE RAIL — raised, a hairline on its right edge. The entries are BuildTabs'. -->
+        <Border x:Name="SettingsRail" Grid.Row="1"
+                Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}" BorderThickness="0,0,1,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
+                <ctl:TabStrip x:Name="Strip" Margin="6,8,6,8"
+                              ItemsSource="{x:Bind Tabs}"
+                              SelectedIndex="{x:Bind ViewModel.SettingsTabIndex, Mode=TwoWay}"/>
+            </ScrollViewer>
+        </Border>
+
+        <!-- The body: a FIXED-width sections column, and the live map preview in the rest. Pages without a preview
+             keep the same narrow column — the left edge and the column width never move as you switch pages. -->
+        <Grid x:Name="BodyHost" Grid.Row="1" Grid.Column="1" Margin="24,18,16,14">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="400"/> <!-- ⚠️ THE sections column; the header sketch's width -->
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-
-            <!-- The rail. Its placement state is picked by ApplyPlacement from the persisted setting; the right-click
-                 flyout is what writes it. -->
-            <ctl:TabStrip x:Name="Strip"
-                          Grid.ColumnSpan="2" Margin="12,10,12,0"
-                          HorizontalAlignment="Left" VerticalAlignment="Top"
-                          ItemsSource="{x:Bind Tabs}"
-                          SelectedIndex="{x:Bind ViewModel.SettingsTabIndex, Mode=TwoWay}">
-                <ctl:TabStrip.ContextFlyout>
-                    <MenuFlyout>
-                        <MenuFlyoutItem Text="Tabs on top" Click="OnPlaceTabsTop"/>
-                        <MenuFlyoutItem Text="Tabs on the side" Click="OnPlaceTabsLeft"/>
-                    </MenuFlyout>
-                </ctl:TabStrip.ContextFlyout>
-            </ctl:TabStrip>
-
-            <!-- Hairline along the rail's inner edge, so the tabs read as a rail rather than as floating
-                 keys. Which edge is the placement state's call. -->
-            <Border x:Name="StripDivider" Grid.ColumnSpan="2" Height="1" Margin="12,0,12,0"
-                    HorizontalAlignment="Stretch" VerticalAlignment="Bottom"
-                    Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
-            <!-- The body: a FIXED-width sections column, and the live map preview in the rest. BodyHost (not the
-                 ScrollViewer) is what the placement states position. Tabs without a preview keep the same narrow
-                 column — the left edge and the column width never move as you switch tabs. -->
-            <Grid x:Name="BodyHost" Grid.Row="1" Grid.ColumnSpan="2" Margin="16,14,16,14">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="400"/> <!-- ⚠️ THE sections column; the header sketch's width -->
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
 
             <!-- Bodies. Exactly one is visible; the rest keep their state because they stay loaded. -->
             <ScrollViewer x:Name="Body" Grid.Column="0"
                           VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
                 <Grid>
                     <!-- x:Name'd so the code-behind can relay its Browse request: the folder picker needs
-                         a window HWND, which neither this UserControl nor the tab has. -->
+                         a window HWND, which neither this UserControl nor the page has. -->
                     <cmp:MapSettingsTab x:Name="MapTab" ViewModel="{x:Bind ViewModel}"
                                         Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 0), Mode=OneWay}"/>
 
-                    <!-- x:Name'd (all of them) so PersistSectionExpansion can key each tab's sections by tab. -->
+                    <!-- x:Name'd (all of them) so PersistSectionExpansion can key each page's sections by page. -->
                     <cmp:RadarSettingsTab x:Name="RadarTab" ViewModel="{x:Bind ViewModel}"
                                           Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 1), Mode=OneWay}"/>
 
@@ -204,7 +164,7 @@
                     <cmp:UnitsSettingsTab x:Name="UnitsTab" ViewModel="{x:Bind ViewModel}"
                                           Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 9), Mode=OneWay}"/>
 
-                    <!-- EDGE-HATCH (experimental bolt-on): the Edges tab. -->
+                    <!-- EDGE-HATCH (experimental bolt-on): the Edges page. -->
                     <cmp:EdgeHatchSettingsTab x:Name="EdgesTab" ViewModel="{x:Bind ViewModel.EdgeHatch}"
                                               Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 10), Mode=OneWay}"/>
 
@@ -220,18 +180,17 @@
                 </Grid>
             </ScrollViewer>
 
-                <!-- The live preview (Map + Radar Range Ring tabs). Collapsed, not unloaded, on other tabs:
-                     its page stays up while the window is open, so switching back is instant. -->
-                <Border Grid.Column="1" Margin="16,0,0,0"
-                        BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                        Visibility="{x:Bind ViewModel.HasSettingsPreview, Mode=OneWay}">
-                    <cmp:MapPreview ViewModel="{x:Bind ViewModel}"/>
-                </Border>
-            </Grid>
+            <!-- The live preview (Map + Radar Range Ring pages). Collapsed, not unloaded, on other pages:
+                 its page stays up while the window is open, so switching back is instant. -->
+            <Border Grid.Column="1" Margin="16,0,0,0"
+                    BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                    Visibility="{x:Bind ViewModel.HasSettingsPreview, Mode=OneWay}">
+                <cmp:MapPreview ViewModel="{x:Bind ViewModel}"/>
+            </Border>
         </Grid>
 
-        <!-- Lock (no move/resize) + pin (keep on top). -->
-        <ctl:LockToggle IsChecked="{x:Bind ViewModel.IsSettingsWindowLocked, Mode=TwoWay}"/>
-        <ctl:PinToggle IsChecked="{x:Bind ViewModel.IsSettingsWindowOnTop, Mode=TwoWay}"/>
+        <!-- Lock (no move/resize) + pin (keep on top), over the band's reserved corner. -->
+        <ctl:LockToggle Grid.ColumnSpan="2" IsChecked="{x:Bind ViewModel.IsSettingsWindowLocked, Mode=TwoWay}"/>
+        <ctl:PinToggle Grid.ColumnSpan="2" IsChecked="{x:Bind ViewModel.IsSettingsWindowOnTop, Mode=TwoWay}"/>
     </Grid>
 </UserControl>

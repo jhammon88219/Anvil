@@ -19,7 +19,7 @@
      share them so the app reads as one system). A look used by exactly ONE control belongs in that
      control's own Resources instead; this file is not a dumping ground.
 
-     …with one STANDING EXCEPTION, by decision: SettingsTabKeyStyle (one consumer, TabStrip). It is here
+     …with one STANDING EXCEPTION, by decision: NavRailTabStyle (one consumer, TabStrip). It is here
      because the tab look is hand-tuned often and needs to sit beside the bar-key chain it is
      deliberately unlike, so the two stay in one voice. That is the bar for an exception — "I will be
      editing this next to that" — not merely "it might get a second consumer one day".
@@ -479,14 +479,15 @@
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
     </Style>
 
-    <!-- One tab in Controls/Primitives/TabStrip — today the Settings window's rail, which is the whole of
-         what used to be three separate windows (App Settings / Map Controls / Dev Tools).
+    <!-- One tab in Controls/Primitives/TabStrip — the LEFT NAV RAIL of the Settings window AND the Anvil Atlas
+         (2026-11-11, the user's call: one look in both; it replaced Settings' top/side switch and the Atlas's
+         seated top tabs). The rail sits on the RAISED tier, so hover is the RAISED hover.
 
-           OFF          HOVER        SELECTED         SELECTED + HOVER
-          ┌──────┐     ┌──────┐     ┌──────┐         ┌──────┐        ▒ = hover fill
-          │  ⛰   │     │▒ ⛰ ▒▒│     │▓ ⛰ ▓▓│         │█ ⛰ ██│        ▓ = elevated surface
-          │ Map  │     │▒Map ▒│     │▓Map ▓│         │█Map █│        ▀ = accent indicator
-          └──────┘     └──────┘     └─▀▀▀▀─┘         └─▀▀▀▀─┘          (drawn by the item template)
+           OFF                 HOVER               SELECTED              SELECTED + HOVER
+          ┌────────────────┐  ┌────────────────┐  ┌────────────────┐    ┌────────────────┐   ▒ = raised hover
+          │  ⛰  Map        │  │▒ ⛰  Map ▒▒▒▒▒▒▒│  │▌▓ ⛰  Map ▓▓▓▓▓▓│    │▌█ ⛰  Map ██████│   ▓ = elevated face
+          └────────────────┘  └────────────────┘  └────────────────┘    └────────────────┘   ▌ = accent bar
+                                                                                               (the item template's)
 
          ⚠️ IT IS NOT BasedOn THE BAR-KEY CHAIN, and that is deliberate. A bar key is a bordered SQUARE
          sized off the bar's height; a tab is content-width with no box at all, so a rail of them reads as
@@ -494,9 +495,8 @@
          name, hover/elevated faces from the same OverlayBarSurface* family, accent reserved for "this one
          is on" — not a template. Deriving would mean unsetting the border, the square and the stretch.
 
-         ⚠️ NO indicator lives here. The accent edge is drawn by the item template, because WHICH edge it
-         sits on depends on the strip's placement (bottom for a top rail, leading for a side rail) and a
-         ControlTemplate cannot see that. This style owns the face and the text; the template owns the mark.
+         ⚠️ NO indicator lives here. The accent bar is drawn by the item template (it only shows on the
+         selected row). This style owns the face and the text; the template owns the mark.
 
          ⚠️ It carries a ControlTemplate for the same reason BarChromeButtonStyle does: "selected" is
          applied by the default ToggleButton template's visual states, which a Setter cannot beat, and the
@@ -506,13 +506,14 @@
          one consumer, and today TabStrip is the only one. It lives here anyway, by decision — the tab look
          is exactly the kind of thing that gets hand-tuned, and it wants to sit beside the bar-key chain it
          is deliberately unlike, so the two can be compared and kept in the same voice. -->
-    <Style x:Key="SettingsTabKeyStyle" TargetType="ToggleButton">
+    <Style x:Key="NavRailTabStyle" TargetType="ToggleButton">
         <Setter Property="MinWidth" Value="0"/>
         <Setter Property="MinHeight" Value="0"/>
         <Setter Property="Padding" Value="0"/>
         <Setter Property="Margin" Value="0"/>
-        <Setter Property="CornerRadius" Value="6"/>
-        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         <Setter Property="VerticalContentAlignment" Value="Stretch"/>
         <Setter Property="UseSystemFocusVisuals" Value="True"/>
         <Setter Property="Template">
@@ -525,7 +526,7 @@
 
                                 <VisualState x:Name="PointerOver">
                                     <VisualState.Setters>
-                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
                                         <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
                                     </VisualState.Setters>
                                 </VisualState>
@@ -593,94 +594,11 @@
         </Setter>
     </Style>
 
-    <!-- A SEATED tab (TabStrip.IsSeated — the Anvil Atlas): the strip is the bottom row of a RAISED band.
-         Unselected = transparent on the band, hover = the RAISED hover (a control on a raised tier). Selected =
-         the GROUND (OverlayBarSurfaceBrush, the body's surface) with the top corners rounded and the bottom
-         square, so the tab and the body below read as one surface — the tab IS the indicator (no underline).
-         It stays the ground on hover: lightening it would split it from the body it opens into.
-         Same template shape as SettingsTabKeyStyle; kept beside it on purpose (the house-rule exception above). -->
-    <Style x:Key="SeatedTabKeyStyle" TargetType="ToggleButton">
-        <Setter Property="MinWidth" Value="0"/>
-        <Setter Property="MinHeight" Value="0"/>
-        <Setter Property="Padding" Value="0"/>
-        <Setter Property="Margin" Value="0"/>
-        <Setter Property="CornerRadius" Value="6,6,0,0"/>
-        <Setter Property="HorizontalContentAlignment" Value="Center"/>
-        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-        <Setter Property="UseSystemFocusVisuals" Value="True"/>
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="ToggleButton">
-                    <Grid>
-                        <VisualStateManager.VisualStateGroups>
-                            <VisualStateGroup x:Name="CommonStates">
-                                <VisualState x:Name="Normal"/>
-                                <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters>
-                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
-                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-                                    </VisualState.Setters>
-                                </VisualState>
-                                <VisualState x:Name="Pressed">
-                                    <VisualState.Setters>
-                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceBrush}"/>
-                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-                                    </VisualState.Setters>
-                                </VisualState>
-                                <VisualState x:Name="Disabled">
-                                    <VisualState.Setters>
-                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
-                                    </VisualState.Setters>
-                                </VisualState>
-                                <VisualState x:Name="Checked">
-                                    <VisualState.Setters>
-                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceBrush}"/>
-                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-                                    </VisualState.Setters>
-                                </VisualState>
-                                <VisualState x:Name="CheckedPointerOver">
-                                    <VisualState.Setters>
-                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceBrush}"/>
-                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-                                    </VisualState.Setters>
-                                </VisualState>
-                                <VisualState x:Name="CheckedPressed">
-                                    <VisualState.Setters>
-                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceBrush}"/>
-                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-                                    </VisualState.Setters>
-                                </VisualState>
-                                <VisualState x:Name="CheckedDisabled">
-                                    <VisualState.Setters>
-                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceBrush}"/>
-                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
-                                    </VisualState.Setters>
-                                </VisualState>
-                            </VisualStateGroup>
-                        </VisualStateManager.VisualStateGroups>
-
-                        <Border x:Name="Surface"
-                                Background="Transparent"
-                                CornerRadius="{TemplateBinding CornerRadius}"/>
-
-                        <ContentPresenter x:Name="Content"
-                                          Padding="{TemplateBinding Padding}"
-                                          Content="{TemplateBinding Content}"
-                                          ContentTemplate="{TemplateBinding ContentTemplate}"
-                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    </Grid>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
     <!-- A panel window's caption-band toggle — PinToggle + LockToggle. Glyph only: NO fill and NO border in
          any state but hover. OFF = a dim (tertiary) glyph, ON = the plain primary glyph — no accent, on purpose:
          both default ON, so the "on" look is the one you see all day and must not shout. Hover lays the faint
          ground-hover plate and lifts the glyph one step, so it still reads as clickable.
-         ⚠️ Templated for the same reason as SettingsTabKeyStyle — the default ToggleButton's Checked state is an
+         ⚠️ Templated for the same reason as NavRailTabStyle — the default ToggleButton's Checked state is an
          accent-FILLED block that a Setter cannot beat. -->
     <Style x:Key="WindowCaptionToggleStyle" TargetType="ToggleButton">
         <Setter Property="MinWidth" Value="0"/>

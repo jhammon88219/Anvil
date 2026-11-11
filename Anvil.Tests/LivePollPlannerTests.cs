@@ -97,7 +97,7 @@ namespace Anvil.Tests
 			var svc = Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
 			var archive = Null<ILevel2RadarService>.Create(new() { ["get_LiveSchedule"] = _ => current });
 			var radar = new RadarViewModel(Null<IMapService>.Create(), Null<IRadarSiteProvider>.Create(), archive,
-				Null<IDowEventProvider>.Create(), svc, null);
+				svc, null);
 			return (radar, settings, () => current, s => current = s);
 		}
 

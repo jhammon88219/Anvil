@@ -27,7 +27,7 @@ namespace Anvil.Tests
 			return new MapViewModel(N<IMapService>(), N<IStyleProvider>(), N<IThemeProvider>(), N<IRegionProvider>(),
 				N<ISpcOutlookService>(), N<ISpcWatchService>(), N<IWarningService>(), stormReports ?? N<IStormReportService>(),
 				N<IDamageSurveyService>(), N<IStormCellService>(), N<IPastAlertService>(), N<IMesoDiscussionService>(), N<ITropicalService>(), N<IRadarSiteProvider>(), N<ILevel2RadarService>(), N<ILocationService>(),
-				N<IPlaceSearchService>(), N<IDowEventProvider>(), N<ISavedEventLibrary>(), N<IDispatcher>(),
+				N<IPlaceSearchService>(), N<ISavedEventLibrary>(), N<IDispatcher>(),
 				settingsService, NullLoggerFactory.Instance, new SiteUsageStore(NullLogger<SiteUsageStore>.Instance, usageDir),
 				N<IRadarNwsStatusService>(), N<IRadarUptimeService>(), N<IRadarMessageHistoryService>(),
 				N<IRadarScanPatternService>(), new NonStandardVcpLog(NullLogger<NonStandardVcpLog>.Instance, usageDir), null);

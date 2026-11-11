@@ -112,7 +112,5 @@ namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 		// THIS window and restacks the map. The saved order is applied once, on first load (constructor).
 		private void OnLayersReordered(object? sender, EventArgs e) =>
 			ViewModel?.SetLayerOrder(TemporalMode.Past, DragMoveLayerExpanderHost.LayerOrder);
-
-		// (The DOW event section moved to the Atlas's DOW events tab — Composites/DowEventsAtlasTab.)
 	}
 }

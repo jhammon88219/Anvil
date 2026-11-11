@@ -43,7 +43,7 @@ namespace Anvil.Tests
 			var svc = Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
 			var archive = Null<ILevel2RadarService>.Create(new() { ["get_LiveSchedule"] = _ => rig.Schedule });
 			rig.Radar = new RadarViewModel(Null<IMapService>.Create(), Null<IRadarSiteProvider>.Create(), archive,
-				Null<IDowEventProvider>.Create(), svc, null);
+				svc, null);
 			await rig.Radar.OnMapsReadyAsync();
 			_ = new LivePollTimingRecorder(rig.Radar, new LivePollTimingLog(NullLogger<LivePollTimingLog>.Instance, rig.Dir), () => rig.Now);
 			return rig;

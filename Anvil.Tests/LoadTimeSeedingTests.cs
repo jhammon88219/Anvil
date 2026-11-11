@@ -65,7 +65,7 @@ namespace Anvil.Tests
 			var settings = new AppSettings();
 			var svc = Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
 			var radar = new RadarViewModel(Null<IMapService>.Create(), Null<IRadarSiteProvider>.Create(),
-				Null<ILevel2RadarService>.Create(), Null<IDowEventProvider>.Create(), svc, null);
+				Null<ILevel2RadarService>.Create(), svc, null);
 			var library = Null<ISavedEventLibrary>.Create(new() { ["GetEvents"] = _ => (IReadOnlyList<SavedEvent>)events });
 			return new LoadTimeSeedingViewModel(radar, library, Null<ILevel2RadarService>.Create(), Null<IMapService>.Create(), null);
 		}

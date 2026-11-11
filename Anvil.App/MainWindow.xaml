@@ -412,11 +412,33 @@
                     <!-- ORDER: Atlas · View · Settings (the user's call, 2026-11-03). Atlas and Settings are plain items that
                          OPEN or CLOSE their window on click (they were the bottom bar's window latches); View is the one menu. -->
                     <StackPanel x:Name="MenuBarMenus" Orientation="Horizontal">
-                        <!-- ⚠️ Always opens on RADAR SITES (ToggleAtlasFromBar, the user's call 2026-10-01); PastCast's
-                             button opens on Past events. -->
-                        <Button x:Name="AtlasMenuButton" Content="Atlas" Style="{StaticResource MenuBarTitleButtonStyle}"
-                                ToolTipService.ToolTip="Anvil Atlas — radar sites and past events"
-                                Click="OnAtlasMenuClick"/>
+                        <!-- ===== ATLAS + SETTINGS MENUS (the user's call, 2026-11-11) =====
+
+                               ┌ Settings ─────────────────┐   the title ONLY opens the list; each item opens the
+                               │ ✓ ⛰  Map                  │   window ON THAT PAGE (or switches the open one to it).
+                               │   ◎  Radar                │   ✓ = the page the OPEN window is on.
+                               │      …                    │   Items = the window's rail, same marks + names, Tag =
+                               │ ───────────────────────── │   the page index — ⚠️ a new page adds its item here too.
+                               │   ⚒  Dev      Debug only  │   Dev: Debug builds only (DevOnly).
+                               └───────────────────────────┘
+                             ⚠️ IsChecked is ONE-WAY and RE-ASSERTED in the click handlers: picking the page already
+                             showing changes no property, so the clicked item would stay flipped. -->
+                        <Button x:Name="AtlasMenuButton" Content="Atlas" Style="{StaticResource MenuBarTitleButtonStyle}">
+                            <Button.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False">
+                                    <ToggleMenuFlyoutItem x:Name="AtlasMenuRadarSitesItem" Text="Radar sites" Tag="0"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsAtlasOpen, ViewModel.AtlasTabIndex, 0), Mode=OneWay}"
+                                                          Click="OnAtlasPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xEC05;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="AtlasMenuPastEventsItem" Text="Past events" Tag="1"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsAtlasOpen, ViewModel.AtlasTabIndex, 1), Mode=OneWay}"
+                                                          Click="OnAtlasPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE81C;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
                         <Button x:Name="ViewMenuButton" Content="View" Style="{StaticResource MenuBarTitleButtonStyle}">
                             <Button.Flyout>
                                 <MenuFlyout Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False">
@@ -464,53 +486,93 @@
                                 </MenuFlyout>
                             </Button.Flyout>
                         </Button>
-                        <Button x:Name="SettingsMenuButton" Content="Settings" Style="{StaticResource MenuBarTitleButtonStyle}"
-                                ToolTipService.ToolTip="Settings — map, radar, storage"
-                                Click="OnSettingsMenuClick"/>
-                        <!-- ===== TEMPORAL MODE (the user's call, 2026-11-03 — mock-up C; it replaced the bottom bar's three keys) =====
-
-                               ┌ Temporal Mode · Now + Fore ┐   title names the RUNNING modes (just "Temporal Mode" when none)
-                               │ ✓ NowCast       pane hidden │   right column = the mode runs but View hid its pane
-                               │ ✓ ForeCast                  │
-                               │ ─────────────────────────── │   the rule: Now + Fore together, Past ALONE
-                               │   PastCast        (dimmed)  │   the side that's OFF dims while the other side runs…
-                               │   Turns NowCast and ForeCast off   …and this greyed line says what clicking it does
-                               └─────────────────────────────┘
-                             A click toggles THAT MODE only (MapViewModel.ToggleTemporalMode); its pane follows the mode. The
-                             dimmed side still works — dimming warns, it never blocks — and LIFTS to full strength under the
-                             pointer / keyboard focus (OnModeItemLift / Settle) so it reads as clickable, not disabled.
-                             ⚠️ THIS is the only place a mode turns on/off (2026-11-03); View's pane items only hide/show
-                             (one looser case: Now ⇄ Fore, MapViewModel.TogglePane). -->
-                        <Button x:Name="TemporalModeMenuButton" Style="{StaticResource MenuBarTitleButtonStyle}"
-                                Content="{x:Bind TemporalModeTitle(ViewModel.IsNowCast, ViewModel.IsForeCast, ViewModel.IsPastCast), Mode=OneWay}">
+                        <Button x:Name="SettingsMenuButton" Content="Settings" Style="{StaticResource MenuBarTitleButtonStyle}">
                             <Button.Flyout>
                                 <MenuFlyout Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False">
-                                    <ToggleMenuFlyoutItem x:Name="TemporalNowCastItem" Text="NowCast"
-                                                          IsChecked="{x:Bind ViewModel.IsNowCast, Mode=OneWay}"
-                                                          Opacity="{x:Bind DimWhen(ViewModel.IsPastCast), Mode=OneWay}"
-                                                          KeyboardAcceleratorTextOverride="{x:Bind PaneHiddenTag(ViewModel.IsNowPaneHidden), Mode=OneWay}"
-                                                          Click="OnTemporalNowCastClick"
-                                                          PointerEntered="OnModeItemLift" PointerExited="OnModeItemSettle"
-                                                          GotFocus="OnModeItemLift" LostFocus="OnModeItemSettle"/>
-                                    <ToggleMenuFlyoutItem x:Name="TemporalForeCastItem" Text="ForeCast"
-                                                          IsChecked="{x:Bind ViewModel.IsForeCast, Mode=OneWay}"
-                                                          Opacity="{x:Bind DimWhen(ViewModel.IsPastCast), Mode=OneWay}"
-                                                          KeyboardAcceleratorTextOverride="{x:Bind PaneHiddenTag(ViewModel.IsForePaneHidden), Mode=OneWay}"
-                                                          Click="OnTemporalForeCastClick"
-                                                          PointerEntered="OnModeItemLift" PointerExited="OnModeItemSettle"
-                                                          GotFocus="OnModeItemLift" LostFocus="OnModeItemSettle"/>
-                                    <MenuFlyoutSeparator/>
-                                    <ToggleMenuFlyoutItem x:Name="TemporalPastCastItem" Text="PastCast"
-                                                          IsChecked="{x:Bind ViewModel.IsPastCast, Mode=OneWay}"
-                                                          Opacity="{x:Bind DimWhenEither(ViewModel.IsNowCast, ViewModel.IsForeCast), Mode=OneWay}"
-                                                          KeyboardAcceleratorTextOverride="{x:Bind PaneHiddenTag(ViewModel.IsPastPaneHidden), Mode=OneWay}"
-                                                          Click="OnTemporalPastCastClick"
-                                                          PointerEntered="OnModeItemLift" PointerExited="OnModeItemSettle"
-                                                          GotFocus="OnModeItemLift" LostFocus="OnModeItemSettle"/>
-                                    <MenuFlyoutItem x:Name="TemporalModeHintItem" IsEnabled="False"
-                                                    Text="{x:Bind TemporalModeHint(ViewModel.IsNowCast, ViewModel.IsForeCast, ViewModel.IsPastCast), Mode=OneWay}"
-                                                    Visibility="{x:Bind TemporalModeHintVisibility(ViewModel.IsNowCast, ViewModel.IsForeCast, ViewModel.IsPastCast), Mode=OneWay}"/>
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuMapItem" Text="Map" Tag="0"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 0), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE774;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuRadarItem" Text="Radar" Tag="1"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 1), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xEC05;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuRangeRingItem" Text="Radar Range Ring" Tag="2"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 2), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE81D;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuStorageItem" Text="Storage" Tag="3"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 3), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xEDA2;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuWindowModeItem" Text="Window Mode" Tag="4"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 4), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE7F4;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuRadarConsoleItem" Text="Radar Console" Tag="5"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 5), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE768;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuStartupItem" Text="Startup" Tag="6"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 6), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE7E8;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuLiveDataItem" Text="Live Data" Tag="7"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 7), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE701;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuBasemapItem" Text="Basemap" Tag="8"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 8), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE826;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuUnitsItem" Text="Units" Tag="9"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 9), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE8EF;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <!-- EDGE-HATCH (experimental bolt-on): the Edges page. -->
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuEdgesItem" Text="Edges" Tag="10"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 10), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE790;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <MenuFlyoutSeparator Visibility="{x:Bind DevOnly}"/>
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuDevItem" Text="Dev" Tag="11"
+                                                          KeyboardAcceleratorTextOverride="Debug only"
+                                                          Visibility="{x:Bind DevOnly}"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 11), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE912;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
                                 </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
+                        <!-- ===== TEMPORAL MODE (the user's call, 2026-11-03 — mock-up C; ONE LINE PER MODE + its pane eye, 2026-11-11
+                             — mock-up 6A). The title is just "Temporal Mode" (listing the running modes made it too wide).
+                             The body is Composites/TemporalModeMenu — its header has the sketch and the rules. Not a MenuFlyout:
+                             each row is TWO click targets (the mode | its pane), which a menu item can't be.
+                             ⚠️ THIS is the only place a mode turns on/off; its Pane eyes and View's pane items share one value. -->
+                        <Button x:Name="TemporalModeMenuButton" Content="Temporal Mode" Style="{StaticResource MenuBarTitleButtonStyle}">
+                            <Button.Flyout>
+                                <Flyout x:Name="TemporalModeFlyout" Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False">
+                                    <Flyout.FlyoutPresenterStyle>
+                                        <Style TargetType="FlyoutPresenter">
+                                            <Setter Property="Padding" Value="4"/>
+                                            <Setter Property="MinWidth" Value="0"/>
+                                            <Setter Property="CornerRadius" Value="8"/>
+                                        </Style>
+                                    </Flyout.FlyoutPresenterStyle>
+                                    <comp:TemporalModeMenu ViewModel="{x:Bind ViewModel}" Acted="OnTemporalModeMenuActed"/>
+                                </Flyout>
                             </Button.Flyout>
                         </Button>
 

@@ -162,47 +162,8 @@ namespace Anvil
 			};
 		}
 
-		// Temporal Mode menu → toggle THAT mode only (the old bar keys' rule): IsChecked is ONE-WAY, so the item is
-		// re-asserted from the VM's answer after it flipped itself.
-		private void OnTemporalNowCastClick(object sender, RoutedEventArgs e) => ToggleModeFromMenu(TemporalMode.Now, TemporalNowCastItem);
-		private void OnTemporalForeCastClick(object sender, RoutedEventArgs e) => ToggleModeFromMenu(TemporalMode.Fore, TemporalForeCastItem);
-		private void OnTemporalPastCastClick(object sender, RoutedEventArgs e) => ToggleModeFromMenu(TemporalMode.Past, TemporalPastCastItem);
-
-		private void ToggleModeFromMenu(TemporalMode mode, ToggleMenuFlyoutItem item)
-		{
-			ViewModel.ToggleTemporalMode(mode);
-			item.IsChecked = mode switch
-			{
-				TemporalMode.Past => ViewModel.IsPastCast,
-				TemporalMode.Now => ViewModel.IsNowCast,
-				_ => ViewModel.IsForeCast,
-			};
-		}
-
-		// x:Bind functions for the Temporal Mode menu (mock-up C).
-		// The title names what runs: "Temporal Mode · Now + Fore", or just "Temporal Mode".
-		public string TemporalModeTitle(bool now, bool fore, bool past)
-		{
-			var on = new List<string>(2);
-			if (now) { on.Add("Now"); }
-			if (fore) { on.Add("Fore"); }
-			if (past) { on.Add("Past"); }
-			return on.Count == 0 ? "Temporal Mode" : "Temporal Mode · " + string.Join(" + ", on);
-		}
-
-		// The side that is OFF dims while the other side runs (Past excludes Now + Fore).
-		public double DimWhen(bool other) => other ? 0.45 : 1.0;
-		public double DimWhenEither(bool a, bool b) => DimWhen(a || b);
-
-		// A dimmed mode item reads as DISABLED at rest, so it lifts to full strength under the pointer or keyboard focus
-		// and settles back to the rule's dim after. (Opacity is x:Bind OneWay; this local value lasts until the next
-		// mode change re-binds it, which yields the same rule anyway.)
-		private void OnModeItemLift(object sender, RoutedEventArgs e) => ((UIElement)sender).Opacity = 1.0;
-
-		private void OnModeItemSettle(object sender, RoutedEventArgs e) =>
-			((UIElement)sender).Opacity = sender == TemporalPastCastItem
-				? DimWhenEither(ViewModel.IsNowCast, ViewModel.IsForeCast)
-				: DimWhen(ViewModel.IsPastCast);
+		// Temporal Mode menu (Composites/TemporalModeMenu): every click there closes the flyout, like a menu.
+		private void OnTemporalModeMenuActed(object? sender, EventArgs e) => TemporalModeFlyout.Hide();
 
 		// View's pane items: the shortcut while enabled; while disabled, what to do first (a disabled item shows no
 		// tooltip in WinUI, so the hint sits in the shortcut column where it is always visible).
@@ -210,17 +171,6 @@ namespace Anvil
 		public string NowPaneAccel(bool canPick) => canPick ? "Ctrl+2" : "Turn on NowCast first";
 		public string ForePaneAccel(bool canPick) => canPick ? "Ctrl+3" : "Turn on ForeCast first";
 
-		// The mode runs but View hid its pane — shown in the item's right column.
-		public string PaneHiddenTag(bool hidden) => hidden ? "pane hidden" : "";
-
-		// The greyed line under PastCast: what a click on the dimmed side turns off.
-		public string TemporalModeHint(bool now, bool fore, bool past) =>
-			past ? "NowCast or ForeCast turns PastCast off"
-			: now || fore ? "Turns NowCast and ForeCast off"
-			: "";
-
-		public Visibility TemporalModeHintVisibility(bool now, bool fore, bool past) =>
-			now || fore || past ? Visibility.Visible : Visibility.Collapsed;
 
 		// ===== FLOATING PANE SELECTORS — where each sits in its pane's cell (the user's call, 2026-11-01) =====
 		// SINGLE: centred, just under the top bar's tab. TWO ACROSS: against the divider on each side, same height.
@@ -457,10 +407,31 @@ namespace Anvil
 		private void OnCaptionClose(object? sender, EventArgs e) => Close();
 
 		// The menu bar's Atlas and Settings items: each closes its window if open, else opens it (Atlas on Radar sites).
-		private void OnAtlasMenuClick(object sender, RoutedEventArgs e) => ViewModel.ToggleAtlasFromBar();
+		// ── ATLAS + SETTINGS MENUS: one item per page, Tag = the page index (MainWindow.xaml) ──
+		/// <summary>An item's tick: the window is open AND on this page.</summary>
+		public bool IsWindowPage(bool isOpen, int selected, int page) => isOpen && selected == page;
 
-		private void OnSettingsMenuClick(object sender, RoutedEventArgs e) =>
-			ViewModel.IsSettingsWindowOpen = !ViewModel.IsSettingsWindowOpen;
+		/// <summary>The Settings menu's Dev item + its rule: Debug builds only (the page doesn't exist in Release).</summary>
+#if DEBUG
+		public Visibility DevOnly => Visibility.Visible;
+#else
+		public Visibility DevOnly => Visibility.Collapsed;
+#endif
+
+		private void OnAtlasPageClick(object sender, RoutedEventArgs e)
+		{
+			if (sender is not ToggleMenuFlyoutItem item || !int.TryParse(item.Tag as string, out var page)) return;
+			ViewModel.AtlasTabIndex = page;
+			ViewModel.IsAtlasOpen = true;
+			item.IsChecked = true; // RE-ASSERT: the page already showing changes no property (see the XAML)
+		}
+
+		private void OnSettingsPageClick(object sender, RoutedEventArgs e)
+		{
+			if (sender is not ToggleMenuFlyoutItem item || !int.TryParse(item.Tag as string, out var page)) return;
+			ViewModel.OpenSettings((SettingsTab)page);
+			item.IsChecked = true; // RE-ASSERT: the page already showing changes no property (see the XAML)
+		}
 
 		private void UpdateNotchInputRegions()
 		{
@@ -564,33 +535,6 @@ namespace Anvil
 			if (sender is Controls.TemporalPanes.TemporalPane pane)
 			{
 				LaunchTiming.LogMoment(_logger, $"pane temporal.{pane.Mode} drawn");
-			}
-		}
-
-		// Imports a .dow.json mobile-radar frame into the DOW library, for the Atlas's DOW events tab.
-		// Here for the same reason as the folder picker below: the picker needs a window HWND, and the body
-		// raising the request is a UserControl inside a UserControl.
-		// ⚠️ The frame is COPIED into %LocalAppData%\Anvil\DowEvents rather than referenced where it sits —
-		// the WebView fetches it, so it has to be same-origin under the mapped dowevents host.
-		private async void OnImportDowEventRequested(object? sender, EventArgs e)
-		{
-			var picker = new FileOpenPicker
-			{
-				SuggestedStartLocation = PickerLocationId.ComputerFolder,
-			};
-			// .dow.json is a DOUBLE extension and the picker only matches the last one, so this filters to
-			// .json and the import validates from there.
-			picker.FileTypeFilter.Add(".json");
-			WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
-
-			try
-			{
-				var file = await picker.PickSingleFileAsync();
-				await ViewModel.Radar.Dow.ImportAsync(file?.Path); // null (cancelled) is ignored
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "DOW frame import failed");
 			}
 		}
 
@@ -899,12 +843,7 @@ namespace Anvil
 				id: "sites",
 				isOpen: () => ViewModel.IsAtlasOpen,
 				close: () => ViewModel.IsAtlasOpen = false,
-				buildContent: () =>
-				{
-					var atlas = new Controls.Windows.AtlasWindow { ViewModel = ViewModel };
-					atlas.ImportDowEventRequested += OnImportDowEventRequested; // the DOW events tab
-					return atlas;
-				},
+				buildContent: () => new Controls.Windows.AtlasWindow { ViewModel = ViewModel },
 				title: "Anvil Atlas", anchor: WindowAnchor.Center,
 				keepAboveOwner: () => ViewModel.IsAtlasOnTop,
 				isLocked: () => ViewModel.IsAtlasLocked,
@@ -1113,16 +1052,10 @@ namespace Anvil
 			// failure during startup is caught too.
 			webView.CoreWebView2.ProcessFailed += OnWebViewProcessFailed;
 
-			// The DOW library is a per-user folder under %LocalAppData% that the app IMPORTS into, so it does
-			// not exist on a fresh install - create it before the host mapping below points at it.
-			// (It used to live inside the read-only package, which is exactly why importing was impossible.)
-			try { Directory.CreateDirectory(DowEventProvider.EventsDirectory); } catch { /* mapping just resolves to nothing */ }
-
 			// Map each virtual host → local folder so the page can fetch everything offline, same-origin:
 			//   mapassets  → bundled MapLibre style/glyphs/sprites/libraries
 			//   mapdata    → the user-configured (external, ~29 GB) basemap PMTiles folder
 			//   spcoutlooks/spcwatches/warnings/stormreports/damagesurveys/stormcells/pastalerts/discussions/radarlevel2 → the services' on-disk caches
-			//   dowevents  → the user's imported DOW (mobile-radar) frame library (%LocalAppData%)
 			// Services own their cache folders; MainWindow owns the WebView2 mappings.
 			var hostFolders = new (string Host, string Folder)[]
 			{
@@ -1139,7 +1072,6 @@ namespace Anvil
 				(TropicalService.CacheHostName, _tropicalService.CacheDirectory),
 				(HrrrService.CacheHostName, _hrrrService.CacheDirectory),
 				(Level2RadarService.CacheHostName, _radarService.CacheDirectory),
-				(DowEventProvider.HostName, DowEventProvider.EventsDirectory),
 			};
 			WebViewEnvironment.LaunchMapDataFolder = _settingsService.MapDataFolder; // the preview maps the same one
 			WebViewEnvironment.LaunchMapDataFile = _settingsService.MapDataFileName; // …and reads the same file

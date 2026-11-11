@@ -20,7 +20,7 @@ namespace Anvil.Tests
 			var settings = new AppSettings();
 			var svc = Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
 			return new RadarViewModel(Null<IMapService>.Create(), Null<IRadarSiteProvider>.Create(),
-				Null<ILevel2RadarService>.Create(), Null<IDowEventProvider>.Create(), svc, null);
+				Null<ILevel2RadarService>.Create(), svc, null);
 		}
 
 		private static async Task<RadarViewModel> ArmedAt(DateTimeOffset localDate, TimeSpan start)

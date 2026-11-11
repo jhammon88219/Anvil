@@ -1,49 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TabStrip — a rail of tabs that selects ONE of them. Chrome only: it draws the tabs and reports the
-     selected index, and knows nothing about the bodies its host swaps underneath.
+<!-- TabStrip — the LEFT NAV RAIL that selects ONE page of its host (the Settings window and the Anvil Atlas,
+     2026-11-11: one look in both, the user's call). Chrome only: it draws the rows and reports the selected
+     index, and knows nothing about the bodies its host swaps beside it.
 
-     PLACEMENT="Top" (default)                    PLACEMENT="Left"
-     ┌──────────────────────────────────────┐     ┌────────┬─────────────────────────┐
-     │  ⛰ Map │ ◎ Radar │ ▤ Storage │ ⚒ Dev │     │▎⛰ Map  │                         │
-     │  ▀▀▀▀▀▀                              │     │ ◎ Radar│                         │
-     ├──────────────────────────────────────┤     │ ▤ Storg│                         │
-     │            (host's body)             │     │ ⚒ Dev  │                         │
-     └──────────────────────────────────────┘     └────────┴─────────────────────────┘
-        ▀ underline on the selected tab             ▎leading bar on the selected tab
+       ┌──────────────────┬──────────────────────────────┐
+       │▌▓ ⛰  Map  ▓▓▓▓▓▓▓│                              │   ▌ accent bar on the selected row (3 × 18)
+       │   ◎  Radar       │        (host's body)         │   ▓ elevated face on the selected row
+       │   ▤  Storage     │                              │   one row = 36 tall, mark BESIDE the name,
+       │        ⋮         │                              │   2 px between rows
+       │ ──────────────── │                              │   ─ a rule ABOVE an entry with IsSeparated
+       │   ⚒  Dev         │                              │     (Settings' Dev, Debug only)
+       └──────────────────┴──────────────────────────────┘
+        ↑ the HOST sizes and colours the rail (raised surface, a hairline on its right edge)
 
-     IsSeated (Top only — the Anvil Atlas): the strip is the bottom row of a RAISED band, and the selected tab
-     is filled with the GROUND and squared at the bottom, so it opens into the body below. No underline.
-       ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ← raised band (title + counts above)
-       ░┌──────────┐░░░░░░░░░░░░░░░░░░░░░░░░░░
-       ░│ 📡 Radar │ ◷ Past  ▭ DOW  ░░░░░░░░░░   ← SEATED tabs put the mark BESIDE the name (shorter)
-       ─┘          └────────────────────────────  ← the band ends; ground below
-       (body, ground)
+     The look of a row lives in Controls/Styles.xaml (NavRailTabStyle); everything below is structure.
+     It is NOT a WinUI NavigationView — that brings its own chrome (hamburger, back button, a settings item, a
+     pane that collapses). If this look doesn't hold up, a customised NavigationView is the next thing to try.
 
-     A tab is a MARK OVER A NAME, the same language as the keys in the bottom bar — but deliberately NOT
-     the same control: a bar key is a square sized off the bar's height, and a tab is content-width so a
-     row of them reads as one rail rather than a row of loose buttons. The look lives in
-     Controls/Styles.xaml (SettingsTabKeyStyle); everything below is structure.
+     ⚠️ SELECTION IS SHOWN BY THE BAR + FACE, not by flooding the row with accent.
 
-     ⚠️ SELECTION IS SHOWN BY THE INDICATOR, not by flooding the tab. Same reasoning as the bar keys: a
-     filled block per selected tab fights everything around it. The face steps up one surface level and the
-     accent goes on a 2px edge.
+     A row can be UNAVAILABLE (TabEntry.IsEnabled false) — greyed and unpickable but still IN the rail, so the
+     rail neither reflows nor hides that the page exists. The host owns that flag AND the selection that goes
+     with it. ⚠️ NOTHING SETS IT TODAY; the support is kept for "this page exists but you can't use it yet".
 
-     A tab can be UNAVAILABLE (TabEntry.IsEnabled false) — greyed and unpickable but still IN the rail, so
-     the rail neither reflows nor hides that the feature exists. The host owns that flag AND the selection
-     that goes with it: the strip will not move off a tab that goes disabled, because only the host knows
-     where the selection belongs instead.
-     ⚠️ NOTHING SETS IT TODAY. Its one consumer was the Timeframe window, where each of three tabs was live
-     only while its own mode ran; that window is gone — the three temporal panels are in-window panes that follow
-     their modes (TemporalPanes/TemporalPane), and the Settings window's tabs are always available. The support is kept because it is the strip's answer to
-     "this tab exists but you can't use it yet", which is a question a settings rail will ask again.
-
-     ⚠️ The two indicators BOTH live in the item template, and the strip pushes IsVertical onto every entry.
-     A DataTemplate's x:Bind resolves against the ENTRY, so a tab cannot read the strip's Placement itself.
-
-     ⚠️ Clicking the ALREADY-selected tab: the handler re-asserts IsChecked (see OnTabClick). A ToggleButton
+     ⚠️ Clicking the ALREADY-selected row: the handler re-asserts IsChecked (see OnTabClick). A ToggleButton
      flips itself on click, and a OneWay binding does not push back when the source did not change — so the
-     current tab would go dark. This is the same trap the pane-layout key documented; do not "simplify" the
-     re-assert away. -->
+     current row would go dark. Do not "simplify" the re-assert away. -->
 
 <UserControl x:Class="Anvil.Controls.Primitives.TabStrip"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -54,75 +36,57 @@
              mc:Ignorable="d">
 
     <UserControl.Resources>
-        <!-- ONE tab. The ToggleButton carries the shared style's visual states (including Disabled), and the
-             glyph/name/indicators inside are the part worth hand-tuning.
-             ⚠️ THE TOOLTIP IS ON THE OUTER GRID, not on the button, so a DISABLED tab can still say why it is
-             unavailable — a disabled control is not hit-testable, so the pointer falls through to this parent.
-             That is also why the Grid needs Background="Transparent": a Grid with a null background catches
-             nothing, and the tooltip would be dead exactly when it matters most. -->
+        <!-- ONE row: an optional rule above, then the button. ⚠️ THE TOOLTIP IS ON THE OUTER GRID, not on the
+             button, so a DISABLED row can still say why — a disabled control is not hit-testable, so the pointer
+             falls through to this parent (hence Background="Transparent": a null background catches nothing). -->
         <DataTemplate x:Key="TabItemTemplate" x:DataType="prim:TabEntry">
             <Grid Background="Transparent"
                   ToolTipService.ToolTip="{x:Bind Tooltip, Mode=OneWay}">
-            <ToggleButton Style="{x:Bind prim:TabStrip.KeyStyle(IsSeated), Mode=OneWay}"
-                          IsEnabled="{x:Bind IsEnabled, Mode=OneWay}"
-                          IsChecked="{x:Bind IsSelected, Mode=OneWay}"
-                          Click="OnTabClick">
-                <Grid>
-                    <!-- Mark over a name, centred — or, SEATED, mark beside the name (the user's call,
-                         2026-10-02: a shorter Atlas tab). BOTH arrangements are declared; IsSeated shows one.
-                         Padding is on these panels rather than the button so the indicators below can still
-                         reach the tab's true edges. -->
-                    <StackPanel Margin="14,8,14,8" Orientation="Vertical" Spacing="3" HorizontalAlignment="Center"
-                                Visibility="{x:Bind prim:TabStrip.Hide(IsSeated), Mode=OneWay}">
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  FontSize="16"
-                                  VerticalAlignment="Center"
-                                  Glyph="{x:Bind Glyph}"/>
-                        <TextBlock Text="{x:Bind Label}"
-                                   FontSize="12"
-                                   VerticalAlignment="Center"
-                                   HorizontalAlignment="Center"/>
-                    </StackPanel>
-                    <StackPanel Margin="20,10,20,10" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center"
-                                Visibility="{x:Bind prim:TabStrip.Show(IsSeated), Mode=OneWay}">
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  FontSize="16"
-                                  VerticalAlignment="Center"
-                                  Glyph="{x:Bind Glyph}"/>
-                        <TextBlock Text="{x:Bind Label}"
-                                   FontSize="12"
-                                   VerticalAlignment="Center"
-                                   HorizontalAlignment="Center"/>
-                    </StackPanel>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                    <!-- TOP rail: underline on the bottom edge. -->
-                    <Rectangle Height="2" VerticalAlignment="Bottom" Margin="6,0,6,0"
-                               RadiusX="1" RadiusY="1"
-                               Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                               Visibility="{x:Bind prim:TabStrip.Show(ShowUnderline), Mode=OneWay}"/>
+                <!-- The rule above a separated entry (Settings' Dev). -->
+                <Rectangle Height="1" Margin="6,4,6,6"
+                           Fill="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                           Visibility="{x:Bind prim:TabStrip.Show(IsSeparated)}"/>
 
-                    <!-- SIDE rail: bar on the leading edge. -->
-                    <Rectangle Width="2" HorizontalAlignment="Left" Margin="0,6,0,6"
-                               RadiusX="1" RadiusY="1"
-                               Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                               Visibility="{x:Bind prim:TabStrip.Show(ShowSideBar), Mode=OneWay}"/>
-                </Grid>
-            </ToggleButton>
+                <ToggleButton Grid.Row="1" Height="36"
+                              Style="{StaticResource NavRailTabStyle}"
+                              IsEnabled="{x:Bind IsEnabled, Mode=OneWay}"
+                              IsChecked="{x:Bind IsSelected, Mode=OneWay}"
+                              Click="OnTabClick">
+                    <Grid>
+                        <!-- Mark beside the name, left-aligned. -->
+                        <StackPanel Margin="12,0,12,0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                      FontSize="16"
+                                      VerticalAlignment="Center"
+                                      Glyph="{x:Bind Glyph}"/>
+                            <TextBlock Text="{x:Bind Label}"
+                                       FontSize="13"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+
+                        <!-- The selected row's accent bar, on the leading edge. -->
+                        <Rectangle Width="3" Height="18" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                   RadiusX="1.5" RadiusY="1.5"
+                                   Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                                   Visibility="{x:Bind prim:TabStrip.Show(IsSelected), Mode=OneWay}"/>
+                    </Grid>
+                </ToggleButton>
             </Grid>
         </DataTemplate>
-
-        <!-- The two stack directions: a TOP rail runs left-to-right, a SIDE rail top-to-bottom. ApplyPlacement
-             picks one by Placement (an ItemsPanelTemplate has no binding path back to this control). -->
-        <ItemsPanelTemplate x:Key="TopRailPanel">
-            <StackPanel Orientation="Horizontal"/>
-        </ItemsPanelTemplate>
-        <ItemsPanelTemplate x:Key="SideRailPanel">
-            <StackPanel Orientation="Vertical"/>
-        </ItemsPanelTemplate>
     </UserControl.Resources>
 
-    <!-- The panel is one of the two declared above (TopRailPanel here; ApplyPlacement swaps in SideRailPanel). -->
     <ItemsControl x:Name="Host"
-                  ItemTemplate="{StaticResource TabItemTemplate}"
-                  ItemsPanel="{StaticResource TopRailPanel}"/>
+                  ItemTemplate="{StaticResource TabItemTemplate}">
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <StackPanel Orientation="Vertical" Spacing="2"/>
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+    </ItemsControl>
 </UserControl>

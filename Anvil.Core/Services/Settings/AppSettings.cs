@@ -193,22 +193,11 @@ namespace Anvil.Services
 			set => SetProperty(ref _atlasTabIndex, value);
 		}
 
-		private string _settingsTabPlacement = "Top";
-		/// <summary>
-		/// Where the Settings window draws its tab strip: <c>"Top"</c> (a rail across the top, the default) or
-		/// <c>"Left"</c> (a side rail). Stored as a STRING rather than the enum so an unrecognized value from a
-		/// hand-edited or future file parses back to the default instead of failing the whole settings load.
-		/// </summary>
-		public string SettingsTabPlacement
-		{
-			get => _settingsTabPlacement;
-			set => SetProperty(ref _settingsTabPlacement, value);
-		}
-
 		private string _monitorMode = "Single";
 		/// <summary>
 		/// The monitor mode (<c>"Single"</c> or <c>"Multi"</c>), from the Settings window's Window Mode tab. A STRING
-		/// for the same reason as <see cref="SettingsTabPlacement"/>. ⚠️ Multi is not built:
+		/// rather than an enum so an unrecognized value from a hand-edited or future file parses back to the
+		/// default instead of failing the whole settings load. ⚠️ Multi is not built:
 		/// <see cref="ViewModels.MapViewModel.MonitorMode"/> resolves any value to Single until it is.
 		/// </summary>
 		public string MonitorMode
@@ -242,7 +231,7 @@ namespace Anvil.Services
 		/// <summary>
 		/// The replay window's calendar day as <c>yyyy-MM-dd</c> (a LOCAL calendar date, not an instant —
 		/// see <c>RadarViewModel.LocalMidnight</c>). Default 2011-05-24, a frequently-revisited event.
-		/// ⚠️ A STRING for the same reason <see cref="SettingsTabPlacement"/> is one: an unparseable or
+		/// ⚠️ A STRING for the same reason <see cref="MonitorMode"/> is one: an unparseable or
 		/// hand-edited value falls back to the default instead of failing the whole settings load.
 		/// </summary>
 		public string PastCastDate
@@ -279,7 +268,7 @@ namespace Anvil.Services
 		/// resolve through <c>IThemeProvider.Resolve</c>, which also absorbs an id this build doesn't have.
 		/// </summary>
 		/// <remarks>
-		/// ⚠️ A STRING, and empty-means-default, for the same reasons <see cref="SettingsTabPlacement"/> and
+		/// ⚠️ A STRING, and empty-means-default, for the same reasons <see cref="MonitorMode"/> and
 		/// <see cref="MapDataFolder"/> are: an unrecognized value falls back instead of failing the whole
 		/// settings load, and the default itself is named in exactly one place (the provider) rather than
 		/// copied here where the two could drift.
@@ -820,7 +809,7 @@ namespace Anvil.Services
 		/// Set in Settings -> Units -> Distance.
 		/// </summary>
 		/// <remarks>
-		/// ⚠️ A TOKEN STRING, not an enum, for the same reason as <see cref="SettingsTabPlacement"/>: an
+		/// ⚠️ A TOKEN STRING, not an enum, for the same reason as <see cref="MonitorMode"/>: an
 		/// unrecognized value falls back to kilometres (<c>DistanceUnits.Normalize</c>) instead of failing the
 		/// whole settings load. It is also pushed into the map page verbatim, so the two sides format alike.
 		/// ⚠️ It does NOT reach heights or wind-profile layer bounds — see the remarks on

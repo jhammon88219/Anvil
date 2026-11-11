@@ -3,34 +3,32 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace Anvil.Controls.Primitives
 {
 	/// <summary>
-	/// One tab in a <see cref="TabStrip"/>: what it shows (<see cref="Glyph"/> + <see cref="Label"/>), whether
-	/// it can be picked (<see cref="IsEnabled"/>) and what state it is in (<see cref="IsSelected"/>, plus which
-	/// edge its indicator sits on). The strip owns the SELECTION properties — a host builds entries with their
-	/// content and never writes those — but <see cref="IsEnabled"/> and <see cref="Tooltip"/> belong to the
-	/// host, which is the only thing that knows whether a tab currently applies.
+	/// One row in a <see cref="TabStrip"/> (the left nav rail): what it shows (<see cref="Glyph"/> +
+	/// <see cref="Label"/>), whether it can be picked (<see cref="IsEnabled"/>) and whether it is the current
+	/// one (<see cref="IsSelected"/>). The strip owns <see cref="IsSelected"/> — a host builds entries with
+	/// their content and never writes it — but <see cref="IsEnabled"/> and <see cref="Tooltip"/> belong to the
+	/// host, which is the only thing that knows whether a page currently applies.
 	/// </summary>
 	/// <remarks>
-	/// The two <c>Show*</c> flags exist so the item template can bind them directly. A DataTemplate's x:Bind
-	/// resolves against the ENTRY, not against the strip, so a template cannot ask its parent "am I vertical
-	/// today?" — the strip pushes the answer down here instead, and the template just shows whichever
-	/// indicator is live.
-	///
 	/// ⚠️ The content properties are <c>get; set;</c> and NOT <c>init</c>, however much they want to be: any
 	/// public property of a type reachable from XAML gets a plain setter emitted into the generated
 	/// XamlTypeInfo, and an init-only one fails that build with CS8852.
 	/// </remarks>
 	public sealed class TabEntry : ObservableObject
 	{
-		/// <summary>Segoe Fluent glyph shown above the label. ⚠️ Verify a codepoint by RENDERING it in the
+		/// <summary>Segoe Fluent glyph shown beside the label. ⚠️ Verify a codepoint by RENDERING it in the
 		/// real font — a wrong one ships as an empty box (the same trap the bar keys documented).</summary>
 		public string Glyph { get; set; } = "";
 
-		/// <summary>The tab's name, shown under the glyph and used as the strip's width probe.</summary>
+		/// <summary>The row's name. Also the text of the matching item in the top bar's menu.</summary>
 		public string Label { get; set; } = "";
 
+		/// <summary>A rule is drawn ABOVE this row (Settings' Dev entry, which sits apart from the rest).</summary>
+		public bool IsSeparated { get; set; }
+
 		private string _tooltip = "";
-		/// <summary>Hover text. Say what the tab holds, not what a tab is — and when the tab is DISABLED, say
-		/// why and how to get it back. Notifying, because that text changes with availability.</summary>
+		/// <summary>Hover text. Say what the page holds — and when the row is DISABLED, say why and how to get it
+		/// back. Notifying, because that text changes with availability.</summary>
 		public string Tooltip
 		{
 			get => _tooltip;
@@ -38,11 +36,8 @@ namespace Anvil.Controls.Primitives
 		}
 
 		private bool _isEnabled = true;
-		/// <summary>Whether this tab can be picked. False greys it (the shared style has Disabled and
-		/// CheckedDisabled states) and takes it out of hit-testing and the tab order, while leaving it in the
-		/// strip — a tab that vanished would reflow the rail and hide the fact that the feature exists.
-		/// ⚠️ Written by the HOST, not the strip. The strip will not move the selection off a tab that goes
-		/// disabled; whoever disabled it knows where the selection should land instead.</summary>
+		/// <summary>Whether this row can be picked. False greys it and takes it out of hit-testing and the tab
+		/// order, while leaving it in the rail. ⚠️ Written by the HOST, not the strip.</summary>
 		public bool IsEnabled
 		{
 			get => _isEnabled;
@@ -50,55 +45,11 @@ namespace Anvil.Controls.Primitives
 		}
 
 		private bool _isSelected;
-		/// <summary>Whether this is the strip's current tab. Written by the strip only.</summary>
+		/// <summary>Whether this is the rail's current row. Written by the strip only.</summary>
 		public bool IsSelected
 		{
 			get => _isSelected;
-			set
-			{
-				if (SetProperty(ref _isSelected, value))
-				{
-					OnPropertyChanged(nameof(ShowUnderline));
-					OnPropertyChanged(nameof(ShowSideBar));
-				}
-			}
+			set => SetProperty(ref _isSelected, value);
 		}
-
-		private bool _isVertical;
-		/// <summary>Whether the strip is currently a SIDE rail. Written by the strip only; it decides which
-		/// of the two indicators this entry shows.</summary>
-		public bool IsVertical
-		{
-			get => _isVertical;
-			set
-			{
-				if (SetProperty(ref _isVertical, value))
-				{
-					OnPropertyChanged(nameof(ShowUnderline));
-					OnPropertyChanged(nameof(ShowSideBar));
-				}
-			}
-		}
-
-		private bool _isSeated;
-		/// <summary>Whether the strip is SEATED (<see cref="TabStrip.IsSeated"/>). Written by the strip only; it
-		/// picks the key style and drops the underline — a seated tab's indicator is its ground-coloured face.</summary>
-		public bool IsSeated
-		{
-			get => _isSeated;
-			set
-			{
-				if (SetProperty(ref _isSeated, value))
-				{
-					OnPropertyChanged(nameof(ShowUnderline));
-				}
-			}
-		}
-
-		/// <summary>Selected in a TOP rail: the indicator is an underline on the bottom edge (not when seated).</summary>
-		public bool ShowUnderline => _isSelected && !_isVertical && !_isSeated;
-
-		/// <summary>Selected in a SIDE rail: the indicator is a bar on the leading edge.</summary>
-		public bool ShowSideBar => _isSelected && _isVertical;
 	}
 }

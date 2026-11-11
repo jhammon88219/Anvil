@@ -88,7 +88,7 @@ namespace Anvil.Tests
 				},
 				["WatchRadarPaintAsync"] = a => { lock (rig.PaintWatches) rig.PaintWatches.Add((int)a![0]!); return Task.CompletedTask; },
 			});
-			rig.Radar = new RadarViewModel(map, Null<IRadarSiteProvider>.Create(), archive, Null<IDowEventProvider>.Create(), svc, null);
+			rig.Radar = new RadarViewModel(map, Null<IRadarSiteProvider>.Create(), archive, svc, null);
 			rig.Bar = new BarActivityViewModel(rig.Delay.Wait);
 			rig.Bar.WatchLiveFrame(rig.Radar);
 			rig.Radar.LiveFrameActivity += (_, a) => { lock (rig.Stages) rig.Stages.Add(a.Stage); };

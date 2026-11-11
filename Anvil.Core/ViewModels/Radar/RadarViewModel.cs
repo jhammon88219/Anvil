@@ -26,7 +26,7 @@ namespace Anvil.ViewModels
 
 	/// <summary>
 	/// View model for the radar subsystem: site selection + on-map markers, the animation loop
-	/// (live + past-event replay), the near-real-time live frame, DOW frames, the radar card,
+	/// (live + past-event replay), the near-real-time live frame, the radar card,
 	/// color-scale legend, and the inspector. Extracted from MapViewModel; the transport-bar
 	/// section controls bind slices of this. Drives the map through <see cref="IMapService"/>.
 	/// </summary>
@@ -506,7 +506,7 @@ namespace Anvil.ViewModels
 		// token bumps) can't pollute this session's first-frame timing / ready count.
 		private bool _loopRenderBegun;
 
-		public RadarViewModel(IMapService mapService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, IDowEventProvider dowEventProvider, ISettingsService settings, StormMotionService? stormMotion, IStormCellService? stormCells = null)
+		public RadarViewModel(IMapService mapService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ISettingsService settings, StormMotionService? stormMotion, IStormCellService? stormCells = null)
 		{
 			_mapService = mapService;
 			_stormMotion = stormMotion;
@@ -531,17 +531,6 @@ namespace Anvil.ViewModels
 
 			// Range rings: which are drawn, how they look (Settings → Radar Range Ring). Replayed at map-ready.
 			RangeRings = new RangeRingsViewModel(mapService, settings);
-
-			// The DOW Event Viewer is its own view model (a standalone mobile-radar frame through the
-			// same render path); watch its IsShowing so the shared display / color-scale gate follows it.
-			Dow = new DowViewModel(mapService, dowEventProvider);
-			Dow.PropertyChanged += (_, e) =>
-			{
-				if (e.PropertyName == nameof(DowViewModel.IsShowing))
-				{
-					OnPropertyChanged(nameof(HasRadarDisplay));
-				}
-			};
 
 			// Radar site selector: a leading "None" entry plus the curated sites.
 			var radarOptions = new List<RadarOption> { new("None", null) };
@@ -675,7 +664,6 @@ namespace Anvil.ViewModels
 				Services.RadarDiagnostics.Log("vm", "select",
 					("to", value?.Site?.Id ?? "none"), ("mode", _isPastEventMode ? "past" : "live"));
 
-				Dow.OnNexradTookOver(); // a NEXRAD selection takes over the radar layer from any DOW frame
 				// Open every site switch in REFLECTIVITY. SRV (and velocity, until its dealias lands) can't be
 				// instant on a fresh site — the storm motion isn't computed yet — so carrying SRV over from the
 				// last site would show the motion-compute delay. Reflectivity paints immediately; the user can
@@ -751,12 +739,10 @@ namespace Anvil.ViewModels
 		/// <summary>Whether a radar site is selected (drives the loop controls' visibility).</summary>
 		public bool HasRadarLoop => _selectedRadarOption?.Site is not null;
 
-		/// <summary>Whether ANY radar frame is currently displayed — a NEXRAD loop OR a DOW frame. Gates
-		/// the product Inspect toggle and the Color Scale legend, which apply to both sources.</summary>
-		public bool HasRadarDisplay => HasRadarLoop || Dow.IsShowing;
-
-		/// <summary>The DOW Event Viewer view model (a standalone curated mobile-radar frame).</summary>
-		public DowViewModel Dow { get; }
+		/// <summary>Whether a radar frame is currently displayed (a NEXRAD loop). Gates the product Inspect
+		/// toggle and the Color Scale legend. (It was also true for a DOW frame until that feature was removed,
+		/// 2026-11-11 — kept as its own name so its many bindings didn't move.)</summary>
+		public bool HasRadarDisplay => HasRadarLoop;
 
 		/// <summary>The range rings' preferences — which rings, their look, the label bearing.</summary>
 		public RangeRingsViewModel RangeRings { get; }

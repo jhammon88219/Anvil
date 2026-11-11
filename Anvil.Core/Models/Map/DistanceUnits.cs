@@ -14,7 +14,7 @@ namespace Anvil.Models
 	/// those are meteorological quantities with a conventional unit, not distances the user is measuring.
 	/// Don't route them through here "for consistency" — it would make every wind-profile readout disagree
 	/// with the literature it is checked against.
-	/// ⚠️ TOKENS, not an enum, for the reason <see cref="Services.AppSettings.SettingsTabPlacement"/> is a
+	/// ⚠️ TOKENS, not an enum, for the reason <see cref="Services.AppSettings.MonitorMode"/> is a
 	/// string: the value is persisted and also crosses into JS, and an unrecognized one has to fall back to
 	/// kilometres rather than fail a settings load or a script call. <see cref="Normalize"/> is that gate —
 	/// call it on anything arriving from disk or a picker index.

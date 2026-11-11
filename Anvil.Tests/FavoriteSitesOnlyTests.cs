@@ -35,7 +35,7 @@ namespace Anvil.Tests
 					["SetFavoriteSitesOnlyAsync"] = a => { Pushes.Add(((bool)a![0]!, (string)a[1]!)); return Task.CompletedTask; },
 				});
 				var sites = Null<IRadarSiteProvider>.Create(new() { ["GetSites"] = _ => (IReadOnlyList<RadarSite>)new[] { Ktlx, Kinx, Kfws } });
-				Radar = new RadarViewModel(map, sites, Null<ILevel2RadarService>.Create(), Null<IDowEventProvider>.Create(), svc, null);
+				Radar = new RadarViewModel(map, sites, Null<ILevel2RadarService>.Create(), svc, null);
 				Vm = new RadarSiteFavoritesViewModel(Radar, svc, map);
 			}
 

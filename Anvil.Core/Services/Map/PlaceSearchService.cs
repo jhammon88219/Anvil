@@ -322,7 +322,9 @@ namespace Anvil.Services
 				}
 				_lastOnlineUtc = DateTime.UtcNow;
 
-				var url = $"{NominatimSearchUrl}?format=jsonv2&addressdetails=1&countrycodes=us&featureType=settlement&limit=6&q={Uri.EscapeDataString(q)}";
+				// A STREET ADDRESS (starts with a house number) asks for any feature; anything else stays towns only.
+				var featureFilter = LooksLikeAddress(q) ? string.Empty : "&featureType=settlement";
+				var url = $"{NominatimSearchUrl}?format=jsonv2&addressdetails=1&countrycodes=us{featureFilter}&limit=6&q={Uri.EscapeDataString(q)}";
 				using var response = await _http.GetAsync(url, ct);
 				if (!response.IsSuccessStatusCode)
 				{
@@ -352,8 +354,18 @@ namespace Anvil.Services
 			}
 		}
 
+		/// <summary>
+		/// Whether a submitted query reads as a STREET ADDRESS: it opens with a house number ("1200 N Main St, Norman OK",
+		/// "12B Elm"). Such a query is sent to Nominatim WITHOUT the towns-only filter. ⚠️ Still submit-only — Nominatim's
+		/// policy forbids autocomplete, so typing an address suggests nothing until Enter.
+		/// </summary>
+		internal static bool LooksLikeAddress(string query) =>
+			System.Text.RegularExpressions.Regex.IsMatch(query.Trim(), @"^\d+[A-Za-z]?\s+[A-Za-z]");
+
 		/// <summary>Nominatim <c>format=jsonv2&amp;addressdetails=1</c> → places. Coordinates arrive as STRINGS;
-		/// the state comes from the ISO 3166-2 code ("US-OK") when present, else the state's name.</summary>
+		/// the state comes from the ISO 3166-2 code ("US-OK") when present, else the state's name. A result that is a
+		/// street address (a <c>house_number</c> on a <c>road</c>) is named "1200 N Main St, Norman" and marked
+		/// <see cref="PlaceSource.Address"/>.</summary>
 		internal static IReadOnlyList<PlaceResult> ParseNominatim(string json)
 		{
 			using var doc = JsonDocument.Parse(json);
@@ -370,8 +382,17 @@ namespace Anvil.Services
 					continue;
 				}
 				item.TryGetProperty("address", out var address);
-				var name = FirstString(address, "city", "town", "village", "hamlet", "municipality", "locality")
-					?? FirstString(item, "name");
+				var town = FirstString(address, "city", "town", "village", "hamlet", "municipality", "locality");
+				var house = FirstString(address, "house_number");
+				var road = FirstString(address, "road");
+				if (house is not null && road is not null)
+				{
+					var street = $"{house} {road}";
+					results.Add(new PlaceResult(town is null ? street : $"{street}, {town}", StateFromAddress(address),
+						lat, lon, 0, PlaceSource.Address));
+					continue;
+				}
+				var name = town ?? FirstString(item, "name");
 				if (string.IsNullOrWhiteSpace(name))
 				{
 					continue;

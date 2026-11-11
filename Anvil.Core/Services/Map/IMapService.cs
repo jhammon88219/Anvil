@@ -563,16 +563,6 @@ namespace Anvil.Services
 		/// <summary>Removes the search-result pin, if any.</summary>
 		Task ClearPlaceMarkerAsync();
 
-		/// <summary>
-		/// Shows a single curated DOW (mobile-radar) frame from its <c>dowevents</c> host URL, reusing
-		/// the radar render pipeline. The WebView fetches the <c>.dow.json</c> and decodes it on the
-		/// main thread (one sweep), centred on the truck's position carried in the frame.
-		/// </summary>
-		Task ShowDowFrameAsync(string url);
-
-		/// <summary>Removes the shown DOW frame (clears the radar layer).</summary>
-		Task ClearDowFrameAsync();
-
 		// ── Dev-only: velocity-dealias validation harness (see RadarValidationViewModel) ──
 		// The scorer replays a fixed corpus through the real decode/dealias path and reports each
 		// volume's over-unfold ratio. Because the async decode's Promise can't be awaited through

@@ -1,22 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- AtlasWindow — the ANVIL ATLAS: everything you can point the radar at. A PLACE (a radar site — this
      file's Radar sites tab) or a MOMENT (a saved past event — Composites/PastEventsAtlasTab). Floats over the
-     map (map stays live), opened by the "Atlas" key on the bar (left of the Settings cog). Bound to the
+     map (map stays live), opened from the top bar's Atlas MENU (one item per page). Bound to the
      coordinator MapViewModel (like SettingsWindow): ViewModel.RadarAtlas.* for sites, ViewModel.SavedEvents.*
      for events, ViewModel.AtlasTabIndex for the tab (PERSISTED), ViewModel.IsAtlasOpen for itself.
      ⚠️ THE LINE THAT KEEPS IT AN ATLAS: things you can LOAD. Anything that CONFIGURES the radar (ramps, tilts,
-     rings) belongs in Settings or the notches, never a tab here. The third tab, DOW events
-     (Composites/DowEventsAtlasTab), passes that test: a DOW frame is loaded, not configured. Agreed design:
-     docs/anvil-atlas.md.
+     rings) belongs in Settings or the notches, never a page here. Agreed design: docs/anvil-atlas.md.
+     (A third page, DOW mobile-radar frames, was REMOVED 2026-11-11.)
 
        ┌──────────────────────────────────────────────────────────────────────────────────────┐
-       │ [logo] Anvil Atlas ←35→ RADAR SITES │ NEXRAD TDWR RES.     ░░░ lock pin ─ □ ✕ ░░ │ ← THE BAND (raised) holds
-       │ (slot)                  204         │ 160    45   3         ░ reserved 220 px ░░ │   title row + tabs row;
-       │                         ↕ 25 px of air (title row's bottom padding 33)              │   label OVER count, left;
-       │ ┌────────────────┐                                                                   │   counts FOLLOW THE TAB,
-       │ │ 📡 Radar sites │ ⟲ Past events  ◉ DOW events   ← mark BESIDE name                │   TOTAL first; TabStrip
-       ├─┘                └───────────────────────────────────────────────────────────────────┤   IsSeated: selected tab =
-                                                                                                  the GROUND, opens into body
+       │ [logo] Anvil Atlas ←35→ RADAR SITES │ NEXRAD TDWR RES.     ░░░ lock pin ─ □ ✕ ░░ │ ← THE BAND (raised), a
+       │ (slot)                  204         │ 160    45   3         ░ reserved 220 px ░░ │   hairline under it;
+       ├──────────────────┬───────────────────────────────────────────────────────────────────┤   label OVER count, left;
+       │▌▓ 📡 Radar sites▓│  ← THE RAIL (Primitives/TabStrip, 220, raised — Settings' look)    │   counts FOLLOW THE PAGE,
+       │   ⟲  Past events │                                                                   │   TOTAL first
+       │                  │  the page, inset 24,18,16,14:
+       └──────────────────┘
        ┌── list column (360, NO outline) ──┐←32→ detail (scrolls, capped 760 wide, CENTRED)
        │ [ Search ICAO or name…          ] │   KTLX · Norman, OK  (● Online ⑦) (NEXRAD ⑦) [★] [⌂ Home site] [On map]
        │ [⚙ Filters ▾] [☐ Favorites] [Clear all]  ← THE CONTROLS   WSR-88D · 35.333, -97.278 ⑦   ← SUBTITLE
@@ -163,14 +162,16 @@
 
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- the title band -->
-                    <RowDefinition Height="Auto"/> <!-- the tabs -->
-                    <RowDefinition Height="*"/>    <!-- body: the selected tab -->
+                    <RowDefinition Height="*"/>    <!-- rail | the selected page -->
                 </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220"/> <!-- the rail (Settings' width) -->
+                    <ColumnDefinition Width="*"/>   <!-- the page -->
+                </Grid.ColumnDefinitions>
 
-                <!-- THE BAND's SURFACE — one raised plate behind BOTH the title row and the tabs row, so the tabs
-                     live inside the band. It ends where the tabs end; the ground (the body) starts right below,
-                     and the selected tab (TabStrip IsSeated) is filled with that ground, opening into the body. -->
-                <Border Grid.Row="0" Grid.RowSpan="2" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+                <!-- THE BAND's SURFACE — one raised plate behind the title row, a hairline under it. -->
+                <Border Grid.Row="0" Grid.ColumnSpan="2" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}" BorderThickness="0,0,0,1"/>
 
                 <!-- THE TITLE ROW — full width, over the tabs. Content extends into the title bar (the native
                      caption shows only its buttons), so the band IS the window's title.
@@ -179,9 +180,8 @@
                      ⚠️ The counts FOLLOW THE TAB (networks on Radar sites, types on Past events) and describe the
                      WHOLE Atlas, never the filtered list — the result count under the filters answers the search.
                      The TOTAL leads, then a rule, then its parts. Each is its LABEL over its number, both left-aligned
-                     (the user's call, 2026-10-02).
-                     ⚠️ Bottom padding 33 = the old 8 + 25 of air between the title row and the tabs (the user's call). -->
-                <Grid Grid.Row="0" Padding="16,12,0,33" ColumnSpacing="14">
+                     (the user's call, 2026-10-02). -->
+                <Grid Grid.Row="0" Grid.ColumnSpan="2" Padding="16,12,0,12" ColumnSpacing="14">
                     <!-- The counts sit LEFT, right after the name: 35 px from it = the counts' Margin 21 + this
                          Grid's ColumnSpacing 14 (change both together). The * column is the empty middle. -->
                     <Grid.ColumnDefinitions>
@@ -261,46 +261,32 @@
                                        FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </StackPanel>
-
-                    <!-- DOW events: the library's size. -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center"
-                                Margin="21,0,0,0"
-                                Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 2), Mode=OneWay}">
-                        <StackPanel>
-                            <TextBlock Text="DOW FRAMES" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
-                            <TextBlock Text="{x:Bind Count(ViewModel.Radar.Dow.DowEvents.Count), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
-                        </StackPanel>
-                    </StackPanel>
                 </Grid>
 
-                <!-- THE TABS (Primitives/TabStrip, top rail, SEATED) — the band's bottom row, sitting ON the band's
-                     bottom edge (no bottom margin, no hairline: the ground/raised edge is the separation). The index
-                     is PERSISTED (MapViewModel.AtlasTabIndex); the bodies below switch on it and stay loaded. -->
-                <ctl:TabStrip Grid.Row="1" Margin="12,0,12,0" IsSeated="True"
-                              HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                              ItemsSource="{x:Bind Tabs}"
-                              SelectedIndex="{x:Bind ViewModel.AtlasTabIndex, Mode=TwoWay}"/>
+                <!-- THE RAIL (Primitives/TabStrip — the Settings window's look, the user's call 2026-11-11): raised, a
+                     hairline on its right. The index is PERSISTED (MapViewModel.AtlasTabIndex); the pages beside it
+                     switch on it and stay loaded. -->
+                <Border x:Name="AtlasRail" Grid.Row="1"
+                        Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}" BorderThickness="0,0,1,0">
+                    <ctl:TabStrip Margin="6,8,6,8"
+                                  ItemsSource="{x:Bind Tabs}"
+                                  SelectedIndex="{x:Bind ViewModel.AtlasTabIndex, Mode=TwoWay}"/>
+                </Border>
 
                 <!-- PAST EVENTS — its own Composite (list | detail), the same frame as the sites body below. -->
-                <comp:PastEventsAtlasTab Grid.Row="2" Margin="16,30,16,14"
+                <comp:PastEventsAtlasTab Grid.Row="1" Grid.Column="1" Margin="24,18,16,14"
                                          ViewModel="{x:Bind ViewModel}"
                                          Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 1), Mode=OneWay}"/>
 
-                <!-- DOW EVENTS — the DOW frame library (moved from PastCast), same frame. Import bubbles up. -->
-                <comp:DowEventsAtlasTab Grid.Row="2" Margin="16,30,16,14"
-                                        ViewModel="{x:Bind ViewModel}"
-                                        ImportRequested="OnDowImportRequested"
-                                        Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 2), Mode=OneWay}"/>
-
-                <!-- RADAR SITES body: list column (left) | detail (right). Side + bottom inset; TOP 30 below the
-                     tabs (the user's call, 2026-10-02 — was 12), the same on all three bodies: change all three.
+                <!-- RADAR SITES body: list column (left) | detail (right). Inset 24,18,16,14 beside the rail, the
+                     same on both pages (and Settings' body): change them together.
                      ⚠️ THE 32 IS THE SEPARATION. There is no rule and no outline between the two regions —
                      the gutter alone divides them, which is why it can't be trimmed back toward the 14 it
                      used to be. Space between regions must beat the space inside one (the list's own rows
                      sit 6 apart) or the eye can't tell where the list ends. -->
-                <Grid Grid.Row="2"
-                      Margin="16,30,16,14"
+                <Grid Grid.Row="1" Grid.Column="1"
+                      Margin="24,18,16,14"
                       ColumnSpacing="32"
                       Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 0), Mode=OneWay}">
 

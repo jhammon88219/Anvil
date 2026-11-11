@@ -110,5 +110,33 @@ namespace Anvil.Tests
 			Assert.All(results, p => Assert.Equal(PlaceSource.Online, p.Source));
 			Assert.Equal(-97.4867, results[0].Longitude, 4);
 		}
+
+		[Theory]
+		[InlineData("1200 N Main St, Norman OK", true)]
+		[InlineData("12B Elm Street", true)]
+		[InlineData("  305 Oak Ave", true)]
+		[InlineData("Moore, OK", false)]
+		[InlineData("29 Palms", true)]   // reads as an address: Nominatim still finds the town, just unfiltered
+		[InlineData("1200", false)]      // a bare number is not an address
+		[InlineData("I-35", false)]
+		public void LooksLikeAddress_NeedsAHouseNumberThenAWord(string query, bool expected) =>
+			Assert.Equal(expected, PlaceSearchService.LooksLikeAddress(query));
+
+		[Fact]
+		public void Nominatim_StreetAddress_IsNamedByStreetAndMarkedAddress()
+		{
+			const string json = """
+				[
+				  { "lat": "35.2226", "lon": "-97.4395", "name": "",
+				    "address": { "house_number": "1200", "road": "North Main Street", "city": "Norman",
+				                 "state": "Oklahoma", "ISO3166-2-lvl4": "US-OK" } }
+				]
+				""";
+			var place = Assert.Single(PlaceSearchService.ParseNominatim(json));
+			Assert.Equal("1200 North Main Street, Norman, OK", place.Display);
+			Assert.Equal(PlaceSource.Address, place.Source);
+			Assert.Equal(15, place.FlyToZoom);
+			Assert.Equal("OpenStreetMap", place.Detail);
+		}
 	}
 }

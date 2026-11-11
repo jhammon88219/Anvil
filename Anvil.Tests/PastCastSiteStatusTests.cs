@@ -35,7 +35,7 @@ namespace Anvil.Tests
 				["GetLiveSiteIdsAsync"] = _ => (live ?? new TaskCompletionSource<IReadOnlyCollection<string>>()).Task,
 			});
 			var sites = Null<IRadarSiteProvider>.Create(new() { ["GetSites"] = _ => (IReadOnlyList<RadarSite>)new[] { Ktlx, Kinx } });
-			return new RadarViewModel(Null<IMapService>.Create(), sites, archive, Null<IDowEventProvider>.Create(), svc, null);
+			return new RadarViewModel(Null<IMapService>.Create(), sites, archive, svc, null);
 		}
 
 		private static RadarSiteRow Row(RadarViewModel radar, string id) => radar.RadarSiteRows.Single(r => r.Id == id);

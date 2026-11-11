@@ -24,8 +24,7 @@ namespace Anvil.Services
 		/// table). The JS scorer fetches volumes from <c>https://radarcorpus/&lt;file&gt;</c>.</summary>
 		public const string CorpusHostName = "radarcorpus";
 
-		/// <summary>The bundled corpus folder, alongside the app's other Assets (same convention as
-		/// <see cref="DowEventProvider.EventsDirectory"/>).</summary>
+		/// <summary>The bundled corpus folder, alongside the app's other Assets.</summary>
 		public static string CorpusDirectory => Path.Combine(AppContext.BaseDirectory, "Assets", "RadarCorpus");
 
 		private static readonly JsonSerializerOptions JsonOptions = new()

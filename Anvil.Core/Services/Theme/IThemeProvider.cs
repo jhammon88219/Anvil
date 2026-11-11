@@ -21,7 +21,7 @@ namespace Anvil.Services
 		/// <remarks>
 		/// ⚠️ The fallback lives HERE so no caller reinvents it. A settings file written by a build that had
 		/// more themes (or differently-named ones) must land on a real theme rather than leaving the app
-		/// with none — the same reason <c>SettingsTabPlacement</c> persists as a string.
+		/// with none — the same reason <c>MonitorMode</c> persists as a string.
 		/// </remarks>
 		AppTheme Resolve(string? id);
 	}

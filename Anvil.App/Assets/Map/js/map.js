@@ -822,15 +822,6 @@ try {
         return window.RadarLayer ? window.RadarLayer.pipelineSnapshot() : null;
     };
 
-    // DOW Event Viewer shims — show / clear a single curated mobile-radar frame (a .dow.json from
-    // the dowevents host). showDow reuses the whole radar render path; clear tears it down.
-    window.showDowFrame = function (url) {
-        if (window.RadarLayer) window.RadarLayer.showDow(url);
-    };
-    window.clearDowFrame = function () {
-        if (window.RadarLayer) window.RadarLayer.clear();
-    };
-
     // Color-scale legend feed. The ramps in radar-ramps.js are the SINGLE source of truth for gate colors,
     // so the host's legends are fed from them (never hard-coded) and can't drift from the pixels.
     // ⚠️ ONE PUSH, ONCE — the whole table, on load. There used to be a SECOND, per-product `radarRamp`

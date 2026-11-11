@@ -275,7 +275,8 @@ namespace Anvil
 		// not GetOpenPopupsForXamlRoot: these flyouts are WINDOWED (ShouldConstrainToRootBounds=False).
 		private bool IsTopBarBusy()
 		{
-			if (ViewMenuButton.Flyout?.IsOpen == true || TemporalModeMenuButton.Flyout?.IsOpen == true
+			if (AtlasMenuButton.Flyout?.IsOpen == true || SettingsMenuButton.Flyout?.IsOpen == true
+				|| ViewMenuButton.Flyout?.IsOpen == true || TemporalModeMenuButton.Flyout?.IsOpen == true
 				|| PaneModeMenuButton.Flyout?.IsOpen == true || IsolationMenuPicker.IsDropDownOpen)
 			{
 				return true;

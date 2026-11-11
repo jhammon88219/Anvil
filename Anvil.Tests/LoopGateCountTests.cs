@@ -46,7 +46,7 @@ namespace Anvil.Tests
 				},
 			});
 			var radar = new RadarViewModel(Null<IMapService>.Create(), Null<IRadarSiteProvider>.Create(), archive,
-				Null<IDowEventProvider>.Create(), svc, null);
+				svc, null);
 			radar.IsPastEventMode = true;
 			radar.SelectedRadarOption = new RadarOption("KTLX", Ktlx);
 			radar.PastEventDate = new DateTimeOffset(2024, 5, 6, 0, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2024, 5, 6)));
@@ -222,7 +222,7 @@ namespace Anvil.Tests
 			var settings = new AppSettings();
 			var svc = Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
 			var radar = new RadarViewModel(Null<IMapService>.Create(), Null<IRadarSiteProvider>.Create(),
-				Null<ILevel2RadarService>.Create(), Null<IDowEventProvider>.Create(), svc, null); // nothing loaded yet
+				Null<ILevel2RadarService>.Create(), svc, null); // nothing loaded yet
 			var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"anvil-loadlog-{Guid.NewGuid():N}");
 			var recorder = new LoopLoadRecorder(radar, new LoopLoadLog(Microsoft.Extensions.Logging.Abstractions.NullLogger<LoopLoadLog>.Instance, dir));
 			var start = new DateTimeOffset(2011, 4, 27, 22, 45, 0, TimeSpan.Zero);

@@ -20,17 +20,31 @@ namespace Anvil.Controls.Windows
 			InitializeComponent();
 			// The Map tab is a plain child (not x:Load'd like the dev tab), so it exists now.
 			MapTab.BrowseMapDataFolderRequested += (_, _) => BrowseMapDataFolderRequested?.Invoke(this, EventArgs.Empty);
-			ApplyPlacement(); // establish the default arrangement even if a host never sets ViewModel
-			// ⚠️ LIFETIME: WindowManager builds a NEW SettingsWindow per open, and the VM is an app singleton — a
-			// subscription held past Unloaded keeps every closed window's whole tree alive. Listen only while loaded.
-			Loaded += (_, _) =>
+		}
+
+		// ── THE BAND's about-Anvil facts ──────────────────────────────────────────────────────────────
+		/// <summary>The installed package's version ("1.0.0.0"), or "—" when there's no package identity.</summary>
+		public string AppVersion { get; } = ReadVersion();
+
+		/// <summary>"Debug" or "Release" — which build is running.</summary>
+#if DEBUG
+		public string BuildKind => "Debug";
+#else
+		public string BuildKind => "Release";
+#endif
+
+		private static string ReadVersion()
+		{
+			try
 			{
-				if (ViewModel is null) return;
-				ViewModel.PropertyChanged -= OnViewModelPropertyChanged; // never twice
-				ViewModel.PropertyChanged += OnViewModelPropertyChanged;
-				ApplyPlacement(); // catch a change made while unloaded
-			};
-			Unloaded += (_, _) => { if (ViewModel is not null) ViewModel.PropertyChanged -= OnViewModelPropertyChanged; };
+				// ⚠️ global:: — inside Anvil.Controls.Windows, a bare Windows.* resolves to this namespace.
+				var v = global::Windows.ApplicationModel.Package.Current.Id.Version;
+				return $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+			}
+			catch (InvalidOperationException)
+			{
+				return "—"; // run without package identity
+			}
 		}
 
 		/// <summary>
@@ -55,18 +69,8 @@ namespace Anvil.Controls.Windows
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(SettingsWindow),
 				new PropertyMetadata(null, OnViewModelChanged));
 
-		// Placement is not an x:Bind: it drives THREE elements' Grid attachments as well as the strip's own
-		// DP, so it goes through one code path (ApplyPlacement) instead of a binding plus a parallel handler.
-		private static void OnViewModelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-		{
-			var window = (SettingsWindow)d;
-
-			if (e.OldValue is MapViewModel previous) previous.PropertyChanged -= window.OnViewModelPropertyChanged;
-			if (e.NewValue is MapViewModel current && window.IsLoaded) current.PropertyChanged += window.OnViewModelPropertyChanged;
-
-			window.ApplyPlacement();
-			window.PersistSectionExpansion();
-		}
+		private static void OnViewModelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
+			((SettingsWindow)d).PersistSectionExpansion();
 
 		// ── Section open/closed, PERSISTED (AppSettings.SectionExpanded, keys "settings/<tab>/<header>") ──
 		// The temporal panes' seam (DragMoveLayerExpander.PersistExpansion, here SettingsExpander's twin), one window prefix PER TAB: "Home site" is a
@@ -98,11 +102,6 @@ namespace Anvil.Controls.Windows
 				SettingsExpander.PersistExpansion(System.Linq.Enumerable.OfType<SettingsExpander>(root.Children), "settings/" + name,
 					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			}
-		}
-
-		private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-		{
-			if (e.PropertyName == nameof(MapViewModel.SettingsTabPlacement)) ApplyPlacement();
 		}
 
 		/// <summary>The site-sweep engine for the dev tab. NULL in Release, where that tab does not exist.</summary>
@@ -177,7 +176,7 @@ namespace Anvil.Controls.Windows
 #if DEBUG
 			// DEV-ONLY. Appended here rather than declared in XAML because XAML has no preprocessor — this is
 			// the one place the tab count differs between builds, and MapViewModel.SettingsTabCount mirrors it.
-			tabs.Add(new TabEntry { Glyph = "", Label = "Dev", Tooltip = "Site sweep, dealias validation and the pipeline console" });
+			tabs.Add(new TabEntry { Glyph = "", Label = "Dev", IsSeparated = true, Tooltip = "Site sweep, dealias validation and the pipeline console" });
 #endif
 
 			return tabs;
@@ -201,24 +200,6 @@ namespace Anvil.Controls.Windows
 #endif
 		}
 
-		/// <summary>Parse the persisted placement string into the strip's enum. Core stores the choice as a
-		/// string precisely so it does not have to know about tab strips; this is the bridge.</summary>
-		public TabPlacement PlacementOf(string? persisted) => TabPlacements.Parse(persisted);
-
-		/// <summary>
-		/// Arrange the strip, its hairline and the body for the current placement — [strip OVER body] for a
-		/// top rail, [strip BESIDE body] for a side rail — and hand the placement to the strip itself. The two
-		/// arrangements are VISUAL STATES declared in the XAML (PlacementStates); this only picks one.
-		/// </summary>
-		private void ApplyPlacement()
-		{
-			if (Strip is null) return; // called from the DP callback, which can precede InitializeComponent
-
-			var placement = PlacementOf(ViewModel?.SettingsTabPlacement);
-			Strip.Placement = placement;
-			VisualStateManager.GoToState(this, placement == TabPlacement.Left ? "TabsLeft" : "TabsTop", false);
-		}
-
 		// The dev tab is x:Load'd, so it does not exist when this window is constructed — its report events
 		// have to be wired the first time it actually appears. Loaded fires once per construction, and x:Load
 		// keeps it constructed once true, so this does not re-subscribe on every tab switch.
@@ -233,16 +214,6 @@ namespace Anvil.Controls.Windows
 			}
 			tab.SweepReportRequested += (_, report) => SweepReportRequested?.Invoke(this, report);
 			tab.ValidationReportRequested += (_, report) => ValidationReportRequested?.Invoke(this, report);
-		}
-
-		private void OnPlaceTabsTop(object sender, RoutedEventArgs e)
-		{
-			if (ViewModel is not null) ViewModel.SettingsTabPlacement = nameof(TabPlacement.Top);
-		}
-
-		private void OnPlaceTabsLeft(object sender, RoutedEventArgs e)
-		{
-			if (ViewModel is not null) ViewModel.SettingsTabPlacement = nameof(TabPlacement.Left);
 		}
 	}
 }

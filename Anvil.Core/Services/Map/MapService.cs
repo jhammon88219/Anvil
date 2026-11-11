@@ -396,12 +396,6 @@ namespace Anvil.Services
 		public Task ClearPlaceMarkerAsync() =>
 			_mapView.RunScriptAsync(Call("clearPlaceMarker"));
 
-		public Task ShowDowFrameAsync(string url) =>
-			_mapView.RunScriptAsync(Call("showDowFrame", url));
-
-		public Task ClearDowFrameAsync() =>
-			_mapView.RunScriptAsync(Call("clearDowFrame"));
-
 		// Dev-only velocity-dealias validation harness. entriesJson is single-quoted and JSON.parsed in
 		// the shim (same pattern as the remap payload). The poll returns the progress global's JSON
 		// directly (ExecuteScriptAsync serializes the object) so the VM parses it without double-decoding.

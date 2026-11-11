@@ -55,9 +55,6 @@
        └──────────────────────────────────────────────────────┘
          (the Open Atlas button that sat 100 px below the sections moved INTO the card, 2026-10-01)
 
-     ⚠️ THE DOW EVENT SECTION IS GONE (2026-09-27) — it is the Anvil Atlas's DOW events tab now
-     (Composites/DowEventsAtlasTab). Its Show still turns PastCast on first. Don't re-add it here.
-
      Laid out ENTIRELY with grids (rows/columns, no StackPanels) so rows are easy to add/rearrange: a fixed
      [label | control] outer grid, one row per field.
 
@@ -539,7 +536,6 @@
                            IsOpacityEnabled="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
                            OpacityToolTip="Opacity of the radar layer — turn it down to read what is under it"/>
 
-        <!-- (The DOW event section moved to the Anvil Atlas — Composites/DowEventsAtlasTab, 2026-09-27.) -->
         <!-- (The Open Atlas button that sat 100 px below here moved INTO the Timeframe card, 2026-10-01.) -->
     </dragMoveLayerExpanders:DragMoveLayerExpanderHost>
     </prim:PanelScroller>

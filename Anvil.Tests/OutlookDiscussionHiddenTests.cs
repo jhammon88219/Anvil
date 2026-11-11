@@ -52,7 +52,7 @@ namespace Anvil.Tests
 			var svc = TemporalPanePersistenceTests.Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
 			var radar = new RadarViewModel(TemporalPanePersistenceTests.Null<IMapService>.Create(),
 				TemporalPanePersistenceTests.Null<IRadarSiteProvider>.Create(), TemporalPanePersistenceTests.Null<ILevel2RadarService>.Create(),
-				TemporalPanePersistenceTests.Null<IDowEventProvider>.Create(), svc, null);
+				svc, null);
 			radar.IsPastEventMode = true;
 			radar.MarkReplayWindowLoaded();
 			var spc = TemporalPanePersistenceTests.Null<ISpcOutlookService>.Create(new()
@@ -93,7 +93,7 @@ namespace Anvil.Tests
 			var vm = new MapViewModel(N<IMapService>(), N<IStyleProvider>(), N<IThemeProvider>(), N<IRegionProvider>(),
 				spc, N<ISpcWatchService>(), N<IWarningService>(), N<IStormReportService>(),
 				N<IDamageSurveyService>(), N<IStormCellService>(), N<IPastAlertService>(), N<IMesoDiscussionService>(), N<ITropicalService>(), N<IRadarSiteProvider>(), N<ILevel2RadarService>(), N<ILocationService>(),
-				N<IPlaceSearchService>(), N<IDowEventProvider>(), N<ISavedEventLibrary>(), N<IDispatcher>(),
+				N<IPlaceSearchService>(), N<ISavedEventLibrary>(), N<IDispatcher>(),
 				TemporalPanePersistenceTests.Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings }),
 				NullLoggerFactory.Instance, new SiteUsageStore(NullLogger<SiteUsageStore>.Instance, usageDir),
 				N<IRadarNwsStatusService>(), N<IRadarUptimeService>(), N<IRadarMessageHistoryService>(),

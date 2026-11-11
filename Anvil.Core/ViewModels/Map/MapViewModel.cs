@@ -56,7 +56,7 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, ITropicalService tropicalService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion, LoopLoadLog? loopLoadLog = null, LivePollTimingLog? livePollTimingLog = null, LiveFeedHub? liveFeed = null, BasemapSetupViewModel? basemapSetup = null, IHrrrService? hrrrService = null)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, ITropicalService tropicalService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion, LoopLoadLog? loopLoadLog = null, LivePollTimingLog? livePollTimingLog = null, LiveFeedHub? liveFeed = null, BasemapSetupViewModel? basemapSetup = null, IHrrrService? hrrrService = null)
 		{
 			_mapService = mapService;
 			_startupLog = loggerFactory.CreateLogger<MapViewModel>();
@@ -81,7 +81,7 @@ namespace Anvil.ViewModels
 
 			// Each subsystem lives in its own view model (progressively split out of this class);
 			// the transport-bar section controls bind slices of them.
-			Radar = new RadarViewModel(mapService, radarSiteProvider, radarService, dowEventProvider, settingsService, stormMotion, stormCellService);
+			Radar = new RadarViewModel(mapService, radarSiteProvider, radarService, settingsService, stormMotion, stormCellService);
 			Activity = new BarActivityViewModel();
 			Activity.WatchSiteCheck(Radar);
 			Activity.WatchLiveFrame(Radar);
@@ -314,7 +314,7 @@ namespace Anvil.ViewModels
 			_mainRegion = regions.FirstOrDefault(r => r.Id == "conus") ?? regions.FirstOrDefault();
 		}
 
-		/// <summary>The radar subsystem view model (sites, loop, live frame, past-event, DOW, card,
+		/// <summary>The radar subsystem view model (sites, loop, live frame, past-event, card,
 		/// color scale, inspector). The transport-bar section controls bind to this.</summary>
 		public RadarViewModel Radar { get; }
 
@@ -1377,39 +1377,16 @@ namespace Anvil.ViewModels
 				_placeSearchService.NearestPlace(fix.Latitude, fix.Longitude)?.Display);
 		}
 
-		// ===== The Anvil Atlas: three tabs (Radar sites | Past events | DOW events) =======================
-		// Everything you can point the radar at: a PLACE (a site), a MOMENT (a saved event) or a curated
-		// mobile-radar FRAME (DOW, moved here from the PastCast window 2026-09-27 — kept while we find out
-		// whether enough real DOW data exists to be worth it). The tab is PERSISTED like the Settings window's.
-		// Playing an event / showing a DOW frame is the cross-subsystem act here, so it lives on the
-		// coordinator: PastCast on (Past excludes Now + Fore), load, close the Atlas.
+		// ===== The Anvil Atlas: two tabs (Radar sites | Past events) =====================================
+		// Everything you can point the radar at: a PLACE (a site) or a MOMENT (a saved event). The tab is
+		// PERSISTED like the Settings window's. Playing an event is the cross-subsystem act here, so it lives on
+		// the coordinator: PastCast on (Past excludes Now + Fore), load, close the Atlas. (A third tab, DOW
+		// mobile-radar frames, was REMOVED 2026-11-11 — the data is too hard to get and to redistribute.)
 
 		/// <summary>Tab count — the clamp for <see cref="AtlasTabIndex"/>.</summary>
-		public const int AtlasTabCount = 3;
+		public const int AtlasTabCount = 2;
 
-		/// <summary>
-		/// The DOW events tab's Load: PastCast on if needed, show the selected frame, close the Atlas.
-		/// ⚠️ PastCast FIRST because a DOW frame replaces the radar layer, and NowCast's live poll would put
-		/// the live loop straight back over it; PastCast runs no live loop (it arms, it doesn't load).
-		/// </summary>
-		public async Task ShowAtlasDowFrameAsync()
-		{
-			if (!Radar.Dow.CanLoad)
-			{
-				return;
-			}
-			if (!IsPastCast)
-			{
-				IsPastCast = true;
-			}
-			await Radar.Dow.LoadDowEventAsync();
-			if (Radar.Dow.IsShowing)
-			{
-				IsAtlasOpen = false;
-			}
-		}
-
-		/// <summary>0 = Radar sites, 1 = Past events, 2 = DOW events. PERSISTED, clamped on the way in.</summary>
+		/// <summary>0 = Radar sites, 1 = Past events. PERSISTED, clamped on the way in.</summary>
 		public int AtlasTabIndex
 		{
 			get => Math.Clamp(_settingsService.Settings.AtlasTabIndex, 0, AtlasTabCount - 1);
@@ -1457,13 +1434,6 @@ namespace Anvil.ViewModels
 		{
 			AtlasTabIndex = 0;
 			IsAtlasOpen = true;
-		}
-
-		/// <summary>The bar's Atlas key: closes an open Atlas, otherwise opens it on Radar sites.</summary>
-		public void ToggleAtlasFromBar()
-		{
-			if (IsAtlasOpen) { IsAtlasOpen = false; }
-			else { OpenAtlasOnSites(); }
 		}
 
 		/// <summary>
@@ -1717,23 +1687,6 @@ namespace Anvil.ViewModels
 					OnPropertyChanged(nameof(HasSettingsPreview));
 					RefreshForSettingsTab();
 				}
-			}
-		}
-
-		/// <summary>Where the Settings window draws its tab strip: <c>"Top"</c> (default) or <c>"Left"</c>.
-		/// PERSISTED. Chosen from the strip's own right-click menu, since a control that configures the
-		/// settings window is odd content for any one settings tab.
-		/// ⚠️ Deliberately a STRING here, not an enum: "where a control draws its strip" is a VIEW concept, and
-		/// the enum it parses to (<c>Anvil.Controls.Primitives.TabPlacement</c>) lives with the control in
-		/// Anvil.App. Core stores the choice; it does not model tab strips.</summary>
-		public string SettingsTabPlacement
-		{
-			get => _settingsService.Settings.SettingsTabPlacement;
-			set
-			{
-				if (string.Equals(value, SettingsTabPlacement, StringComparison.Ordinal)) return;
-				_settingsService.Settings.SettingsTabPlacement = value;
-				OnPropertyChanged();
 			}
 		}
 
