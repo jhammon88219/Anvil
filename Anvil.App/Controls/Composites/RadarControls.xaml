@@ -67,11 +67,14 @@
         <Style x:Key="ScanStandInStyle" TargetType="TextBlock" BasedOn="{StaticResource ScanValueStyle}">
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
         </Style>
-        <!-- Glyph-only transport: no resting plate; on pointer the pane selectors' look (Styles.xaml PickerLookButtonStyle:
-             raised fill + near-white hairline + 1 px lift). -->
-        <Style x:Key="GlyphTransportStyle" TargetType="Button" BasedOn="{StaticResource PickerLookButtonStyle}">
+        <!-- Glyph-only transport: no resting plate, the shared hover/pressed look still shows on pointer. -->
+        <Style x:Key="GlyphTransportStyle" TargetType="Button" BasedOn="{StaticResource TransportButtonStyle}">
             <Setter Property="Width" Value="28"/>
             <Setter Property="Height" Value="28"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
         </Style>
     </UserControl.Resources>
 

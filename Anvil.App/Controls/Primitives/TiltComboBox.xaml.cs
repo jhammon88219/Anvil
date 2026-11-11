@@ -137,45 +137,9 @@ namespace Anvil.Controls.Primitives
 		}
 
 		// ── Visual states ────────────────────────────────────────────────────────────────────────
-		// Same state machine as ProductComboBox: Disabled wins, then Pressed, then PointerOver.
-		private bool _isPointerOver;
-		private bool _isPressed;
-
-		private void OnPointerEntered(object sender, PointerRoutedEventArgs e)
-		{
-			_isPointerOver = true;
-			UpdateVisualState();
-		}
-
-		private void OnPointerExited(object sender, PointerRoutedEventArgs e)
-		{
-			_isPointerOver = false;
-			_isPressed = false;
-			UpdateVisualState();
-		}
-
-		private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
-		{
-			_isPressed = true;
-			UpdateVisualState();
-		}
-
-		private void OnPointerReleased(object sender, PointerRoutedEventArgs e)
-		{
-			_isPressed = false;
-			UpdateVisualState();
-		}
-
-		private void OnIsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e) => UpdateVisualState();
-
-		private void UpdateVisualState()
-		{
-			var state = !IsEnabled ? "Disabled"
-				: _isPressed ? "Pressed"
-				: _isPointerOver ? "PointerOver"
-				: "Normal";
-			VisualStateManager.GoToState(this, state, true);
-		}
+		// Nothing reacts to hover or press by design; Disabled is the only state that changes anything.
+		private void OnIsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e) =>
+			VisualStateManager.GoToState(this, IsEnabled ? "Normal" : "Disabled", true);
 
 		/// <summary>
 		/// Closed-state label, with a placeholder when there is nothing to choose. A radar's elevations come

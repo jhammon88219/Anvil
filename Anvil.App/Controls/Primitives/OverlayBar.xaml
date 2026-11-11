@@ -56,7 +56,7 @@
 
        IsFloating=True — A PANE SELECTOR / THE FLOATING RADAR CONSOLE (attached to nothing; ShowTab False)
 
-              ░╭───────────────────────────╮░   every corner rounded (8), a NEAR-WHITE hairline ALL ROUND (shadowed or not);
+              ░╭───────────────────────────╮░   every corner rounded (8), a THIN NEAR-WHITE hairline ALL ROUND (shadowed or not);
              ░│   BarContent (the slot)   │░   CastShadow = the ROUNDED HALO (FloatHalo: five rings, radius 8+n·2),
               ░╰───────────────────────────╯░   nudged 2 px the way Edge says (Bottom = up, Top = down).
                ░░░░░░░░░░░░░░░░░░░░░░░░░░░     ⚠️ Never the edge bands — their square ends showed as a card behind.
@@ -176,13 +176,15 @@
                         <Setter Target="BarBorder.BorderThickness" Value="0"/>
                     </VisualState.Setters>
                 </VisualState>
-                <!-- A FLOATING box (the four pane selectors + the radar console): a hairline all round, NEAR-WHITE
-                     (PickerHairlineBrush) so the box stands off the map — the user's call, 2026-11-11. Every other
-                     rule keeps the quiet CardStroke line. -->
+                <!-- A FLOATING box (the four pane selectors + the radar console): a THIN hairline all round, NEAR-WHITE
+                     (FloatingHairlineBrush) so the box stands off the map — the user's call, 2026-11-11. Every other
+                     rule keeps the quiet CardStroke line.
+                     ⚠️ 0.5, not 1: layout rounding snaps it to whole SCREEN pixels, so at 150% scaling 1 drew TWO pixels
+                     and 0.5 draws ONE (at 100% both are one — a pixel is the floor). -->
                 <VisualState x:Name="RuleFloating">
                     <VisualState.Setters>
-                        <Setter Target="BarBorder.BorderThickness" Value="1"/>
-                        <Setter Target="BarBorder.BorderBrush" Value="{ThemeResource PickerHairlineBrush}"/>
+                        <Setter Target="BarBorder.BorderThickness" Value="0.5"/>
+                        <Setter Target="BarBorder.BorderBrush" Value="{ThemeResource FloatingHairlineBrush}"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
