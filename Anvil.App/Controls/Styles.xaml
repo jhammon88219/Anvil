@@ -94,8 +94,9 @@
             <SolidColorBrush x:Key="SectionRowHoverBrush" Color="#FF141414"/>
             <StaticResource x:Key="SectionBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
 
-            <!-- The hover outline + open-list border of the map's PICKERS (pane notch Product/Tilt + the radar console's
-                 transport): almost white so it reads against the black chrome and the map (the user's call, 2026-11-11). -->
+            <!-- The OUTER hairline of the floating boxes (the pane selectors + the radar console, OverlayBar RuleFloating),
+                 and the pickers' hover outline + open-list border: almost white so it reads against the black chrome and
+                 the map (the user's call, 2026-11-11). -->
             <SolidColorBrush x:Key="PickerHairlineBrush" Color="#FFE6E6E6"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">

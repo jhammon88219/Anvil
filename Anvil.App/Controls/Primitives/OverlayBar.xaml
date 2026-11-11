@@ -56,7 +56,7 @@
 
        IsFloating=True — A PANE SELECTOR / THE FLOATING RADAR CONSOLE (attached to nothing; ShowTab False)
 
-              ░╭───────────────────────────╮░   every corner rounded (8), a hairline ALL ROUND (shadowed or not);
+              ░╭───────────────────────────╮░   every corner rounded (8), a NEAR-WHITE hairline ALL ROUND (shadowed or not);
              ░│   BarContent (the slot)   │░   CastShadow = the ROUNDED HALO (FloatHalo: five rings, radius 8+n·2),
               ░╰───────────────────────────╯░   nudged 2 px the way Edge says (Bottom = up, Top = down).
                ░░░░░░░░░░░░░░░░░░░░░░░░░░░     ⚠️ Never the edge bands — their square ends showed as a card behind.
@@ -176,9 +176,13 @@
                         <Setter Target="BarBorder.BorderThickness" Value="0"/>
                     </VisualState.Setters>
                 </VisualState>
+                <!-- A FLOATING box (the four pane selectors + the radar console): a hairline all round, NEAR-WHITE
+                     (PickerHairlineBrush) so the box stands off the map — the user's call, 2026-11-11. Every other
+                     rule keeps the quiet CardStroke line. -->
                 <VisualState x:Name="RuleFloating">
                     <VisualState.Setters>
                         <Setter Target="BarBorder.BorderThickness" Value="1"/>
+                        <Setter Target="BarBorder.BorderBrush" Value="{ThemeResource PickerHairlineBrush}"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
