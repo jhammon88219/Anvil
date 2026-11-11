@@ -51,7 +51,9 @@
         <!-- Rest is fully transparent, so hover carries the whole "this is interactable" cue: the surface
              fills with the SAME hover brush the notch's own pull-tab uses (one hover look across the
              chrome), a hairline stroke appears — the fill alone is near-invisible on the notch's dark
-             surface — and the content lifts 1px. Pressed keeps fill + stroke but drops the lift, so a click
+             surface — and the content lifts 1px. The stroke (and the open list's border) is
+             ControlStrongStroke, not CardStroke: the user wanted it to read clearly (2026-11-11); TiltComboBox
+             wears the same. Pressed keeps fill + stroke but drops the lift, so a click
              reads as pushing it back down. Only Disabled mutes the text + chevron. (The stroke costs no
              layout: HoverSurface is an empty backdrop pane, not the content's parent, so its
              BorderThickness can't shift anything.) -->
@@ -61,7 +63,7 @@
                 <VisualState x:Name="PointerOver">
                     <VisualState.Setters>
                         <Setter Target="HoverSurface.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
-                        <Setter Target="HoverSurface.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <Setter Target="HoverSurface.BorderBrush" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}"/>
                         <Setter Target="HoverSurface.BorderThickness" Value="1"/>
                         <Setter Target="Lift.Y" Value="-1"/>
                     </VisualState.Setters>
@@ -69,7 +71,7 @@
                 <VisualState x:Name="Pressed">
                     <VisualState.Setters>
                         <Setter Target="HoverSurface.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
-                        <Setter Target="HoverSurface.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <Setter Target="HoverSurface.BorderBrush" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}"/>
                         <Setter Target="HoverSurface.BorderThickness" Value="1"/>
                     </VisualState.Setters>
                 </VisualState>
@@ -128,7 +130,7 @@
                 <Flyout.FlyoutPresenterStyle>
                     <Style TargetType="FlyoutPresenter">
                         <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>
-                        <Setter Property="BorderBrush" Value="{ThemeResource SurfaceStrokeColorFlyoutBrush}"/>
+                        <Setter Property="BorderBrush" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}"/>
                         <Setter Property="BorderThickness" Value="1"/>
                         <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}"/>
                         <Setter Property="Padding" Value="0,4,0,4"/>
