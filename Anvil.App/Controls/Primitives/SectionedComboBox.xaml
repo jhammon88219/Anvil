@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- SectionedComboBox — a boxed dropdown whose list can carry an optional PINNED section that never
+<!-- SectionedComboBox — a dropdown whose list can carry an optional PINNED section that never
      scrolls, ruled off from the main list below it that does.
 
-       CLOSED     ┌──────────────────────────┐
-                  │ Texas                  ˅ │   always SelectedItem.ToString(), from EITHER section, however
-                  └──────────────────────────┘   it was chosen (a pick here or a push from the view model)
+       CLOSED       Texas                  ˅     at REST: no box (ProductComboBox's look) — always
+                                                 SelectedItem.ToString(), from EITHER section, however it was chosen
+                  ╭──────────────────────────╮
+       HOVER      │ Texas                  ˅ │   raised-hover fill + CardStroke hairline, the content lifts 1px
+                  ╰──────────────────────────╯   (pressed: fill + hairline, no lift)
 
                   ┌──────────────────────────┐
        OPEN       │ No Isolation             │ ┐
@@ -25,9 +27,8 @@
                   │ …            │
 
        OPTIONAL EXTRAS (the site picker uses all three; the isolation picker none):
-                  ┌──────────────────────────┐
-       FACE       │ ⌂ KTLX  Oklahoma City  ˅ │   FaceTemplate: the closed face renders SelectedItem through a
-                  └──────────────────────────┘   template instead of ToString()
+       FACE         ⌂ KTLX  Oklahoma City  ˅     FaceTemplate: the closed face renders SelectedItem through a
+                                                 template instead of ToString()
                   │ …the two sections…       │
                   │──────────────────────────│   a second rule, shown only when a section above has rows
        FOOTER     │ Open Radar Atlas         │   FooterContent: host-authored, never selectable; with it set
@@ -84,7 +85,9 @@
     <!-- ⚠️ Background="Transparent" is what makes the whole box tappable (a null background does not
          hit-test), NOT a look. The Border below draws the actual face. -->
     <Grid x:Name="Root" Background="Transparent" Tapped="OnTapped"
-          PointerEntered="OnRootPointerEntered" PointerExited="OnRootPointerExited">
+          PointerEntered="OnRootPointerEntered" PointerExited="OnRootPointerExited"
+          PointerPressed="OnRootPointerPressed" PointerReleased="OnRootPointerReleased"
+          PointerCaptureLost="OnRootPointerExited">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
@@ -102,10 +105,31 @@
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
-            <!-- FACE: the boxed dropdown (default), or a MENU TITLE (IsMenuTitle) — flat, the fixed PlaceholderText as its
-                 words, no chevron, like the top menu bar's other titles. ApplyFaceStates; re-applied on Loaded. -->
+            <!-- FACE: the dropdown face (default), or a MENU TITLE (IsMenuTitle) — flat, the fixed PlaceholderText as its
+                 words, no chevron, like the top menu bar's other titles. ApplyFaceStates; re-applied on Loaded.
+                 The default face wears ProductComboBox's look (the user's call, 2026-11-11 — Product, Tilt and the console's
+                 site picker answer the pointer alike; ⚠️ change the three together): transparent at rest; HOVER = raised-
+                 hover fill + CardStroke hairline + the content lifts 1px; PRESSED = fill + hairline, no lift. -->
             <VisualStateGroup x:Name="FaceStates">
                 <VisualState x:Name="BoxFace"/>
+                <VisualState x:Name="BoxHoverFace">
+                    <VisualState.Setters>
+                        <Setter Target="Box.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                        <Setter Target="Box.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <Setter Target="Box.BorderThickness" Value="1"/>
+                        <Setter Target="SelectedLabelLift.Y" Value="-1"/>
+                        <Setter Target="FaceLift.Y" Value="-1"/>
+                        <Setter Target="PlaceholderLift.Y" Value="-1"/>
+                        <Setter Target="DropDownGlyphLift.Y" Value="-1"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="BoxPressedFace">
+                    <VisualState.Setters>
+                        <Setter Target="Box.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                        <Setter Target="Box.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <Setter Target="Box.BorderThickness" Value="1"/>
+                    </VisualState.Setters>
+                </VisualState>
                 <VisualState x:Name="MenuTitleFace">
                     <VisualState.Setters>
                         <Setter Target="Box.Background" Value="Transparent"/>
@@ -150,13 +174,15 @@
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
 
+        <!-- Transparent and borderless at rest — the hover backdrop (FaceStates); an empty SIBLING of the content, so
+             its BorderThickness never moves the text. -->
         <Border x:Name="Box"
                 Grid.ColumnSpan="2"
                 MinHeight="32"
-                CornerRadius="4"
-                BorderThickness="1"
-                Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                CornerRadius="6"
+                BorderThickness="0"
+                Background="Transparent"
+                BorderBrush="Transparent"
                 Control.IsTemplateFocusTarget="True"/>
 
         <TextBlock x:Name="SelectedLabel"
@@ -166,7 +192,11 @@
                    TextTrimming="CharacterEllipsis"
                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                    Visibility="{x:Bind ShowsLabel(SelectedItem, FaceTemplate), Mode=OneWay}"
-                   Text="{x:Bind LabelOf(SelectedItem), Mode=OneWay}"/>
+                   Text="{x:Bind LabelOf(SelectedItem), Mode=OneWay}">
+            <TextBlock.RenderTransform>
+                <TranslateTransform x:Name="SelectedLabelLift"/>
+            </TextBlock.RenderTransform>
+        </TextBlock>
 
         <!-- The templated face (FaceTemplate set). Foreground is inherited by the template's text. -->
         <ContentPresenter x:Name="Face"
@@ -178,7 +208,11 @@
                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                           Visibility="{x:Bind ShowsFace(SelectedItem, FaceTemplate), Mode=OneWay}"
                           Content="{x:Bind SelectedItem, Mode=OneWay}"
-                          ContentTemplate="{x:Bind FaceTemplate, Mode=OneWay}"/>
+                          ContentTemplate="{x:Bind FaceTemplate, Mode=OneWay}">
+            <ContentPresenter.RenderTransform>
+                <TranslateTransform x:Name="FaceLift"/>
+            </ContentPresenter.RenderTransform>
+        </ContentPresenter>
 
         <!-- ⚠️ SECONDARY, not Tertiary: tertiary sits so close to TextFillColorDisabledBrush that an enabled
              box with nothing picked (the site picker at launch) read as disabled. Secondary is what the stock
@@ -190,7 +224,11 @@
                    TextTrimming="CharacterEllipsis"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Visibility="{x:Bind NoSelection(SelectedItem), Mode=OneWay}"
-                   Text="{x:Bind PlaceholderText, Mode=OneWay}"/>
+                   Text="{x:Bind PlaceholderText, Mode=OneWay}">
+            <TextBlock.RenderTransform>
+                <TranslateTransform x:Name="PlaceholderLift"/>
+            </TextBlock.RenderTransform>
+        </TextBlock>
 
         <FontIcon x:Name="DropDownGlyph"
                   Grid.Column="1"
@@ -200,7 +238,11 @@
                   FontSize="12"
                   Glyph="&#xE70D;"
                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                  IsHitTestVisible="False"/>
+                  IsHitTestVisible="False">
+            <FontIcon.RenderTransform>
+                <TranslateTransform x:Name="DropDownGlyphLift"/>
+            </FontIcon.RenderTransform>
+        </FontIcon>
 
         <FlyoutBase.AttachedFlyout>
             <!-- ⚠️ ShouldConstrainToRootBounds="False" = a WINDOWED popup (its own HWND). Constrained, the

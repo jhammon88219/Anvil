@@ -56,6 +56,7 @@ namespace Anvil.Controls.Primitives
 				new PropertyMetadata(double.NaN));
 
 		private bool _isPointerOver;
+		private bool _isPressed;
 
 		/// <summary>The fixed rows above the rule. Null or empty = no pinned section and no rule.</summary>
 		public IEnumerable? PinnedItemsSource
@@ -310,15 +311,29 @@ namespace Anvil.Controls.Primitives
 		private void OnRootPointerExited(object sender, PointerRoutedEventArgs e)
 		{
 			_isPointerOver = false;
+			_isPressed = false;
 			ApplyFaceStates();
 		}
 
-		// ONE place the face lands: boxed, or a menu title that lights under the pointer / while its dropdown is open.
+		private void OnRootPointerPressed(object sender, PointerRoutedEventArgs e)
+		{
+			_isPressed = true;
+			ApplyFaceStates();
+		}
+
+		private void OnRootPointerReleased(object sender, PointerRoutedEventArgs e)
+		{
+			_isPressed = false;
+			ApplyFaceStates();
+		}
+
+		// ONE place the face lands: the dropdown face (ProductComboBox's rest / hover / pressed — POINTER only, as
+		// Product), or a menu title that lights under the pointer / while its dropdown is open.
 		private void ApplyFaceStates()
 		{
 			var lit = _isPointerOver || DropDown.IsOpen;
 			VisualStateManager.GoToState(this,
-				!IsMenuTitle ? "BoxFace"
+				!IsMenuTitle ? (!IsEnabled ? "BoxFace" : _isPressed ? "BoxPressedFace" : _isPointerOver ? "BoxHoverFace" : "BoxFace")
 				: !IsEnabled ? "MenuTitleDisabledFace"
 				: lit ? "MenuTitleLitFace" : "MenuTitleFace", false);
 		}

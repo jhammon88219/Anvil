@@ -2,20 +2,24 @@
 <!-- TiltComboBox — the radar Tilt (elevation) selector: a minimal, background-LESS dropdown that blends into
      whatever surface hosts it.
 
-       CLOSED     0.5°                    ˅      no box, no fill, no border — just label + chevron
+       CLOSED     0.5°                    ˅      at rest: no box, no fill, no border — just label + chevron
+                 ╭────────────────────────╮
+       HOVER     │ 0.5°                 ˅ │      ProductComboBox's hover: raised-hover fill + CardStroke
+                 ╰────────────────────────╯      hairline + the content lifts 1px (pressed drops the lift)
                   ┌───────────────────────┐
        OPEN       │ Base (0.5°)           │      an OPAQUE flyout + ListView (the default acrylic
                   │ 0.9°                  │      washes out over the map)
                   │ 1.3°                  │
                   └───────────────────────┘
 
-     Transparent in EVERY state (rest / hover / pressed / focused / open), no border, no highlight — the only
-     state that changes anything is Disabled, which mutes the label + chevron so a disabled combo reads as
-     disabled without gaining a background. The dropdown is given an explicit fully-OPAQUE theme-aware
-     surface, since the default flyout brush is acrylic and washes out over the map.
+     Transparent at rest; hover/pressed wear the SAME look as ProductComboBox and the console's site picker
+     (SectionedComboBox's box face) — the three pickers answer the pointer alike, the user's call 2026-11-11.
+     ⚠️ Change the three together. Disabled mutes the label + chevron. The hover outline lives on Box, an empty
+     backdrop sibling, so its BorderThickness costs no layout. The dropdown is given an explicit fully-OPAQUE
+     theme-aware surface, since the default flyout brush is acrylic and washes out over the map.
 
      (Was a HandCursorComboBox wearing NoBackgroundComboBoxStyle; both are gone now. Same reasoning as
-     ProductComboBox — see that file — except this one has no hover treatment.) -->
+     ProductComboBox — see that file.) -->
 <UserControl
     x:Class="Anvil.Controls.Primitives.TiltComboBox"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -30,7 +34,14 @@
     KeyDown="OnKeyDown"
     IsEnabledChanged="OnIsEnabledChanged">
 
-    <Grid x:Name="Root" Background="Transparent" Tapped="OnTapped">
+    <Grid x:Name="Root"
+          Background="Transparent"
+          Tapped="OnTapped"
+          PointerEntered="OnPointerEntered"
+          PointerExited="OnPointerExited"
+          PointerPressed="OnPointerPressed"
+          PointerReleased="OnPointerReleased"
+          PointerCaptureLost="OnPointerExited">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
@@ -39,6 +50,22 @@
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="CommonStates">
                 <VisualState x:Name="Normal"/>
+                <VisualState x:Name="PointerOver">
+                    <VisualState.Setters>
+                        <Setter Target="Box.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                        <Setter Target="Box.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <Setter Target="Box.BorderThickness" Value="1"/>
+                        <Setter Target="LabelLift.Y" Value="-1"/>
+                        <Setter Target="GlyphLift.Y" Value="-1"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Pressed">
+                    <VisualState.Setters>
+                        <Setter Target="Box.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                        <Setter Target="Box.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <Setter Target="Box.BorderThickness" Value="1"/>
+                    </VisualState.Setters>
+                </VisualState>
                 <VisualState x:Name="Disabled">
                     <VisualState.Setters>
                         <Setter Target="SelectedLabel.Foreground" Value="{ThemeResource ComboBoxForegroundDisabled}"/>
@@ -48,12 +75,14 @@
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
 
-        <!-- The box. Stays transparent and borderless in every state, so it looks identical at rest, hover,
-             pressed, focused and open. It exists only as the focus target. -->
+        <!-- The box: the focus target AND the hover backdrop (fill + hairline land here in PointerOver/Pressed).
+             Transparent and borderless at rest. -->
         <Border x:Name="Box"
                 Grid.ColumnSpan="2"
                 MinHeight="32"
+                CornerRadius="6"
                 Background="Transparent"
+                BorderBrush="Transparent"
                 BorderThickness="0"
                 Control.IsTemplateFocusTarget="True"/>
 
@@ -63,7 +92,11 @@
                    HorizontalAlignment="Left"
                    VerticalAlignment="Center"
                    Foreground="{ThemeResource ComboBoxForeground}"
-                   Text="{x:Bind LabelText(SelectedItem), Mode=OneWay}"/>
+                   Text="{x:Bind LabelText(SelectedItem), Mode=OneWay}">
+            <TextBlock.RenderTransform>
+                <TranslateTransform x:Name="LabelLift"/>
+            </TextBlock.RenderTransform>
+        </TextBlock>
 
         <FontIcon x:Name="DropDownGlyph"
                   Grid.Column="1"
@@ -73,7 +106,11 @@
                   FontSize="12"
                   Glyph="&#xE70D;"
                   Foreground="{ThemeResource ComboBoxDropDownGlyphForeground}"
-                  IsHitTestVisible="False"/>
+                  IsHitTestVisible="False">
+            <FontIcon.RenderTransform>
+                <TranslateTransform x:Name="GlyphLift"/>
+            </FontIcon.RenderTransform>
+        </FontIcon>
 
         <FlyoutBase.AttachedFlyout>
             <!-- ⚠️ Windowed popup, or an owned panel window paints over it (see SectionedComboBox). -->
