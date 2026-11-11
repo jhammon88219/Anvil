@@ -96,7 +96,8 @@
 
             <!-- The OUTER hairline of the floating boxes (the pane selectors + the radar console, OverlayBar RuleFloating):
                  almost white so the box stands off the black map (the user's call, 2026-11-11). -->
-            <SolidColorBrush x:Key="FloatingHairlineBrush" Color="#FFE6E6E6"/>
+            <SolidColorBrush x:Key="FloatingHairlineBrush" Color="#FFC4C4C4"/> <!-- was E6E6E6; a step down, the user's call -->
+
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="#FFF3F3F3"/>
@@ -125,7 +126,7 @@
             <StaticResource x:Key="SectionBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
 
             <!-- The floating boxes' outer hairline — the light mirror of the dark theme's near-white: near-black. -->
-            <SolidColorBrush x:Key="FloatingHairlineBrush" Color="#FF1F1F1F"/>
+            <SolidColorBrush x:Key="FloatingHairlineBrush" Color="#FF3D3D3D"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>

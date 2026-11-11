@@ -14,7 +14,8 @@
 
      ⚠️ The tab reaches 3 px INTO the console (the host's -3 bottom margin; its foot padding is +2 to match) and draws no
      bottom line, so the console's top hairline is hidden under it at any display scale and tab and console read as ONE plate. It is declared AFTER the console in the host so it paints over that hairline.
-     Same face as the console (OverlayBarSurfaceBrush, the ground) and the same hairline brush.
+     Same face as the console AND the pane selectors (OverlayBarSurfaceRaisedBrush) and the same thin near-white hairline
+     (FloatingHairlineBrush, 0.5 — OverlayBar's RuleFloating); change them together.
      Centred on the console = on its play button = the window's midpoint (RadarControls.CentreOnPlay).
 
      It is ALSO the "which radar is selected" readout: the FACE is the site on the map now (⌂ home, ★ favorite, bare
@@ -98,11 +99,12 @@
             <Border Margin="-2,-2,-2,0" CornerRadius="10,10,0,0" Background="Black" Opacity="0.22"/>
         </Grid>
 
-        <!-- THE TAB — the console's face and hairline, top corners rounded, NO bottom line (it opens into the console). -->
+        <!-- THE TAB — the console's face and hairline (raised, thin near-white), top corners rounded, NO bottom line (it
+             opens into the console). The curve lines' paths sit a quarter pixel in so their 0.5 stroke meets the side line. -->
         <Border x:Name="RadarConsoleSiteTabBody"
-                Background="{ThemeResource OverlayBarSurfaceBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                BorderThickness="1,1,1,0"
+                Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
+                BorderBrush="{ThemeResource FloatingHairlineBrush}"
+                BorderThickness="0.5,0.5,0.5,0"
                 CornerRadius="8,8,0,0"
                 Padding="8,6,8,6">
             <!-- The wrapper carries the tooltip (a disabled control shows none); Transparent so it hit-tests. -->
@@ -148,17 +150,17 @@
              the console, less the hairline). Fixed geometry, so declared here. Tune the radius = the 8s and 9s below. -->
         <Path x:Name="RadarConsoleSiteTabCurveLeft" Width="9" Height="9" Margin="-8,0,0,2"
               HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False"
-              Fill="{ThemeResource OverlayBarSurfaceBrush}" Data="M 9,0 L 9,9 L 0,9 A 8,8 0 0 0 8,1 L 8,0 Z"/>
+              Fill="{ThemeResource OverlayBarSurfaceRaisedBrush}" Data="M 9,0 L 9,9 L 0,9 A 8,8 0 0 0 8,1 L 8,0 Z"/>
         <Path x:Name="RadarConsoleSiteTabCurveLeftLine" Width="9" Height="9" Margin="-8,0,0,2"
               HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False"
-              Stroke="{ThemeResource CardStrokeColorDefaultSolidBrush}" StrokeThickness="1"
-              Data="M 0,8.5 A 8,8 0 0 0 8.5,0"/>
+              Stroke="{ThemeResource FloatingHairlineBrush}" StrokeThickness="0.5"
+              Data="M 0,8.75 A 8.5,8.5 0 0 0 8.75,0"/>
         <Path x:Name="RadarConsoleSiteTabCurveRight" Width="9" Height="9" Margin="0,0,-8,2"
               HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False"
-              Fill="{ThemeResource OverlayBarSurfaceBrush}" Data="M 0,0 L 0,9 L 9,9 A 8,8 0 0 1 1,1 L 1,0 Z"/>
+              Fill="{ThemeResource OverlayBarSurfaceRaisedBrush}" Data="M 0,0 L 0,9 L 9,9 A 8,8 0 0 1 1,1 L 1,0 Z"/>
         <Path x:Name="RadarConsoleSiteTabCurveRightLine" Width="9" Height="9" Margin="0,0,-8,2"
               HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False"
-              Stroke="{ThemeResource CardStrokeColorDefaultSolidBrush}" StrokeThickness="1"
-              Data="M 9,8.5 A 8,8 0 0 1 0.5,0"/>
+              Stroke="{ThemeResource FloatingHairlineBrush}" StrokeThickness="0.5"
+              Data="M 9,8.75 A 8.5,8.5 0 0 1 0.25,0"/>
     </Grid>
 </UserControl>

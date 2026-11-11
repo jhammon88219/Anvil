@@ -808,12 +808,15 @@
                 <RowDefinition Height="Auto"/> <!-- the site tab -->
                 <RowDefinition Height="Auto"/> <!-- the console -->
             </Grid.RowDefinitions>
+        <!-- IsRaised: the SAME face as the pane selectors (raised surface + their near-white hairline) — the user's call,
+             2026-11-11. RadarConsoleSiteTab wears the same face, so tab and console stay one plate. -->
         <ctl:OverlayBar x:Name="ConsoleIsland"
                         Grid.Row="1"
                         Edge="Bottom"
                         IsFloating="True"
                         ShowTab="False"
-                        EdgeStyle="CastShadow">
+                        EdgeStyle="CastShadow"
+                        IsRaised="True">
             <ctl:OverlayBar.BarContent>
                 <Grid x:Name="ConsoleIslandContent">
                     <comp:RadarControls x:Name="TimeModule"
