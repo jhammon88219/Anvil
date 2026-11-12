@@ -5,18 +5,16 @@
      it was the centre of the console's TOP ROW (RadarConsoleHeader, deleted) beside the network picker, Inspect and the
      rings/ruler — those moved to the left map-tools rail, leaving the site picker alone, so the tab returned.
 
-                       ░╭──────────────────────────────╮░      ← its own ROUNDED halo, top + sides only:
-                       ░│  ⌂ KTLX  Oklahoma City     ˅ │░        the rings stop at the tab's foot, so none
-         ░╭────────────╯                              ╰────────────╮░   ever paints on the console below;
-                                                                         ╯ ╰ = 8 px INSIDE CURVES into the console
-                                                                         the picker: no box at rest, Product's hover
-         ░│ 1:07 PM ═══ scrubber ═══  ◀ ▶ ▶ ↺        VCP: 212        │░  ← the console (MainWindow ConsoleIsland)
+                       ░╭──────────────────────────────╮░
+                       ░│  ⌂ KTLX  Oklahoma City     ˅ │░      ← THIS control = the picker only: no box at rest,
+         ░╭────────────╯                              ╰────────────╮░   Product's hover
+         ░│ 1:07 PM ═══ scrubber ═══  ◀ ▶ ▶ ↺        VCP: 212        │░  ← the console
          ░╰──────────────────────────────────────────────────────────╯░
 
-     ⚠️ The tab reaches 3 px INTO the console (the host's -3 bottom margin; its foot padding is +2 to match) and draws no
-     bottom line, so the console's top hairline is hidden under it at any display scale and tab and console read as ONE plate. It is declared AFTER the console in the host so it paints over that hairline.
-     Same face as the console AND the pane selectors (OverlayBarSurfaceRaisedBrush) and the same thin near-white hairline
-     (FloatingHairlineBrush, 0.5 — OverlayBar's RuleFloating); change them together.
+     ⚠️ IT DRAWS NO CHROME (2026-11-12): the tab's face, hairline, shadow and inside curves are the casing's —
+     Primitives/RadarConsolePlate (one outline for tab + console), which holds this in its TabContent slot and pads it.
+     Before that this file drew its own halo, body, foot strip and four curve pieces, and the seams showed
+     (docs/bugs.md S30, S31) — don't add a border or background back here.
      Centred on the console = on its play button = the window's midpoint (RadarControls.CentreOnPlay).
 
      It is ALSO the "which radar is selected" readout: the FACE is the site on the map now (⌂ home, ★ favorite, bare
@@ -85,34 +83,8 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <Grid>
-        <!-- THE TAB'S HALO — the floating console's rounded rings (OverlayBar FloatHalo), cut off at the tab's FOOT: each
-             ring's bottom margin is 0 and its bottom corners square, so the shade wraps the top and sides only and never
-             lands on the console below. -->
-        <Grid x:Name="RadarConsoleSiteTabHalo"
-              Margin="0,-2,0,0"
-              Opacity="{ThemeResource OverlayBarShadowOpacity}"
-              IsHitTestVisible="False">
-            <Border Margin="-10,-10,-10,0" CornerRadius="18,18,0,0" Background="Black" Opacity="0.08"/>
-            <Border Margin="-8,-8,-8,0" CornerRadius="16,16,0,0" Background="Black" Opacity="0.10"/>
-            <Border Margin="-6,-6,-6,0" CornerRadius="14,14,0,0" Background="Black" Opacity="0.12"/>
-            <Border Margin="-4,-4,-4,0" CornerRadius="12,12,0,0" Background="Black" Opacity="0.16"/>
-            <Border Margin="-2,-2,-2,0" CornerRadius="10,10,0,0" Background="Black" Opacity="0.22"/>
-        </Grid>
-
-        <!-- THE TAB — the console's face and hairline (raised, thin near-white), top corners rounded, NO bottom line (it
-             opens into the console).
-             ⚠️ THE CURVE LINES END ON THE CENTRE OF THE 0.5 LINES THEY JOIN: the box's bottom is 1 below the console's top
-             edge, so the console's hairline (0…0.5) is centred at y 8.25; the tab's side line sits in the box's 9th column,
-             centred at x 8.25 (left) / 0.75 (right). An end off those centres pokes out as a DOT under each curve
-             (docs/bugs.md S30). -->
-        <Border x:Name="RadarConsoleSiteTabBody"
-                Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
-                BorderBrush="{ThemeResource FloatingHairlineBrush}"
-                BorderThickness="0.5,0.5,0.5,0"
-                CornerRadius="8,8,0,0"
-                Padding="8,6,8,6">
-            <!-- The wrapper carries the tooltip (a disabled control shows none); Transparent so it hit-tests. -->
+    <!-- The wrapper carries the tooltip (a disabled control shows none); Transparent so it hit-tests.
+         No chrome here — the casing (Primitives/RadarConsolePlate) draws the tab and pads this. -->
             <Grid Background="Transparent"
                   ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">
                 <prim:SectionedComboBox x:Name="SitePicker"
@@ -146,40 +118,4 @@
                     </prim:SectionedComboBox.FooterContent>
                 </prim:SectionedComboBox>
             </Grid>
-        </Border>
-
-        <!-- THE FOOT — a plain strip of face over the tab's last 5 units: the 3 it reaches INTO the console + 2 above the
-             console's top line. It hides the console's top line under the tab AND the bottom of the tab's own side lines
-             (which run the tab's FULL height, so their foot would otherwise poke out below the console's top line as a
-             mark under each curve — docs/bugs.md S30).
-             ⚠️ It must share the BODY'S layout slot (same Grid cell, bottom-aligned, no margin) so its bottom snaps to the
-             SAME screen pixel as the side lines' end. A cover sized on its own (the curve patch, 9×11) rounded half a
-             pixel short at 150% scaling and the line still showed. -->
-        <Border x:Name="RadarConsoleSiteTabFoot"
-                Height="5"
-                VerticalAlignment="Bottom"
-                IsHitTestVisible="False"
-                Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
-
-        <!-- THE INSIDE CURVES (the user's call, 2026-11-11 — mock-up 5): where the tab's sides meet the console's top edge,
-             an 8 px concave fillet in the SAME face + hairline, so tab and console read as one moulded plate. Each is a 9×9
-             box hung OUTSIDE the tab's foot: its last column overlaps the tab's side line (covering it for the 9 px where the
-             arc takes over; the FOOT strip above covers the rest), its bottom 1 below the console's top edge (Margin bottom
-             2 = the tab's 3 reach into the console, less 1). Fixed geometry, so declared here. Tune the radius = the 8s and
-             9s below. -->
-        <Path x:Name="RadarConsoleSiteTabCurveLeft" Width="9" Height="9" Margin="-8,0,0,2"
-              HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False"
-              Fill="{ThemeResource OverlayBarSurfaceRaisedBrush}" Data="M 9,0 L 9,9 L 0,9 A 8,8 0 0 0 8,1 L 8,0 Z"/>
-        <Path x:Name="RadarConsoleSiteTabCurveLeftLine" Width="9" Height="9" Margin="-8,0,0,2"
-              HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False"
-              Stroke="{ThemeResource FloatingHairlineBrush}" StrokeThickness="0.5"
-              Data="M 0,8.25 A 8,8 0 0 0 8.25,0"/>
-        <Path x:Name="RadarConsoleSiteTabCurveRight" Width="9" Height="9" Margin="0,0,-8,2"
-              HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False"
-              Fill="{ThemeResource OverlayBarSurfaceRaisedBrush}" Data="M 0,0 L 0,9 L 9,9 A 8,8 0 0 1 1,1 L 1,0 Z"/>
-        <Path x:Name="RadarConsoleSiteTabCurveRightLine" Width="9" Height="9" Margin="0,0,-8,2"
-              HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False"
-              Stroke="{ThemeResource FloatingHairlineBrush}" StrokeThickness="0.5"
-              Data="M 9,8.25 A 8,8 0 0 1 0.75,0"/>
-    </Grid>
 </UserControl>

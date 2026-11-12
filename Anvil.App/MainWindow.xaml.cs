@@ -458,7 +458,7 @@ namespace Anvil
 			// tab, selectors and panes are listed too so nothing interactive can ever end up under a caption rect.
 			var rects = new List<RectInt32>(PaneLayoutInfo.MaxPanes + 8);
 			foreach (var notch in new FrameworkElement[]
-				{ MenuBarMenus, PlaceSearchBox, CaptionKey, ConsoleIslandHost,
+				{ MenuBarMenus, PlaceSearchBox, CaptionKey, RadarConsolePlate,
 				  Notch0, Notch1, Notch2, Notch3, TemporalPanePastCast, TemporalPaneNowCast, TemporalPaneForeCast })
 			{
 				// A hidden pane selector is invisible but laid out (IsNotchShown) — not hit-testable, so it is no hole either.
@@ -794,7 +794,7 @@ namespace Anvil
 			// window (multi-monitor). The manager watches the coordinator VM's open flags and opens/closes a window
 			// to match; content is a fresh section instance bound to this same VM, rendered headerless (the
 			// window caption is the chrome). Each flag is INDEPENDENT — any combination may be open at once.
-			// The radar console (the floating ConsoleIsland) is deliberately NOT here.
+			// The radar console (the floating RadarConsolePlate) is deliberately NOT here.
 			// ⚠️ The panels' usable band ends at the WINDOW BOTTOM: the bottom chrome is gone (2026-11-04) — the map tools
 			// are the left rail — so nothing opaque sits across the window's foot any more.
 			_windows.Initialize(this, ViewModel,

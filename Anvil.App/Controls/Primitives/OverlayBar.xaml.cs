@@ -217,8 +217,13 @@ namespace Anvil.Controls.Primitives
 		/// <summary>This bar's own tab (MainWindow punches an input hole for it while the top bar is hidden).</summary>
 		public FrameworkElement TabElement => Tab;
 
-		private static void OnChromeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
-			((OverlayBar)d).ApplyChrome();
+		// Both halves: IsFloating moves the face as well (it hands it to FloatOutline).
+		private static void OnChromeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+		{
+			var bar = (OverlayBar)d;
+			bar.ApplySurface();
+			bar.ApplyChrome();
+		}
 
 		// ⚠️ IsRaised drives BOTH halves - the face in ApplySurface, the tighter padding in ApplyChrome.
 		private static void OnSurfaceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -230,8 +235,10 @@ namespace Anvil.Controls.Primitives
 
 		// Point the surface at the right tier. A visual state rather than an assignment because the value is
 		// a theme brush and a C# lookup returns the OS theme's, not the app's (CLAUDE.md).
+		// A FLOATING box's face is FloatOutline's (PlateOutline, which takes IsRaised itself), so the border goes clear.
 		private void ApplySurface() =>
-			VisualStateManager.GoToState(this, IsRaised ? "RaisedSurface" : "GroundSurface", false);
+			VisualStateManager.GoToState(this, IsFloating ? "FloatingSurface"
+				: IsRaised ? "RaisedSurface" : "GroundSurface", false);
 
 		// Pick the chrome's states for the current edge and shape (the looks themselves are the XAML's — EdgeStates,
 		// CornerStates, RuleStates, PaddingStates, ShadowStates) and hand the tab its part. For a BOTTOM full-width
@@ -261,7 +268,7 @@ namespace Anvil.Controls.Primitives
 				: top ? "TopBarPadding"
 				: IsRaised ? "RaisedPadding" : "GroundPadding", false);
 			VisualStateManager.GoToState(this, !lit ? "NoShadow"
-				: floating ? (shadowed ? "FloatShadow" : "NoShadow")
+				: floating ? (shadowed ? "FloatShadow" : "FloatFlat") // both show FloatOutline (face + hairline)
 				: EdgeStyle == BarEdgeStyle.CastShadow ? (island ? "CastShadowIsland" : "CastShadowEdge")
 				: EdgeStyle == BarEdgeStyle.InsetShadow ? "InsetShadowEdge"
 				: "NoShadow", false);

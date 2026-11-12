@@ -777,7 +777,7 @@
 
              Centred on the window (play = the midpoint, RadarControls.CentreOnPlay), SelectorGap (8) above the window
              bottom — there is no bottom chrome since 2026-11-04 (its tools are the left RAIL). Same look as
-             the bar it came from: the GROUND surface, NOT raised (the selectors are raised). It never shrinks: in a window
+             the pane selectors (raised face, near-white hairline, rounded shadow). It never shrinks: in a window
              too narrow for both edge panes it overlaps their bottoms — DECLARED AFTER the temporal panes so it paints over
              them and stays clickable, and after the loop holding gate, so it stays live over the frost like the bar did.
              View → Radar console hides it (IsRadarConsoleVisible, persisted).
@@ -793,32 +793,22 @@
              the model follows it. RadarControls stays LAID OUT underneath (Opacity 0, not hit-testable — never Collapsed),
              so the console keeps its width, and ModelConsole has its exact widths.
              ⚠️ CENTRED ONLY BECAUSE IT IS A FIXED WIDTH: the clock reserves a two-digit hour (RadarControls). -->
-        <Grid x:Name="ConsoleIslandHost"
-              Grid.Row="0" Grid.RowSpan="2"
-              HorizontalAlignment="Center"
-              VerticalAlignment="Bottom"
-              Margin="0,0,0,8"
-              Visibility="{x:Bind ConsoleVisibility(ViewModel.IsRadarConsoleVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}">
-            <!-- The host: the SITE TAB (row 0, Composites/RadarConsoleSiteTab, centred) standing on the console (row 1).
-                 ⚠️ The tab is declared AFTER the console so it paints over the console's top hairline: its -3 bottom margin
-                 reaches 3 px INTO the console (not 1 — at a display scale above 100% the hairline lands on fractional pixels and
-                 a 1 px overlap let it show as a line under the tab); the tab pads +2 at its foot so its content doesn't move.
-                 Its own halo stops at its foot, so neither shadow crosses the other plate. -->
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- the site tab -->
-                <RowDefinition Height="Auto"/> <!-- the console -->
-            </Grid.RowDefinitions>
-        <!-- IsRaised: the SAME face as the pane selectors (raised surface + their near-white hairline) — the user's call,
-             2026-11-11. RadarConsoleSiteTab wears the same face, so tab and console stay one plate. -->
-        <ctl:OverlayBar x:Name="ConsoleIsland"
-                        Grid.Row="1"
-                        Edge="Bottom"
-                        IsFloating="True"
-                        ShowTab="False"
-                        EdgeStyle="CastShadow"
-                        IsRaised="True">
-            <ctl:OverlayBar.BarContent>
-                <Grid x:Name="ConsoleIslandContent">
+        <!-- THE CASING is Primitives/RadarConsolePlate (2026-11-12): tab + console drawn as ONE outline (PlateOutline — the
+             same drawing the pane selectors wear, raised face + near-white hairline + rounded shadow). It replaced an
+             OverlayBar with a separately-drawn tab overlapping it, whose seams showed (docs/bugs.md S30, S31). This file
+             only fills its two slots. -->
+        <ctl:RadarConsolePlate x:Name="RadarConsolePlate"
+                               Grid.Row="0" Grid.RowSpan="2"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Bottom"
+                               Margin="0,0,0,8"
+                               Visibility="{x:Bind ConsoleVisibility(ViewModel.IsRadarConsoleVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}">
+            <ctl:RadarConsolePlate.TabContent>
+                <comp:RadarConsoleSiteTab x:Name="RadarConsoleSiteTab"
+                                          ViewModel="{x:Bind ViewModel}"/>
+            </ctl:RadarConsolePlate.TabContent>
+            <ctl:RadarConsolePlate.ConsoleContent>
+                <Grid x:Name="RadarConsoleContent">
                     <comp:RadarControls x:Name="TimeModule"
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
@@ -834,14 +824,8 @@
                                        HatchLook="{x:Bind ViewModel.Radar.HatchLook}"
                                        ViewModel="{x:Bind ViewModel.ShortRange.Playback}"/>
                 </Grid>
-            </ctl:OverlayBar.BarContent>
-        </ctl:OverlayBar>
-        <comp:RadarConsoleSiteTab x:Name="RadarConsoleSiteTab"
-                                  Grid.Row="0"
-                                  HorizontalAlignment="Center"
-                                  Margin="0,0,0,-3"
-                                  ViewModel="{x:Bind ViewModel}"/>
-        </Grid>
+            </ctl:RadarConsolePlate.ConsoleContent>
+        </ctl:RadarConsolePlate>
 
         <!-- FULL-SCREEN (bolt-on) — the HINT, ~3 s on entering full screen (FullScreenHintFlash), click-through:
 

@@ -57,9 +57,13 @@
        IsFloating=True — A PANE SELECTOR / THE FLOATING RADAR CONSOLE (attached to nothing; ShowTab False)
 
               ░╭───────────────────────────╮░   every corner rounded (8), a THIN NEAR-WHITE hairline ALL ROUND (shadowed or not);
-             ░│   BarContent (the slot)   │░   CastShadow = the ROUNDED HALO (FloatHalo: five rings, radius 8+n·2),
-              ░╰───────────────────────────╯░   nudged 2 px the way Edge says (Bottom = up, Top = down).
+             ░│   BarContent (the slot)   │░   CastShadow = the ROUNDED shadow, nudged 2 px the way Edge says
+              ░╰───────────────────────────╯░   (Bottom = up, Top = down).
                ░░░░░░░░░░░░░░░░░░░░░░░░░░░     ⚠️ Never the edge bands — their square ends showed as a card behind.
+       ⚠️ A FLOATING box's face, hairline and shadow are NOT BarBorder's: they are Primitives/PlateOutline (FloatOutline),
+       the SAME drawing the radar console's casing wears (RadarConsolePlate), so every floating box matches (2026-11-12).
+       BarBorder goes transparent (FloatingSurface + RuleFloating) and keeps only its padding and its 0.5 of layout.
+       (The radar console is no longer one of these — it is a RadarConsolePlate.)
 
      Hidden, only the tab remains (it reads "Show") and the bar Border collapses — the map is
      never resized either way, in either shape.
@@ -96,6 +100,13 @@
                         <Setter Target="BarBorder.Background" Value="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
                     </VisualState.Setters>
                 </VisualState>
+                <!-- FLOATING: the face is FloatOutline's (PlateOutline), so the border shows none of its own.
+                     Transparent, not null, so the box still catches the pointer. -->
+                <VisualState x:Name="FloatingSurface">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.Background" Value="Transparent"/>
+                    </VisualState.Setters>
+                </VisualState>
             </VisualStateGroup>
 
             <!-- THE CHROME — every look ApplyChrome used to set in code, as states it now only PICKS. Five
@@ -122,8 +133,8 @@
                         <Setter Target="InsetShadow.Background" Value="{StaticResource ShadowFadeUp}"/>
                         <Setter Target="SideShadowLeft.(Grid.Row)" Value="0"/>
                         <Setter Target="SideShadowRight.(Grid.Row)" Value="0"/>
-                        <Setter Target="FloatHalo.(Grid.Row)" Value="0"/>
-                        <Setter Target="FloatHalo.Margin" Value="0,2,0,-2"/>
+                        <Setter Target="FloatOutline.(Grid.Row)" Value="0"/>
+                        <Setter Target="FloatOutline.ShadowOffsetY" Value="2"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -179,12 +190,12 @@
                 <!-- A FLOATING box (the four pane selectors + the radar console): a THIN hairline all round, NEAR-WHITE
                      (FloatingHairlineBrush) so the box stands off the map — the user's call, 2026-11-11. Every other
                      rule keeps the quiet CardStroke line.
-                     ⚠️ 0.5, not 1: layout rounding snaps it to whole SCREEN pixels, so at 150% scaling 1 drew TWO pixels
-                     and 0.5 draws ONE (at 100% both are one — a pixel is the floor). -->
+                     ⚠️ THE LINE ITSELF IS FloatOutline's (PlateOutline: one screen pixel at any scale). The border keeps its
+                     0.5 THICKNESS, transparent, only so the box's size is what it always was. -->
                 <VisualState x:Name="RuleFloating">
                     <VisualState.Setters>
                         <Setter Target="BarBorder.BorderThickness" Value="0.5"/>
-                        <Setter Target="BarBorder.BorderBrush" Value="{ThemeResource FloatingHairlineBrush}"/>
+                        <Setter Target="BarBorder.BorderBrush" Value="Transparent"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -243,7 +254,14 @@
                      above the floating console like empty space). -->
                 <VisualState x:Name="FloatShadow">
                     <VisualState.Setters>
-                        <Setter Target="FloatHalo.Visibility" Value="Visible"/>
+                        <Setter Target="FloatOutline.Visibility" Value="Visible"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <!-- FLOATING with no shadow: the outline still draws the face and the hairline. -->
+                <VisualState x:Name="FloatFlat">
+                    <VisualState.Setters>
+                        <Setter Target="FloatOutline.Visibility" Value="Visible"/>
+                        <Setter Target="FloatOutline.ShowShadow" Value="False"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -283,23 +301,16 @@
                 IsHitTestVisible="False"
                 Visibility="Collapsed"/>
 
-        <!-- THE FLOATING HALO (IsFloating, 2026-11-03): a soft ROUNDED shadow behind a floating box — five black rings,
-             each 2 px wider with a matching larger radius (8 + n·2), stacked so the shade thickens toward the card.
-             Nudged 2 px toward the Edge's far side (EdgeStates: Bottom = up, Top = down), so "Edge picks which way its
-             shadow falls" still holds. Declared BEFORE BarBorder (paints behind it) and inside the cell with negative
-             margins, so it reserves no layout. -->
-        <Grid x:Name="FloatHalo"
-              Grid.Row="1"
-              Margin="0,-2,0,2"
-              Opacity="{ThemeResource OverlayBarShadowOpacity}"
-              IsHitTestVisible="False"
-              Visibility="Collapsed">
-            <Border Margin="-10" CornerRadius="18" Background="Black" Opacity="0.08"/>
-            <Border Margin="-8" CornerRadius="16" Background="Black" Opacity="0.10"/>
-            <Border Margin="-6" CornerRadius="14" Background="Black" Opacity="0.12"/>
-            <Border Margin="-4" CornerRadius="12" Background="Black" Opacity="0.16"/>
-            <Border Margin="-2" CornerRadius="10" Background="Black" Opacity="0.22"/>
-        </Grid>
+        <!-- THE FLOATING OUTLINE (IsFloating): Primitives/PlateOutline — the box's face, its one-pixel hairline and its soft
+             ROUNDED shadow as ONE drawing, shared with the radar console's casing (RadarConsolePlate). The shadow is
+             nudged 2 px toward the Edge's far side (EdgeStates: Bottom = up, Top = down), so "Edge picks which way its
+             shadow falls" still holds. Declared BEFORE BarBorder (paints behind the content); it reserves no layout.
+             Shown by the ShadowStates (FloatShadow / FloatFlat), so a hidden bar draws nothing. -->
+        <prim:PlateOutline x:Name="FloatOutline"
+                           Grid.Row="1"
+                           IsRaised="{x:Bind IsRaised, Mode=OneWay}"
+                           IsHitTestVisible="False"
+                           Visibility="Collapsed"/>
 
         <!-- The bar itself: a content slot the host fills (see BarContent). Collapses when hidden. -->
         <Border x:Name="BarBorder"

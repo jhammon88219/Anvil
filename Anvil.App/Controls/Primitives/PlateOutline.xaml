@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ============================================================================
+     PlateOutline — the ONE drawing of a FLOATING plate: its face, its thin hairline and its soft rounded shadow, as a
+     single outline. Every floating box wears it, so they cannot drift apart: the four pane selectors (OverlayBar
+     IsFloating) and the radar console (RadarConsolePlate). It draws only; it holds no content and takes no layout space.
+
+       plain (TabWidth 0 — a pane selector)            with a tab (the radar console)
+
+         ░╭───────────────────────────╮░                        ░╭──────────────╮░
+         ░│                           │░                        ░│   the tab    │░
+         ░╰───────────────────────────╯░            ░╭──────────╯              ╰──────────╮░   ╯ ╰ = 8 px inside curves
+          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░             ░│          the body                  │░
+                                                    ░╰────────────────────────────────────╯░
+
+     ⚠️ ONE SHAPE, ONE STROKE. The face and the hairline are the SAME Path (Fill + Stroke), so the line runs round the
+     whole silhouette — tab side, inside curve, body top — with no join. Never rebuild this from Borders and patches:
+     pieces round to screen pixels separately and leave marks at the seams (docs/bugs.md S30, S31).
+     ⚠️ THE GEOMETRY IS BUILT IN CODE (PlateOutline.xaml.cs BuildOutline) — it depends on the measured size and the
+     display scale, which markup cannot express: the line is exactly ONE SCREEN PIXEL wide and centred on a pixel at any
+     scale. The Paths themselves are declared here.
+     ⚠️ THE PATHS SIT IN A CANVAS: a Path reports its geometry as its desired size, which would grow the host (and loop).
+     THE SHADOW = the same outline stroked five times in black, wider and fainter outward (reach 2…10 px), nudged
+     ShadowOffsetY (-2 = up, 2 = down). Its inner half is hidden under the face. Strength = OverlayBarShadowOpacity.
+     Colours: face = OverlayBarSurfaceBrush / Raised (IsRaised), line = FloatingHairlineBrush. Radii: Corner + InsideCurve
+     in the code-behind.
+     Host contract: stretch it over the plate's whole rect, BEHIND the content. TabLeft/TabWidth/TabHeight = the tab's
+     box in this control's own coordinates (0 width = no tab).
+     ============================================================================ -->
+<UserControl x:Class="Anvil.Controls.Primitives.PlateOutline"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             IsTabStop="False">
+
+    <Canvas x:Name="PlateOutlineCanvas">
+        <VisualStateManager.VisualStateGroups>
+            <!-- Which tier's face. A {ThemeResource} in a setter, never a C# lookup (CLAUDE.md theming gotcha). -->
+            <VisualStateGroup x:Name="FaceStates">
+                <VisualState x:Name="GroundFace"/>
+                <VisualState x:Name="RaisedFace">
+                    <VisualState.Setters>
+                        <Setter Target="PlateOutlineFace.Fill" Value="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <!-- THE SHADOW — five rings of the same outline, widest and faintest first. -->
+        <Canvas x:Name="PlateOutlineShadow"
+                Canvas.Top="{x:Bind ShadowOffsetY, Mode=OneWay}"
+                Opacity="{ThemeResource OverlayBarShadowOpacity}"
+                Visibility="{x:Bind ShadowVisibility(ShowShadow), Mode=OneWay}"
+                IsHitTestVisible="False">
+            <Path x:Name="PlateOutlineShadowRing10" Stroke="Black" StrokeThickness="20" StrokeLineJoin="Round" Opacity="0.08"/>
+            <Path x:Name="PlateOutlineShadowRing8" Stroke="Black" StrokeThickness="16" StrokeLineJoin="Round" Opacity="0.10"/>
+            <Path x:Name="PlateOutlineShadowRing6" Stroke="Black" StrokeThickness="12" StrokeLineJoin="Round" Opacity="0.12"/>
+            <Path x:Name="PlateOutlineShadowRing4" Stroke="Black" StrokeThickness="8" StrokeLineJoin="Round" Opacity="0.16"/>
+            <Path x:Name="PlateOutlineShadowRing2" Stroke="Black" StrokeThickness="4" StrokeLineJoin="Round" Opacity="0.22"/>
+        </Canvas>
+
+        <!-- THE FACE + THE HAIRLINE — one Path. StrokeThickness is set in code to one screen pixel. -->
+        <Path x:Name="PlateOutlineFace"
+              Fill="{ThemeResource OverlayBarSurfaceBrush}"
+              Stroke="{ThemeResource FloatingHairlineBrush}"
+              StrokeThickness="1"/>
+    </Canvas>
+</UserControl>
