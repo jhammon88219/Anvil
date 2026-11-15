@@ -95,7 +95,9 @@
         </Button>
 
         <!-- Max size -->
-        <ComboBox x:Name="MaxSizeComboBox" Grid.Column="5" HorizontalAlignment="Stretch"
+        <!-- ⚠️ VerticalAlignment="Center" on BOTH dropdowns: WinUI's ComboBox style defaults to Top (buttons to Center),
+             so without it the dropdowns sit higher than the Size text and the buttons. -->
+        <ComboBox x:Name="MaxSizeComboBox" Grid.Column="5" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                   Visibility="{x:Bind Show(Item.HasMax, x:True), Mode=OneWay}"
                   IsEnabled="{x:Bind Item.IsMaxEditable, Mode=OneWay}"
                   ItemsSource="{x:Bind Item.MaxChoices, Mode=OneWay}"
@@ -105,7 +107,7 @@
                    Visibility="{x:Bind Show(Item.HasMax, x:False), Mode=OneWay}"/>
 
         <!-- Keep for -->
-        <ComboBox x:Name="KeepForComboBox" Grid.Column="6" HorizontalAlignment="Stretch"
+        <ComboBox x:Name="KeepForComboBox" Grid.Column="6" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                   Visibility="{x:Bind Show(Item.HasKeep, x:True), Mode=OneWay}"
                   IsEnabled="{x:Bind Item.IsKeepEditable, Mode=OneWay}"
                   ItemsSource="{x:Bind Item.KeepChoices, Mode=OneWay}"
