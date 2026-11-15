@@ -12,7 +12,8 @@
      ⚠️ Every value with a changing width sits in a FIXED slot (Size 80 right-aligned, tabular digits; the button 96;
      each dropdown fills its column), so a new size or choice never moves anything.
      ⚠️ The Size colour is a VisualState (FillStates ← Item.Fill) with {ThemeResource} brushes — never a brush picked in C#.
-     A kind with no Max size shows "—"; usage history's Keep for is "Always kept". A dropdown greys only when its item
+     A kind with no Max size shows a hairline across that column (12 px in each side); usage history's Keep for is
+     "Always kept", its text starting where the dropdowns' text does. A dropdown greys only when its item
      has no setter (IsMaxEditable / IsKeepEditable — none today). Usage history's button asks first (a flyout); the rest clear at once. -->
 <UserControl x:Class="Anvil.Controls.StorageManagers.StorageManagerSettingsConsoleDataTableRow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -102,8 +103,9 @@
                   IsEnabled="{x:Bind Item.IsMaxEditable, Mode=OneWay}"
                   ItemsSource="{x:Bind Item.MaxChoices, Mode=OneWay}"
                   SelectedItem="{x:Bind Item.SelectedMax, Mode=TwoWay}"/>
-        <TextBlock x:Name="MaxSizeNoneText" Grid.Column="5" Text="—" VerticalAlignment="Center"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+        <!-- No Max size: a rule across the whole column (12 in from each side), not a lone dash. -->
+        <Rectangle x:Name="MaxSizeNoneRule" Grid.Column="5" Height="1" Margin="12,0" VerticalAlignment="Center"
+                   HorizontalAlignment="Stretch" Fill="{ThemeResource TextFillColorTertiaryBrush}"
                    Visibility="{x:Bind Show(Item.HasMax, x:False), Mode=OneWay}"/>
 
         <!-- Keep for -->
@@ -112,7 +114,9 @@
                   IsEnabled="{x:Bind Item.IsKeepEditable, Mode=OneWay}"
                   ItemsSource="{x:Bind Item.KeepChoices, Mode=OneWay}"
                   SelectedItem="{x:Bind Item.SelectedKeep, Mode=TwoWay}"/>
-        <TextBlock x:Name="KeepForAlwaysText" Grid.Column="6" Text="Always kept" VerticalAlignment="Center" FontSize="12"
+        <!-- Lines up with the dropdown text above: the ComboBox's own padding (ComboBoxPadding) + its 1 px border. -->
+        <TextBlock x:Name="KeepForAlwaysText" Grid.Column="6" Text="Always kept" VerticalAlignment="Center"
+                   Margin="1,0,0,0" Padding="{ThemeResource ComboBoxPadding}"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Visibility="{x:Bind Show(Item.HasKeep, x:False), Mode=OneWay}"/>
     </Grid>
