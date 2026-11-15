@@ -56,7 +56,7 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, ITropicalService tropicalService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion, LoopLoadLog? loopLoadLog = null, LivePollTimingLog? livePollTimingLog = null, LiveFeedHub? liveFeed = null, BasemapSetupViewModel? basemapSetup = null, IHrrrService? hrrrService = null)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, ITropicalService tropicalService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion, LoopLoadLog? loopLoadLog = null, LivePollTimingLog? livePollTimingLog = null, LiveFeedHub? liveFeed = null, BasemapSetupViewModel? basemapSetup = null, IHrrrService? hrrrService = null, IStorageService? storageService = null)
 		{
 			_mapService = mapService;
 			_startupLog = loggerFactory.CreateLogger<MapViewModel>();
@@ -67,7 +67,10 @@ namespace Anvil.ViewModels
 			_placeSearchService = placeSearchService;
 
 			// Built before IsSettingsWindowOpen can fire (its setter refreshes the cache readout on open).
-			Storage = new StorageSettingsViewModel(radarService, settingsService);
+			// Settings → Storage. Only the DI app sweeps weather data + logs at launch — a test passes no storage
+			// service, and must never trim the real %LocalAppData% folders.
+			Storage = new StorageSettingsViewModel(radarService, settingsService, storageService ?? new StorageService(radarService));
+			if (storageService is not null) Storage.SweepAtLaunch();
 			// Settings → Basemap. The app's DI singleton, so the map setup window shown before launch is the same
 			// instance; tests get their own.
 			BasemapSetup = basemapSetup ?? new BasemapSetupViewModel(settingsService, radarSiteProvider);
@@ -151,6 +154,7 @@ namespace Anvil.ViewModels
 			// A restored model field owns the map at launch: the home site's live loop would arm NowCast and untick it.
 			SiteFavorites.HoldLaunchLoad = () => ShortRange.IsDrawing;
 			SiteUsage = new SiteUsageTracker(Radar, siteUsageStore);
+			Storage.AttachSiteUsage(SiteUsage.ClearAll);
 			// The PastCast load-time log (one line per load). Optional so tests that don't care can omit it.
 			if (loopLoadLog is not null) LoadTimes = new LoopLoadRecorder(Radar, loopLoadLog);
 			// The live-poll timing log (one line per new live frame / volume change): proof regime-aware polling holds. Every build.
@@ -1768,7 +1772,7 @@ namespace Anvil.ViewModels
 			if (!_isSettingsWindowOpen) return;
 			if (_settingsTabIndex == (int)SettingsTab.Storage)
 			{
-				_ = Storage.RefreshCacheSizeAsync();
+				_ = Storage.RefreshAsync();
 			}
 		}
 

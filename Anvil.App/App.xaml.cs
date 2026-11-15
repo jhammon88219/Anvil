@@ -89,12 +89,12 @@ namespace Anvil
 			_window.Activate();
 		}
 
-		// Serilog: async rolling file logs under %LocalAppData%\Anvil\Logs (7 days, 10 MB/file) + the VS
-		// Output window. The static Log.Logger is bridged into the container's ILogger<T> by AddSerilog.
+		// Serilog: async rolling file logs under %LocalAppData%\Anvil\Logs (10 MB/file) + the VS Output window. The
+		// static Log.Logger is bridged into the container's ILogger<T> by AddSerilog. HOW LONG and HOW MUCH is kept is
+		// Settings → Storage → Logs (AppSettings.LogsKeepDays / LogsMaxMb), applied by StorageService — not here.
 		private static void ConfigureLogging()
 		{
-			var logDirectory = Path.Combine(
-				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Anvil", "Logs");
+			var logDirectory = StorageService.LogsDirectory;
 			Directory.CreateDirectory(logDirectory);
 			var logPath = Path.Combine(logDirectory, "log-.txt");
 
@@ -110,9 +110,10 @@ namespace Anvil
 					path: logPath,
 					outputTemplate: template,
 					rollingInterval: RollingInterval.Day,
-					// ~90 days (a day runs 0.2-1 MB): crash and renderer-death lines stay readable over a long stretch.
+					// No file-count limit: Settings → Storage's Keep for / Max size (StorageService) decide what goes —
+					// a count would cut a longer Keep for short. 1000 is only a runaway backstop.
 					// rollOnFileSizeLimit: past 10 MB a day continues in a new file instead of silently stopping.
-					retainedFileCountLimit: 90,
+					retainedFileCountLimit: 1000,
 					fileSizeLimitBytes: 10 * 1024 * 1024,
 					rollOnFileSizeLimit: true))
 				.CreateLogger();
@@ -153,6 +154,7 @@ namespace Anvil
 			services.AddSingleton<ISavedEventLibrary, SavedEventLibrary>();
 			// Per-site usage (the Atlas's "Your use" strip): %LocalAppData%\Anvil\Usage\site-usage.json.
 			services.AddSingleton<SiteUsageStore>();
+			services.AddSingleton<IStorageService, StorageService>(); // Settings → Storage (sizes, clears, weather/log limits)
 #if DEBUG
 			// DEV-ONLY: the PastCast load-time log (designs the "ready in" estimate; not shipped). Without it MapViewModel
 			// builds no LoopLoadRecorder, so a Release build writes nothing.

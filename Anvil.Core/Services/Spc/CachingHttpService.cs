@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -35,6 +36,7 @@ namespace Anvil.Services
 				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
 				"Anvil", cacheSubfolder);
 			Directory.CreateDirectory(CacheDirectory);
+			s_cacheDirectories.TryAdd(CacheDirectory, 0);
 
 			Http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
 			Http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
@@ -50,18 +52,23 @@ namespace Anvil.Services
 		//   • orphaned .tmp files from any write that threw between the temp write and the move.
 		// Each file is small; the FILE COUNT is the problem, in a folder that is also a WebView2 virtual host.
 		//
-		// ⚠️ AGE, NOT SIZE — deliberately unlike Level2RadarService's sweep. These are kilobytes, so a size
-		// cap would never bind; what needs bounding is how long a file nobody will ask for again survives.
+		// ⭐ The AGE + SIZE caps over these folders moved to StorageService (Settings → Storage → Weather data:
+		// "Keep for" + "Max size", AppSettings.WeatherData*), which finds every folder through the registry below.
+		// This sweep keeps only what is per-service: orphaned temps and the stamped per-launch logs.
 		// ⚠️ THE LIVE CACHES ARE SAFE BY CONSTRUCTION, not by an exclusion list: today's outlook, the watch
 		// and warning snapshots are rewritten in place on every refresh, so their mtime is always fresh and
-		// an age sweep cannot reach them. That means NO filename knowledge lives here — a service can add,
-		// rename or restructure its cache files and this keeps working.
-		// ⚠️ The age is generous on purpose. These caches are the LAST-KNOWN-GOOD fallback when a feed is
-		// down, and deleting one turns a stale overlay into an empty one. 30 days is far longer than any
-		// outage worth surviving, and still bounds the growth that matters.
+		// an age sweep cannot reach them (and StorageService never size-trims a file under 30 min old). That
+		// means NO filename knowledge lives anywhere — a service can add, rename or restructure its cache files.
 		// ⚠️ Best-effort throughout, and OFF THE STARTUP PATH: a failure to tidy must never be visible.
-		private static readonly TimeSpan CacheMaxAge = TimeSpan.FromDays(30);
 		private static readonly TimeSpan OrphanTempMinAge = TimeSpan.FromHours(1); // never race a live write
+
+		// Every subclass's folder, registered in the constructor — Settings → Storage's "Weather data" is exactly
+		// this set, so a new feed service is counted, cleared and swept with no other edit.
+		private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> s_cacheDirectories =
+			new(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>The cache folder of every <see cref="CachingHttpService"/> built so far (= weather data).</summary>
+		internal static IReadOnlyCollection<string> KnownCacheDirectories => s_cacheDirectories.Keys.ToList();
 
 		private void SweepCacheOnStartup(string? stampedPattern, int keepStampedNewest)
 		{
@@ -82,16 +89,7 @@ namespace Anvil.Services
 						catch { /* best effort */ }
 					}
 
-					// 2. Age cap over everything else. Live caches are rewritten in place, so they never age out.
-					foreach (var file in Directory.EnumerateFiles(CacheDirectory))
-					{
-						if (file.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase)) continue;
-						try
-						{
-							if (now - File.GetLastWriteTimeUtc(file) > CacheMaxAge) File.Delete(file);
-						}
-						catch { /* best effort */ }
-					}
+					// 2. (The age cap is StorageService's now — see above.)
 
 					// 3. Per-launch stamped logs: keep the newest N regardless of age, because they are written
 					//    once per run and a burst of short sessions would otherwise leave hundreds inside the

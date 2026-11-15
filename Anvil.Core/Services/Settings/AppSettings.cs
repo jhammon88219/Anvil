@@ -159,6 +159,40 @@ namespace Anvil.Services
 			set => SetProperty(ref _radarCacheMaxGb, value);
 		}
 
+		// ── Settings → Storage: weather data (every CachingHttpService folder) + logs, applied by StorageService
+		//    at launch and on change. Choices = Models/Map/StorageLimits. ──
+		private int _weatherDataMaxMb = 500;
+		/// <summary>Weather data's Max size (MB): past it, the oldest files go first.</summary>
+		public int WeatherDataMaxMb
+		{
+			get => _weatherDataMaxMb;
+			set => SetProperty(ref _weatherDataMaxMb, value);
+		}
+
+		private int _weatherDataKeepDays = 30;
+		/// <summary>Weather data's Keep for (days). Was the fixed 30-day CachingHttpService sweep.</summary>
+		public int WeatherDataKeepDays
+		{
+			get => _weatherDataKeepDays;
+			set => SetProperty(ref _weatherDataKeepDays, value);
+		}
+
+		private int _logsMaxMb = 100;
+		/// <summary>The app logs' Max size (MB).</summary>
+		public int LogsMaxMb
+		{
+			get => _logsMaxMb;
+			set => SetProperty(ref _logsMaxMb, value);
+		}
+
+		private int _logsKeepDays = 90;
+		/// <summary>The app logs' Keep for (days). Was Serilog's 90-file limit.</summary>
+		public int LogsKeepDays
+		{
+			get => _logsKeepDays;
+			set => SetProperty(ref _logsKeepDays, value);
+		}
+
 		private double? _radarMemoryGb;
 		/// <summary>
 		/// "Radar memory" (Settings → Radar): GB a PastCast loop's decoded geometry may hold, which sizes the loop's frame

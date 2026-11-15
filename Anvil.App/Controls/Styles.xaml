@@ -198,6 +198,14 @@
         <GradientStop Color="#FF000000" Offset="1"/>
     </LinearGradientBrush>
 
+    <!-- SETTINGS → STORAGE kind colours (DATA, never themed): one per StorageKind, shared by the usage bar's segments +
+         legend and the data table's swatches (Controls/StorageManagers). Same hue order as the bar. -->
+    <SolidColorBrush x:Key="StorageRadarVolumesBrush" Color="#FF4C9BE8"/>
+    <SolidColorBrush x:Key="StorageRadarDiagnosticsBrush" Color="#FFE8954C"/>
+    <SolidColorBrush x:Key="StorageWeatherDataBrush" Color="#FF3FB7A6"/>
+    <SolidColorBrush x:Key="StorageLogsBrush" Color="#FFA685E2"/>
+    <SolidColorBrush x:Key="StorageUsageHistoryBrush" Color="#FF9A9A9A"/>
+
     <!-- The room under the LAST layer section of a temporal pane, so scrolled to the end it clears the activity
          expander's tab (26 high) and shade (36 deep). The Contents keep no bottom margin. -->
     <Thickness x:Key="TemporalListEndClearance">0,0,0,44</Thickness>

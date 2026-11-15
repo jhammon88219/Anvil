@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StorageManagerSettingsConsoleUsageBar — the top of Settings → Storage: the total, then ONE bar split by kind.
+
+       2.2 GB  used by Anvil              ← total: 28 SemiBold, tabular, a FIXED 132 slot (so "used by Anvil" never moves)
+       ████████████████████████████▌▌▌▏▏  ← 14 tall, a segment per kind in StorageKind order, 2 px apart, rounded 3
+
+       hover the bar ↓
+       ┌──────────────────────────────────┐
+       │ ■ Radar volumes      1.8 GB   85% │ ← the LEGEND: every kind, so the 3 px slivers (logs, usage)
+       │ ■ Radar diagnostics  242 MB   11% │   are readable — hovering a sliver itself is too fine
+       │ ■ Weather data        68 MB    3% │
+       │ ■ Logs               4.7 MB  <1%  │
+       │ ■ Your usage history 2.6 MB  <1%  │
+       └──────────────────────────────────┘
+
+     Segment widths = star columns weighted by each kind's bytes (Star(...)), MinWidth 3 so a tiny kind still shows.
+     Colours = Styles.xaml Storage*Brush (DATA colours, same as the table's swatches). -->
+<UserControl x:Class="Anvil.Controls.StorageManagers.StorageManagerSettingsConsoleUsageBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <StackPanel Spacing="10">
+        <StackPanel x:Name="UsageTotalLine" Orientation="Horizontal" Spacing="8">
+            <TextBlock x:Name="UsageTotalText" Width="132" FontSize="28" FontWeight="SemiBold"
+                       Style="{StaticResource TabularNumberTextStyle}"
+                       Text="{x:Bind ViewModel.TotalText, Mode=OneWay}"/>
+            <TextBlock x:Name="UsageTotalCaption" Text="used by Anvil" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,6"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+
+        <!-- The bar. A transparent host so the whole band (not just the drawn segments) opens the legend. -->
+        <Grid x:Name="UsageBarHost" Background="Transparent" Padding="0,4">
+            <ToolTipService.ToolTip>
+                <ToolTip>
+                    <Grid x:Name="UsageBarLegend" ColumnSpacing="8" RowSpacing="4" MinWidth="260">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="64"/>
+                            <ColumnDefinition Width="36"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                        </Grid.RowDefinitions>
+
+                        <Rectangle Grid.Row="0" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageRadarVolumesBrush}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind ViewModel.RadarVolumes.Name, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.RadarVolumes.SizeText, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.RadarVolumes.ShareText, Mode=OneWay}"/>
+
+                        <Rectangle Grid.Row="1" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageRadarDiagnosticsBrush}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.RadarDiagnostics.Name, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.RadarDiagnostics.SizeText, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.RadarDiagnostics.ShareText, Mode=OneWay}"/>
+
+                        <Rectangle Grid.Row="2" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageWeatherDataBrush}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.WeatherData.Name, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.WeatherData.SizeText, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.WeatherData.ShareText, Mode=OneWay}"/>
+
+                        <Rectangle Grid.Row="3" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageLogsBrush}"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{x:Bind ViewModel.Logs.Name, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="3" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.Logs.SizeText, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="3" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.Logs.ShareText, Mode=OneWay}"/>
+
+                        <Rectangle Grid.Row="4" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageUsageHistoryBrush}"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{x:Bind ViewModel.UsageHistory.Name, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="4" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.UsageHistory.SizeText, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="4" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.UsageHistory.ShareText, Mode=OneWay}"/>
+                    </Grid>
+                </ToolTip>
+            </ToolTipService.ToolTip>
+
+            <Grid x:Name="UsageBarSegments" Height="14" CornerRadius="3" ColumnSpacing="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.RadarVolumes.SizeBytes), Mode=OneWay}"/>
+                    <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.RadarDiagnostics.SizeBytes), Mode=OneWay}"/>
+                    <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.WeatherData.SizeBytes), Mode=OneWay}"/>
+                    <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.Logs.SizeBytes), Mode=OneWay}"/>
+                    <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.UsageHistory.SizeBytes), Mode=OneWay}"/>
+                </Grid.ColumnDefinitions>
+                <Rectangle Grid.Column="0" Fill="{StaticResource StorageRadarVolumesBrush}"/>
+                <Rectangle Grid.Column="1" Fill="{StaticResource StorageRadarDiagnosticsBrush}"/>
+                <Rectangle Grid.Column="2" Fill="{StaticResource StorageWeatherDataBrush}"/>
+                <Rectangle Grid.Column="3" Fill="{StaticResource StorageLogsBrush}"/>
+                <Rectangle Grid.Column="4" Fill="{StaticResource StorageUsageHistoryBrush}"/>
+            </Grid>
+        </Grid>
+    </StackPanel>
+</UserControl>

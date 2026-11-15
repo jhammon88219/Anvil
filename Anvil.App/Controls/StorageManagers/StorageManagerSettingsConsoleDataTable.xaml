@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StorageManagerSettingsConsoleDataTable — Settings → Storage's table: ONE header row, then the five kinds as
+     declared StorageManagerSettingsConsoleDataTableRow s (StorageKind order — the usage bar's order too).
+
+       DATA                                    SIZE (?)                         MAX SIZE (?)  KEEP FOR (?)
+       ─────────────────────────────────────────────────────────────────────────────────────────────────────
+       ■ Radar volumes — loops you've loaded    1.8 GB  [ Clear ] [📁]  [ 5 GB  ⌄]  [ 5 days  ⌄]
+       ■ Radar diagnostics — troubleshooting…   242 MB  [ Clear ] [📁]  [ 2 GB  ⌄]  [180 days ⌄]   ← greyed = sealed engine
+       ■ Weather data — outlooks, warnings…      68 MB  [ Clear ] [📁]  [500 MB ⌄]  [ 30 days ⌄]
+       ■ Logs                                   4.7 MB  [ Clear ] [📁]  [100 MB ⌄]  [ 90 days ⌄]
+       ■ Your usage history — Atlas "Your use"  2.6 MB  [Clear…] [📁]      —        Always kept
+       16  *                                     80 ←R    96      36     104          112   (ColumnSpacing 10)
+
+     ⚠️ THE HEADER'S SEVEN COLUMNS = THE ROW'S (StorageManagerSettingsConsoleDataTableRow). Change both.
+     The Clear and folder columns have no title (the buttons say what they do). Each "?" is a Primitives/GlossaryHint
+     over a Services/StorageGlossary card — the Size one carries the white/yellow/red key, so there is no footnote.
+     Row swatches are the Storage*Brush DATA colours (Styles.xaml), the same as the usage bar. -->
+<UserControl x:Class="Anvil.Controls.StorageManagers.StorageManagerSettingsConsoleDataTable"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:storageManagers="using:Anvil.Controls.StorageManagers"
+             xmlns:services="using:Anvil.Services"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <Style x:Key="StorageColumnTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="CharacterSpacing" Value="60"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <!-- header row -->
+        <Grid x:Name="DataTableHeader" ColumnSpacing="10" Padding="0,0,0,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="80"/>
+                <ColumnDefinition Width="96"/>
+                <ColumnDefinition Width="36"/>
+                <ColumnDefinition Width="104"/>
+                <ColumnDefinition Width="112"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="DataColumnTitle" Grid.Column="1" Text="DATA" Style="{StaticResource StorageColumnTitleStyle}"/>
+            <StackPanel x:Name="SizeColumnTitle" Grid.Column="2" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right">
+                <TextBlock Text="SIZE" Style="{StaticResource StorageColumnTitleStyle}"/>
+                <prim:GlossaryHint Card="{x:Bind services:StorageGlossary.Size}"/>
+            </StackPanel>
+            <StackPanel x:Name="MaxSizeColumnTitle" Grid.Column="5" Orientation="Horizontal" Spacing="5">
+                <TextBlock Text="MAX SIZE" Style="{StaticResource StorageColumnTitleStyle}"/>
+                <prim:GlossaryHint Card="{x:Bind services:StorageGlossary.MaxSize}"/>
+            </StackPanel>
+            <StackPanel x:Name="KeepForColumnTitle" Grid.Column="6" Orientation="Horizontal" Spacing="5">
+                <TextBlock Text="KEEP FOR" Style="{StaticResource StorageColumnTitleStyle}"/>
+                <prim:GlossaryHint Card="{x:Bind services:StorageGlossary.KeepFor}"/>
+            </StackPanel>
+        </Grid>
+
+        <storageManagers:StorageManagerSettingsConsoleDataTableRow x:Name="StorageManagerSettingsConsoleDataTableRowRadarVolumes"
+            Item="{x:Bind ViewModel.RadarVolumes, Mode=OneWay}" Swatch="{StaticResource StorageRadarVolumesBrush}"/>
+        <storageManagers:StorageManagerSettingsConsoleDataTableRow x:Name="StorageManagerSettingsConsoleDataTableRowRadarDiagnostics"
+            Item="{x:Bind ViewModel.RadarDiagnostics, Mode=OneWay}" Swatch="{StaticResource StorageRadarDiagnosticsBrush}"/>
+        <storageManagers:StorageManagerSettingsConsoleDataTableRow x:Name="StorageManagerSettingsConsoleDataTableRowWeatherData"
+            Item="{x:Bind ViewModel.WeatherData, Mode=OneWay}" Swatch="{StaticResource StorageWeatherDataBrush}"/>
+        <storageManagers:StorageManagerSettingsConsoleDataTableRow x:Name="StorageManagerSettingsConsoleDataTableRowLogs"
+            Item="{x:Bind ViewModel.Logs, Mode=OneWay}" Swatch="{StaticResource StorageLogsBrush}"/>
+        <storageManagers:StorageManagerSettingsConsoleDataTableRow x:Name="StorageManagerSettingsConsoleDataTableRowUsageHistory"
+            Item="{x:Bind ViewModel.UsageHistory, Mode=OneWay}" Swatch="{StaticResource StorageUsageHistoryBrush}"/>
+    </StackPanel>
+</UserControl>

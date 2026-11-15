@@ -1,104 +1,159 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Anvil.Models;
 using Anvil.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Anvil.ViewModels
 {
 	/// <summary>
-	/// The App Settings "Storage" section — the settings service's first real consumer. Surfaces the
-	/// on-disk radar volume cache: a live size readout, a "Clear now" action, and a PERSISTED size cap
-	/// (<see cref="AppSettings.RadarCacheMaxGb"/>) that also drives <c>Level2RadarService</c>'s startup
-	/// sweep. Writing the cap goes straight to <see cref="ISettingsService.Settings"/>, which auto-saves.
-	///
-	/// A subsystem VM on <see cref="MapViewModel"/> (sibling of Radar/Watches/etc.); the App Settings card
-	/// binds <c>ViewModel.Storage.*</c>. ⚠️ Its async methods drive WinUI-bound properties, so they must be
-	/// awaited on the UI thread (no <c>ConfigureAwait(false)</c>) — the service does its own off-threading.
+	/// Settings → Storage (<c>StorageManagerSettingsConsole</c>): what Anvil keeps on disk, as five
+	/// <see cref="StorageItemViewModel"/> rows in a FIXED order (= the XAML's declared rows and bar segments) plus the
+	/// total. Measuring and file work go through <see cref="IStorageService"/>; radar VOLUMES through
+	/// <see cref="ILevel2RadarService"/> (the sealed engine owns that cache, its clear and its sweep).
 	/// </summary>
+	/// <remarks>
+	/// A subsystem VM on <see cref="MapViewModel"/>. ⚠️ Its async methods drive WinUI-bound properties, so they are
+	/// awaited on the UI thread (no <c>ConfigureAwait(false)</c>) — the services do their own off-threading.
+	/// ⚠️ Limits are PERSISTED (<see cref="AppSettings"/>): radar volume Max size = <c>RadarCacheMaxGb</c> (enforced by
+	/// the engine's own sweeps); weather data + logs = <c>WeatherData*</c> / <c>Logs*</c>, applied here at launch
+	/// (<see cref="SweepAtLaunch"/>) and on every change. The three greyed engine limits are read-only mirrors
+	/// (<see cref="StorageLimits.RadarVolumeKeepFixed"/> etc.).
+	/// </remarks>
 	public sealed class StorageSettingsViewModel : ObservableObject
 	{
-		private readonly ILevel2RadarService _radarService;
-		private readonly ISettingsService _settings;
+		private readonly ILevel2RadarService _radar;
+		private readonly IStorageService _storage;
+		private readonly AppSettings _settings;
+		private Action? _clearSiteUsage;
+		private int _refreshVersion;
 
-		public StorageSettingsViewModel(ILevel2RadarService radarService, ISettingsService settings)
+		public StorageSettingsViewModel(ILevel2RadarService radarService, ISettingsService settings, IStorageService storage)
 		{
-			_radarService = radarService;
-			_settings = settings;
+			_radar = radarService;
+			_storage = storage;
+			_settings = settings.Settings;
+
+			var radarMax = StorageLimits.Resolve(StorageLimits.RadarVolumeMax, (long)Math.Max(1, _settings.RadarCacheMaxGb) * StorageLimits.GB, days: false);
+			RadarVolumes = new StorageItemViewModel(StorageKind.RadarVolumes, "Radar volumes", "— loops you've loaded",
+				storage.FolderOf(StorageKind.RadarVolumes), ClearRadarVolumesAsync, confirmClear: false,
+				radarMax.List, radarMax.Pick, v => { _settings.RadarCacheMaxGb = (int)(v / StorageLimits.GB); _ = RefreshAsync(); },
+				new[] { StorageLimits.RadarVolumeKeepFixed }, StorageLimits.RadarVolumeKeepFixed, null);
+
+			RadarDiagnostics = new StorageItemViewModel(StorageKind.RadarDiagnostics, "Radar diagnostics", "— troubleshooting records",
+				storage.FolderOf(StorageKind.RadarDiagnostics), () => ClearKindAsync(StorageKind.RadarDiagnostics), confirmClear: false,
+				new[] { StorageLimits.DiagnosticsMaxFixed }, StorageLimits.DiagnosticsMaxFixed, null,
+				new[] { StorageLimits.DiagnosticsKeepFixed }, StorageLimits.DiagnosticsKeepFixed, null);
+
+			var wMax = StorageLimits.Resolve(StorageLimits.WeatherDataMax, (long)_settings.WeatherDataMaxMb * StorageLimits.MB, days: false);
+			var wKeep = StorageLimits.Resolve(StorageLimits.WeatherDataKeep, _settings.WeatherDataKeepDays, days: true);
+			WeatherData = new StorageItemViewModel(StorageKind.WeatherData, "Weather data", "— outlooks, warnings, reports, cells",
+				storage.FolderOf(StorageKind.WeatherData), () => ClearKindAsync(StorageKind.WeatherData), confirmClear: false,
+				wMax.List, wMax.Pick, v => { _settings.WeatherDataMaxMb = (int)(v / StorageLimits.MB); _ = SweepThenRefreshAsync(StorageKind.WeatherData); },
+				wKeep.List, wKeep.Pick, v => { _settings.WeatherDataKeepDays = (int)v; _ = SweepThenRefreshAsync(StorageKind.WeatherData); });
+
+			var lMax = StorageLimits.Resolve(StorageLimits.LogsMax, (long)_settings.LogsMaxMb * StorageLimits.MB, days: false);
+			var lKeep = StorageLimits.Resolve(StorageLimits.LogsKeep, _settings.LogsKeepDays, days: true);
+			Logs = new StorageItemViewModel(StorageKind.Logs, "Logs", "",
+				storage.FolderOf(StorageKind.Logs), () => ClearKindAsync(StorageKind.Logs), confirmClear: false,
+				lMax.List, lMax.Pick, v => { _settings.LogsMaxMb = (int)(v / StorageLimits.MB); _ = SweepThenRefreshAsync(StorageKind.Logs); },
+				lKeep.List, lKeep.Pick, v => { _settings.LogsKeepDays = (int)v; _ = SweepThenRefreshAsync(StorageKind.Logs); });
+
+			UsageHistory = new StorageItemViewModel(StorageKind.UsageHistory, "Your usage history", "— Atlas “Your use”",
+				storage.FolderOf(StorageKind.UsageHistory), ClearUsageAsync, confirmClear: true,
+				null, null, null, null, null, null);
+
+			Items = new[] { RadarVolumes, RadarDiagnostics, WeatherData, Logs, UsageHistory };
 		}
 
-		/// <summary>The cap choices offered in the combo (GB). The persisted value should be one of these.</summary>
-		public IReadOnlyList<int> CacheLimitOptions { get; } = new[] { 2, 5, 10, 20, 50 };
+		public StorageItemViewModel RadarVolumes { get; }
+		public StorageItemViewModel RadarDiagnostics { get; }
+		public StorageItemViewModel WeatherData { get; }
+		public StorageItemViewModel Logs { get; }
+		public StorageItemViewModel UsageHistory { get; }
 
-		/// <summary>The persisted cache size cap (GB). Two-way bound to the combo; the setter writes through
-		/// to <see cref="AppSettings.RadarCacheMaxGb"/>, which the settings service auto-persists. Takes
-		/// effect on the next launch's sweep (the cap is enforced at startup).</summary>
-		public int CacheLimitGb
+		/// <summary>The rows in display order.</summary>
+		public IReadOnlyList<StorageItemViewModel> Items { get; }
+
+		/// <summary>Anvil's root folder — the page's "Open Anvil's folder".</summary>
+		public string RootFolder => StorageService.AnvilRoot;
+
+		private string _totalText = "…";
+		/// <summary>The usage bar's big number: every row added up.</summary>
+		public string TotalText
 		{
-			get => _settings.Settings.RadarCacheMaxGb;
-			set
+			get => _totalText;
+			private set => SetProperty(ref _totalText, value);
+		}
+
+		/// <summary>Usage history's clear also forgets the LIVE site-usage record (SiteUsageTracker owns it, built after
+		/// this VM) — MapViewModel hands it in.</summary>
+		internal void AttachSiteUsage(Action clearAll) => _clearSiteUsage = clearAll;
+
+		/// <summary>Weather data + logs limits, once per launch, off the startup path. (Radar volumes are swept by the
+		/// engine itself.)</summary>
+		public void SweepAtLaunch()
+		{
+			_ = _storage.SweepAsync(StorageKind.WeatherData, (long)_settings.WeatherDataMaxMb * StorageLimits.MB, TimeSpan.FromDays(_settings.WeatherDataKeepDays));
+			_ = _storage.SweepAsync(StorageKind.Logs, (long)_settings.LogsMaxMb * StorageLimits.MB, TimeSpan.FromDays(_settings.LogsKeepDays));
+		}
+
+		/// <summary>Re-measure every row (off-thread in the services). A newer refresh wins over a slower older one.</summary>
+		public async Task RefreshAsync()
+		{
+			var version = ++_refreshVersion;
+			var sizes = new long?[Items.Count];
+			var tasks = new Task[Items.Count];
+			for (int i = 0; i < Items.Count; i++)
 			{
-				if (_settings.Settings.RadarCacheMaxGb == value) return;
-				_settings.Settings.RadarCacheMaxGb = value;
-				OnPropertyChanged();
+				int at = i;
+				tasks[i] = MeasureOneAsync(Items[at].Kind).ContinueWith(t => sizes[at] = t.IsCompletedSuccessfully ? t.Result : null,
+					TaskScheduler.Default);
 			}
-		}
+			await Task.WhenAll(tasks);
+			if (version != _refreshVersion) return;
 
-		private string _cacheSizeText = "…";
-		/// <summary>Human-readable current cache size (e.g. "4.8 GB"), refreshed when the card opens and
-		/// after a clear.</summary>
-		public string CacheSizeText
-		{
-			get => _cacheSizeText;
-			private set => SetProperty(ref _cacheSizeText, value);
-		}
-
-		private bool _isClearing;
-		/// <summary>True while a clear is in flight — the "Clear now" button binds <see cref="CanClear"/> to
-		/// disable itself so a second clear can't overlap.</summary>
-		public bool IsClearing
-		{
-			get => _isClearing;
-			private set { if (SetProperty(ref _isClearing, value)) OnPropertyChanged(nameof(CanClear)); }
-		}
-
-		public bool CanClear => !_isClearing;
-
-		/// <summary>Recomputes <see cref="CacheSizeText"/> from the on-disk cache (off-thread in the service).</summary>
-		public async Task RefreshCacheSizeAsync()
-		{
-			CacheSizeText = "Calculating…";
-			try
+			long total = 0;
+			foreach (var s in sizes) total += s ?? 0;
+			for (int i = 0; i < Items.Count; i++)
 			{
-				long bytes = await _radarService.GetCacheSizeBytesAsync();
-				CacheSizeText = FormatBytes(bytes);
+				if (sizes[i] is { } b) Items[i].ApplySize(b, total);
+				else Items[i].ApplyUnknown();
 			}
-			catch
-			{
-				CacheSizeText = "—";
-			}
+			TotalText = StorageLimits.FormatBytes(total);
 		}
 
-		/// <summary>Deletes the whole volume cache, then refreshes the readout. No-op if already clearing.</summary>
-		public async Task ClearCacheAsync()
+		private Task<long> MeasureOneAsync(StorageKind kind) =>
+			kind == StorageKind.RadarVolumes ? _radar.GetCacheSizeBytesAsync() : _storage.MeasureAsync(kind);
+
+		private async Task SweepThenRefreshAsync(StorageKind kind)
 		{
-			if (_isClearing) return;
-			IsClearing = true;
-			try
-			{
-				await _radarService.ClearCacheAsync();
-				await RefreshCacheSizeAsync();
-			}
-			finally
-			{
-				IsClearing = false;
-			}
+			var (max, keep) = kind == StorageKind.WeatherData
+				? ((long)_settings.WeatherDataMaxMb * StorageLimits.MB, _settings.WeatherDataKeepDays)
+				: ((long)_settings.LogsMaxMb * StorageLimits.MB, _settings.LogsKeepDays);
+			try { await _storage.SweepAsync(kind, max, TimeSpan.FromDays(keep)); }
+			catch { /* best effort — the readout below still tells the truth */ }
+			await RefreshAsync();
 		}
 
-		private static string FormatBytes(long bytes)
+		private async Task ClearRadarVolumesAsync()
 		{
-			if (bytes <= 0) return "0 MB";
-			double mb = bytes / 1024.0 / 1024.0;
-			return mb >= 1024 ? $"{mb / 1024.0:0.0} GB" : $"{mb:0} MB";
+			await _radar.ClearCacheAsync();
+			await RefreshAsync();
+		}
+
+		private async Task ClearKindAsync(StorageKind kind)
+		{
+			try { await _storage.ClearAsync(kind); }
+			catch { /* best effort */ }
+			await RefreshAsync();
+		}
+
+		private async Task ClearUsageAsync()
+		{
+			_clearSiteUsage?.Invoke(); // UI thread: SiteUsageStore is UI-thread only
+			await ClearKindAsync(StorageKind.UsageHistory);
 		}
 	}
 }

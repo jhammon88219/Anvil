@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StorageManagerSettingsConsole — everything Settings → Storage manages, on ONE surface (no expander header).
+
+       ┌──────────────────────────────────────────────────────────────────────────────────────┐
+       │ 2.2 GB  used by Anvil                                                                 │ ← StorageManagerSettingsConsoleUsageBar
+       │ ██████████████████████████████████████████████▌▌▏▏   (hover = legend)                 │
+       │                                                                                       │   14 gap
+       │ DATA                         SIZE ?                       MAX SIZE ?  KEEP FOR ?      │ ← StorageManagerSettingsConsoleDataTable
+       │ ■ Radar volumes …            1.8 GB  [ Clear ] [📁]  [5 GB ⌄]   [5 days ⌄]            │
+       │ …  (five rows)                                                                        │
+       └──────────────────────────────────────────────────────────────────────────────────────┘
+        surface = CardBackgroundFillColorDefaultBrush, hairline SectionBorderBrush, radius 6, padding 12,14,12,10
+
+     The page around it (Composites/StorageSettingsTab) owns "Open Anvil's folder", right-aligned to THIS control's
+     right edge. One ViewModel (StorageSettingsViewModel = MapViewModel.Storage) feeds both parts. -->
+<UserControl x:Class="Anvil.Controls.StorageManagers.StorageManagerSettingsConsole"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:storageManagers="using:Anvil.Controls.StorageManagers"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Border x:Name="StorageManagerSettingsConsoleSurface" CornerRadius="6" BorderThickness="1" Padding="12,14,12,10"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource SectionBorderBrush}">
+        <StackPanel Spacing="14">
+            <storageManagers:StorageManagerSettingsConsoleUsageBar x:Name="StorageManagerSettingsConsoleUsageBar"
+                                                                  ViewModel="{x:Bind ViewModel, Mode=OneWay}"/>
+            <storageManagers:StorageManagerSettingsConsoleDataTable x:Name="StorageManagerSettingsConsoleDataTable"
+                                                                   ViewModel="{x:Bind ViewModel, Mode=OneWay}"/>
+        </StackPanel>
+    </Border>
+</UserControl>
