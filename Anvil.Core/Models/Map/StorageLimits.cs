@@ -68,11 +68,11 @@ namespace Anvil.Models
 		public static readonly IReadOnlyList<StorageLimitChoice> LogsMax = new[] { Mb(50), Mb(100), Mb(250), Mb(500) };
 		public static readonly IReadOnlyList<StorageLimitChoice> LogsKeep = new[] { Days(14), Days(30), Days(90), Days(180), Days(365) };
 
-		// ⛔ SEALED-ENGINE LIMITS, shown read-only: these MIRROR Level2RadarService's private consts (CacheMaxAge,
-		// DiagnosticsMaxBytes, DiagnosticsMaxAge). Making them settings is an engine edit — waits on the user's yes.
-		public static readonly StorageLimitChoice RadarVolumeKeepFixed = Days(5);
-		public static readonly StorageLimitChoice DiagnosticsMaxFixed = Gb(2);
-		public static readonly StorageLimitChoice DiagnosticsKeepFixed = Days(180);
+		// The radar engine's other three limits (AppSettings.RadarCacheKeepDays / RadarDiagnosticsMaxGb / RadarDiagnosticsKeepDays,
+		// read live by Level2RadarService — engine edit OK'd 2026-11-15).
+		public static readonly IReadOnlyList<StorageLimitChoice> RadarVolumeKeep = new[] { Days(1), Days(3), Days(5), Days(7), Days(14), Days(30) };
+		public static readonly IReadOnlyList<StorageLimitChoice> DiagnosticsMax = new[] { Gb(1), Gb(2), Gb(5), Gb(10) };
+		public static readonly IReadOnlyList<StorageLimitChoice> DiagnosticsKeep = new[] { Days(30), Days(90), Days(180), Days(365) };
 
 		/// <summary>The choice in <paramref name="list"/> with <paramref name="value"/>, or a new one worded like
 		/// its neighbours (an older build's value, a hand-edited file).</summary>

@@ -253,11 +253,11 @@ namespace Anvil.Tests
 		{
 			var dir = Path.Combine(
 				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-				"Packages", "Anvil_c78sma71wz9qr", "LocalCache", "Local", "Anvil", "RadarLevel2");
+				"Packages", "Anvil_c78sma71wz9qr", "LocalCache", "Local", "Anvil", "RadarLevel2", "Volumes");
 			if (!Directory.Exists(dir))
 			{
 				dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-					"Anvil", "RadarLevel2");
+					"Anvil", "RadarLevel2", "Volumes");
 			}
 			if (!Directory.Exists(dir))
 			{

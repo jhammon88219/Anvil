@@ -723,8 +723,8 @@ namespace Anvil
 			// Start the dedicated radar diagnostics for this run: a per-launch JSONL event stream +
 			// a derived markdown report under a package-local Diagnostics/ folder (kept ~6 months under a
 			// size cap; see RadarDiagnostics). This is the primary tool for chasing intermittent radar issues.
-			Services.RadarDiagnostics.Init(
-				System.IO.Path.Combine(_radarService.CacheDirectory, "Diagnostics"));
+			// RadarLevel2\Diagnostics — BESIDE the volume cache (RadarLevel2\Volumes = CacheDirectory), not inside it.
+			Services.RadarDiagnostics.Init(Services.Level2RadarService.DiagnosticsDirectory);
 
 #if DEBUG
 			// DEV-ONLY automated site sweep. Constructed only in Debug; the Settings window's Dev tab, which is

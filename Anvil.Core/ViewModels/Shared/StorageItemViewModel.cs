@@ -81,7 +81,7 @@ namespace Anvil.ViewModels
 		// ── Max size ──
 		public IReadOnlyList<StorageLimitChoice> MaxChoices { get; }
 		public bool HasMax => MaxChoices.Count > 0;
-		/// <summary>False = a sealed-engine limit, shown greyed with its one fixed value.</summary>
+		/// <summary>False = a limit shown greyed with its one fixed value (none today — every limit is a setting).</summary>
 		public bool IsMaxEditable => _setMax is not null;
 
 		private StorageLimitChoice? _max;

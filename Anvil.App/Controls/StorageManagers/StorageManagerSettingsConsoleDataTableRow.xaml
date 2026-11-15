@@ -12,8 +12,8 @@
      ⚠️ Every value with a changing width sits in a FIXED slot (Size 80 right-aligned, tabular digits; the button 96;
      each dropdown fills its column), so a new size or choice never moves anything.
      ⚠️ The Size colour is a VisualState (FillStates ← Item.Fill) with {ThemeResource} brushes — never a brush picked in C#.
-     A kind with no Max size shows "—"; usage history's Keep for is "Always kept". A greyed dropdown = a sealed-engine
-     limit (one fixed choice, read-only). Usage history's button asks first (a flyout); the rest clear at once. -->
+     A kind with no Max size shows "—"; usage history's Keep for is "Always kept". A dropdown greys only when its item
+     has no setter (IsMaxEditable / IsKeepEditable — none today). Usage history's button asks first (a flyout); the rest clear at once. -->
 <UserControl x:Class="Anvil.Controls.StorageManagers.StorageManagerSettingsConsoleDataTableRow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"

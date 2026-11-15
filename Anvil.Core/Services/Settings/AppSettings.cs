@@ -159,6 +159,32 @@ namespace Anvil.Services
 			set => SetProperty(ref _radarCacheMaxGb, value);
 		}
 
+		// ── Settings → Storage: the radar engine's other three limits, read live by Level2RadarService (user OK'd the
+		//    engine edit 2026-11-15). Were the consts CacheMaxAge / DiagnosticsMaxBytes / DiagnosticsMaxAge. ──
+		private int _radarCacheKeepDays = 5;
+		/// <summary>Radar volumes' Keep for (days): older cached volumes are deleted at launch and by the in-session sweeps.</summary>
+		public int RadarCacheKeepDays
+		{
+			get => _radarCacheKeepDays;
+			set => SetProperty(ref _radarCacheKeepDays, value);
+		}
+
+		private int _radarDiagnosticsMaxGb = 2;
+		/// <summary>Radar diagnostics' Max size (GB).</summary>
+		public int RadarDiagnosticsMaxGb
+		{
+			get => _radarDiagnosticsMaxGb;
+			set => SetProperty(ref _radarDiagnosticsMaxGb, value);
+		}
+
+		private int _radarDiagnosticsKeepDays = 180;
+		/// <summary>Radar diagnostics' Keep for (days).</summary>
+		public int RadarDiagnosticsKeepDays
+		{
+			get => _radarDiagnosticsKeepDays;
+			set => SetProperty(ref _radarDiagnosticsKeepDays, value);
+		}
+
 		// ── Settings → Storage: weather data (every CachingHttpService folder) + logs, applied by StorageService
 		//    at launch and on change. Choices = Models/Map/StorageLimits. ──
 		private int _weatherDataMaxMb = 500;

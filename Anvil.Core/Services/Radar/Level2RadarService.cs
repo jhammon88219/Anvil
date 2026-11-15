@@ -46,13 +46,28 @@ namespace Anvil.Services
 		// volumes for every OTHER site you've ever clicked accumulate forever. SweepCacheOnStartup runs
 		// ONCE at launch across the WHOLE folder to bound it, independent of what's loaded. Startup runs
 		// before any loop loads so the sweep can never delete a volume an active loop still needs.
-		// NOTE: the SIZE cap is now the user-facing persisted setting AppSettings.RadarCacheMaxGb (App
-		// Settings → Storage), read via SizeCapBytes below; DefaultCacheMaxGb is only the fallback when
-		// that value is unset/invalid. Age + diagnostics retention stay code-level knobs.
-		private static readonly TimeSpan CacheMaxAge = TimeSpan.FromDays(5);   // delete volumes older than this
-		private const int DefaultCacheMaxGb = 5;                              // size-cap fallback (see RadarCacheMaxGb)
-		private static readonly TimeSpan DiagnosticsMaxAge = TimeSpan.FromDays(180); // diagnostics files kept this long ...
-		private const long DiagnosticsMaxBytes = 2L * 1024 * 1024 * 1024;            // ... unless the folder passes this
+		// NOTE: ALL FOUR limits are user settings now (Settings → Storage, user OK'd the engine edit 2026-11-15), read LIVE
+		// through the properties below: volumes RadarCacheMaxGb + RadarCacheKeepDays, diagnostics RadarDiagnosticsMaxGb +
+		// RadarDiagnosticsKeepDays. The Default* consts are only the fallbacks for an unset/nonsensical value. A change
+		// re-runs the matching sweep at once (OnSettingChanged), not only at the next launch.
+		private const int DefaultCacheMaxGb = 5;            // size-cap fallback (see RadarCacheMaxGb)
+		private const int DefaultCacheKeepDays = 5;         // delete volumes older than this
+		private const int DefaultDiagnosticsKeepDays = 180; // diagnostics files kept this long ...
+		private const int DefaultDiagnosticsMaxGb = 2;      // ... unless the folder passes this
+
+		private TimeSpan CacheMaxAge => TimeSpan.FromDays(Positive(_settings.Settings.RadarCacheKeepDays, DefaultCacheKeepDays));
+		private TimeSpan DiagnosticsMaxAge => TimeSpan.FromDays(Positive(_settings.Settings.RadarDiagnosticsKeepDays, DefaultDiagnosticsKeepDays));
+		private long DiagnosticsMaxBytes => Positive(_settings.Settings.RadarDiagnosticsMaxGb, DefaultDiagnosticsMaxGb) * 1024L * 1024 * 1024;
+		private static int Positive(int value, int fallback) => value > 0 ? value : fallback;
+
+		// ── FOLDERS (2026-11-15, the user's call): RadarLevel2\Volumes = the volume cache (= CacheDirectory, which MainWindow
+		// maps to the radarlevel2 host — so page URLs are unchanged) beside RadarLevel2\Diagnostics. Volumes used to sit
+		// loose in RadarLevel2 itself; MoveLooseVolumes carries them in once at launch. ──
+		/// <summary><c>%LocalAppData%\Anvil\RadarLevel2</c> — holds <c>Volumes\</c> and <c>Diagnostics\</c>.</summary>
+		public static string RootDirectory { get; } = Path.Combine(
+			Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Anvil", "RadarLevel2");
+		/// <summary>Where <see cref="RadarDiagnostics"/> writes (MainWindow inits it here; Settings → Storage reads it).</summary>
+		public static string DiagnosticsDirectory { get; } = Path.Combine(RootDirectory, "Diagnostics");
 
 		// The active size cap in bytes = the persisted setting, or the fallback when it's unset/nonsensical.
 		private long SizeCapBytes
@@ -75,15 +90,39 @@ namespace Anvil.Services
 			_logger = logger;
 			_settings = settings;
 			_nonStandardVcps = nonStandardVcps;
-			CacheDirectory = Path.Combine(
-				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-				"Anvil", "RadarLevel2");
+			CacheDirectory = Path.Combine(RootDirectory, "Volumes");
 			Directory.CreateDirectory(CacheDirectory);
 
 			_http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
 			_http.DefaultRequestHeaders.UserAgent.ParseAdd("Anvil/1.0");
 
 			SweepCacheOnStartup();
+			_settings.Settings.PropertyChanged += OnSettingChanged;
+		}
+
+		// Settings → Storage changed a limit: apply it now (off the UI thread), not at the next launch. The volume sweep
+		// keeps the mid-session protection, so a loop on screen is never trimmed under you.
+		private void OnSettingChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+		{
+			switch (e.PropertyName)
+			{
+				case nameof(AppSettings.RadarCacheMaxGb):
+				case nameof(AppSettings.RadarCacheKeepDays):
+					_ = Task.Run(() =>
+					{
+						try { SweepVolumeCache(SizeCapBytes, SweepProtectWindow); }
+						catch (Exception ex) { _logger.LogWarning(ex, "Cache sweep after a limit change failed"); }
+					});
+					break;
+				case nameof(AppSettings.RadarDiagnosticsMaxGb):
+				case nameof(AppSettings.RadarDiagnosticsKeepDays):
+					_ = Task.Run(() =>
+					{
+						try { TrimDiagnostics(); }
+						catch (Exception ex) { _logger.LogWarning(ex, "Diagnostics trim after a limit change failed"); }
+					});
+					break;
+			}
 		}
 
 		public string CacheDirectory { get; }
@@ -2279,6 +2318,10 @@ namespace Anvil.Services
 			var launched = DateTime.UtcNow;
 			_ = Task.Run(() =>
 			{
+				// FIRST: the one-time move into Volumes\ — it carries the dual-PRF marker too, so the migration below
+				// must not run before it (it would re-scan, and the marker is what says it already ran).
+				try { MoveLooseVolumes(); }
+				catch (Exception ex) { _logger.LogWarning(ex, "Moving cached volumes into Volumes\\ failed"); }
 				try { DropSingleDopplerDualPrfFrames(launched); }
 				catch (Exception ex) { _logger.LogWarning(ex, "Dual-PRF frame migration failed"); }
 				try { SweepVolumeCache(SizeCapBytes); }
@@ -2286,6 +2329,31 @@ namespace Anvil.Services
 				try { TrimDiagnostics(); }
 				catch (Exception ex) { _logger.LogWarning(ex, "Diagnostics trim failed"); }
 			});
+		}
+
+		// ONE-TIME MOVE (2026-11-15): volumes used to sit loose in RadarLevel2\ beside Diagnostics\; they live in Volumes\
+		// now. Same drive, so each is a rename. A name already in Volumes\ (a load that ran before this finished) wins and
+		// the loose copy is dropped; loose .tmp files are dead writes from an older build and are deleted. Runs every
+		// launch but finds nothing after the first.
+		private void MoveLooseVolumes()
+		{
+			int moved = 0, dropped = 0;
+			foreach (var file in Directory.EnumerateFiles(RootDirectory).ToList())
+			{
+				var name = Path.GetFileName(file);
+				try
+				{
+					if (name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase)) { File.Delete(file); dropped++; continue; }
+					if (!IsVolumeFile(file) && name != DualPrfMigrationMarker) continue;
+					var dest = Path.Combine(CacheDirectory, name);
+					if (File.Exists(dest)) { File.Delete(file); dropped++; }
+					else { File.Move(file, dest); moved++; }
+				}
+				catch (IOException) { }
+				catch (UnauthorizedAccessException) { }
+			}
+			if (moved > 0 || dropped > 0)
+				_logger.LogInformation("Radar cache: moved {Moved} file(s) into Volumes\\, dropped {Dropped}", moved, dropped);
 		}
 
 		// ONE-TIME MIGRATION (2026-10-14): base/pass frames of dual-PRF volumes (VCP 112) used to be cut with only the FIRST
@@ -2336,6 +2404,14 @@ namespace Anvil.Services
 		/// </param>
 		private void SweepVolumeCache(long sizeCapBytes, TimeSpan? protectNewerThan = null)
 		{
+			// Orphaned temps: a download that died between its temp write and the move. Unique names, so one over an
+			// hour old can't belong to a live write. (They used to be missed entirely — IsVolumeFile excludes them.)
+			foreach (var temp in Directory.EnumerateFiles(CacheDirectory, "*.tmp").ToList())
+			{
+				try { if (DateTime.UtcNow - File.GetLastWriteTimeUtc(temp) > TimeSpan.FromHours(1)) File.Delete(temp); }
+				catch { /* best effort */ }
+			}
+
 			var files = Directory.EnumerateFiles(CacheDirectory)
 				.Where(IsVolumeFile)
 				.Select(f => new FileInfo(f))
@@ -2426,7 +2502,7 @@ namespace Anvil.Services
 		// Never touched: the JSONL being written now, this run's report and its _suspect folder.
 		private void TrimDiagnostics()
 		{
-			var (removed, total) = TrimDiagnosticsFolder(Path.Combine(CacheDirectory, "Diagnostics"),
+			var (removed, total) = TrimDiagnosticsFolder(DiagnosticsDirectory,
 				RadarDiagnostics.CurrentStamp, RadarDiagnostics.CurrentJsonlName,
 				DiagnosticsMaxAge, DiagnosticsMaxBytes, DateTime.UtcNow);
 			if (removed > 0)

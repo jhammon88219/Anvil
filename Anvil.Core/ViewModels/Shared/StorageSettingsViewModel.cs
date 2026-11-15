@@ -16,10 +16,10 @@ namespace Anvil.ViewModels
 	/// <remarks>
 	/// A subsystem VM on <see cref="MapViewModel"/>. ⚠️ Its async methods drive WinUI-bound properties, so they are
 	/// awaited on the UI thread (no <c>ConfigureAwait(false)</c>) — the services do their own off-threading.
-	/// ⚠️ Limits are PERSISTED (<see cref="AppSettings"/>): radar volume Max size = <c>RadarCacheMaxGb</c> (enforced by
-	/// the engine's own sweeps); weather data + logs = <c>WeatherData*</c> / <c>Logs*</c>, applied here at launch
-	/// (<see cref="SweepAtLaunch"/>) and on every change. The three greyed engine limits are read-only mirrors
-	/// (<see cref="StorageLimits.RadarVolumeKeepFixed"/> etc.).
+	/// ⚠️ Limits are PERSISTED (<see cref="AppSettings"/>): radar volumes <c>RadarCache*</c> + diagnostics
+	/// <c>RadarDiagnostics*</c> are applied by the ENGINE (Level2RadarService reads them live and re-sweeps on change);
+	/// weather data + logs = <c>WeatherData*</c> / <c>Logs*</c>, applied here at launch (<see cref="SweepAtLaunch"/>) and
+	/// on every change.
 	/// </remarks>
 	public sealed class StorageSettingsViewModel : ObservableObject
 	{
@@ -35,16 +35,21 @@ namespace Anvil.ViewModels
 			_storage = storage;
 			_settings = settings.Settings;
 
+			// Radar volumes + diagnostics: the ENGINE applies these (Level2RadarService re-sweeps on the setting change), so
+			// this side only re-measures a moment later.
 			var radarMax = StorageLimits.Resolve(StorageLimits.RadarVolumeMax, (long)Math.Max(1, _settings.RadarCacheMaxGb) * StorageLimits.GB, days: false);
+			var radarKeep = StorageLimits.Resolve(StorageLimits.RadarVolumeKeep, Math.Max(1, _settings.RadarCacheKeepDays), days: true);
 			RadarVolumes = new StorageItemViewModel(StorageKind.RadarVolumes, "Radar volumes", "— loops you've loaded",
 				storage.FolderOf(StorageKind.RadarVolumes), ClearRadarVolumesAsync, confirmClear: false,
-				radarMax.List, radarMax.Pick, v => { _settings.RadarCacheMaxGb = (int)(v / StorageLimits.GB); _ = RefreshAsync(); },
-				new[] { StorageLimits.RadarVolumeKeepFixed }, StorageLimits.RadarVolumeKeepFixed, null);
+				radarMax.List, radarMax.Pick, v => { _settings.RadarCacheMaxGb = (int)(v / StorageLimits.GB); _ = RefreshAfterEngineSweepAsync(); },
+				radarKeep.List, radarKeep.Pick, v => { _settings.RadarCacheKeepDays = (int)v; _ = RefreshAfterEngineSweepAsync(); });
 
+			var diagMax = StorageLimits.Resolve(StorageLimits.DiagnosticsMax, (long)Math.Max(1, _settings.RadarDiagnosticsMaxGb) * StorageLimits.GB, days: false);
+			var diagKeep = StorageLimits.Resolve(StorageLimits.DiagnosticsKeep, Math.Max(1, _settings.RadarDiagnosticsKeepDays), days: true);
 			RadarDiagnostics = new StorageItemViewModel(StorageKind.RadarDiagnostics, "Radar diagnostics", "— troubleshooting records",
 				storage.FolderOf(StorageKind.RadarDiagnostics), () => ClearKindAsync(StorageKind.RadarDiagnostics), confirmClear: false,
-				new[] { StorageLimits.DiagnosticsMaxFixed }, StorageLimits.DiagnosticsMaxFixed, null,
-				new[] { StorageLimits.DiagnosticsKeepFixed }, StorageLimits.DiagnosticsKeepFixed, null);
+				diagMax.List, diagMax.Pick, v => { _settings.RadarDiagnosticsMaxGb = (int)(v / StorageLimits.GB); _ = RefreshAfterEngineSweepAsync(); },
+				diagKeep.List, diagKeep.Pick, v => { _settings.RadarDiagnosticsKeepDays = (int)v; _ = RefreshAfterEngineSweepAsync(); });
 
 			var wMax = StorageLimits.Resolve(StorageLimits.WeatherDataMax, (long)_settings.WeatherDataMaxMb * StorageLimits.MB, days: false);
 			var wKeep = StorageLimits.Resolve(StorageLimits.WeatherDataKeep, _settings.WeatherDataKeepDays, days: true);
@@ -134,6 +139,15 @@ namespace Anvil.ViewModels
 				: ((long)_settings.LogsMaxMb * StorageLimits.MB, _settings.LogsKeepDays);
 			try { await _storage.SweepAsync(kind, max, TimeSpan.FromDays(keep)); }
 			catch { /* best effort — the readout below still tells the truth */ }
+			await RefreshAsync();
+		}
+
+		// The engine's sweep runs on its own thread with no completion signal (adding one = widening the sealed
+		// interface), so the readout re-measures once after a short wait — the colour updates at once anyway.
+		private async Task RefreshAfterEngineSweepAsync()
+		{
+			await RefreshAsync();
+			await Task.Delay(1500);
 			await RefreshAsync();
 		}
 

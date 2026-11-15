@@ -44,7 +44,7 @@ namespace Anvil.Services
 			_logger = logger;
 		}
 
-		private string DiagnosticsDirectory => Path.Combine(_radar.CacheDirectory, "Diagnostics");
+		private static string DiagnosticsDirectory => Level2RadarService.DiagnosticsDirectory;
 
 		public string FolderOf(StorageKind kind) => kind switch
 		{

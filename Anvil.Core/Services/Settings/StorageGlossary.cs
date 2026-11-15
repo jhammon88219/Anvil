@@ -20,13 +20,13 @@ namespace Anvil.Services
 			"The most space this kind of data may take",
 			"When it grows past this, Anvil deletes its oldest files first until it fits. Files from the last half hour are never removed this way.",
 			"",
-			"Checked when Anvil starts and when you change it. Radar volumes are also checked while loops download. A greyed choice is fixed for now.");
+			"Checked when Anvil starts and when you change it. Radar volumes and diagnostics are also checked while Anvil runs.");
 
 		public static RadarGlossaryCard KeepFor { get; } = new(
 			"Keep for",
 			"How long a file is kept, whatever the size",
 			"Files older than this are deleted. Data Anvil still uses is rewritten as it updates, so it never gets this old.",
 			"",
-			"Checked when Anvil starts and when you change it. A greyed choice is fixed for now.");
+			"Checked when Anvil starts and when you change it.");
 	}
 }
