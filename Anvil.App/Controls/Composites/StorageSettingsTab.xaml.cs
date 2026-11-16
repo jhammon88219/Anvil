@@ -6,8 +6,8 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The Settings window's Storage page (see the XAML header): "Open Anvil's folder" over
-	/// <see cref="StorageManagerSettingsConsole"/>. Bound to the coordinator <see cref="MapViewModel"/>; the state lives
+	/// The Settings window's Storage page (see the XAML header): just <see cref="StorageManagerSettingsConsole"/>
+	/// (its usage bar holds "Open Anvil's folder"). Bound to the coordinator <see cref="MapViewModel"/>; the state lives
 	/// on <see cref="MapViewModel.Storage"/>.
 	/// </summary>
 	public sealed partial class StorageSettingsTab : UserControl
@@ -26,10 +26,5 @@ namespace Anvil.Controls.Composites
 
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(StorageSettingsTab), new PropertyMetadata(null));
-
-		private void OnOpenAnvilFolderClick(object sender, RoutedEventArgs e)
-		{
-			if (ViewModel is not null) StorageManagerFolderLauncher.Open(ViewModel.Storage.RootFolder);
-		}
 	}
 }

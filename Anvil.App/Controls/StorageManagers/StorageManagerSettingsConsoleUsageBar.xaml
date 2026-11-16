@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- StorageManagerSettingsConsoleUsageBar — the top of Settings → Storage: the total, then ONE bar split by kind.
+<!-- StorageManagerSettingsConsoleUsageBar — the top of Settings → Storage: the total + the folder key, then ONE bar
+     split by kind.
 
-       2.2 GB  used by Anvil              ← total: 28 SemiBold, tabular, a FIXED 132 slot (so "used by Anvil" never moves)
+       6.1 GB          ┌──────┐
+       used by Anvil   │  📁  │        ← total 28 SemiBold tabular (line 34) over the caption 12 (line 16) = 50 tall;
+                       │ Open │          15 px; "Open Anvil's folder" = a SQUARE 50 × 50 key, icon 18 over "Open / folder"
+                       │folder│          at 10 px (two lines: one line is wider than the key)
+                       └──────┘
        ████████████████████████████▌▌▌▏▏  ← 14 tall, a segment per kind in StorageKind order, 2 px apart, rounded 3
 
        hover the bar ↓
@@ -23,12 +28,38 @@
              mc:Ignorable="d">
 
     <StackPanel Spacing="10">
-        <StackPanel x:Name="UsageTotalLine" Orientation="Horizontal" Spacing="8">
-            <TextBlock x:Name="UsageTotalText" Width="132" FontSize="28" FontWeight="SemiBold"
-                       Style="{StaticResource TabularNumberTextStyle}"
-                       Text="{x:Bind ViewModel.TotalText, Mode=OneWay}"/>
-            <TextBlock x:Name="UsageTotalCaption" Text="used by Anvil" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,6"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        <!-- The total over its caption (34 + 16 = 50 tall, exact line heights), then 15 px, then the square folder key of
+             the SAME 50 height. The total block fits its text, so the key shifts a few px when the total's length changes. -->
+        <StackPanel x:Name="UsageTotalLine" Orientation="Horizontal" Spacing="15">
+            <StackPanel x:Name="UsageTotalBlock" VerticalAlignment="Center">
+                <TextBlock x:Name="UsageTotalText" FontSize="28" FontWeight="SemiBold"
+                           LineHeight="34" LineStackingStrategy="BlockLineHeight"
+                           Style="{StaticResource TabularNumberTextStyle}"
+                           Text="{x:Bind ViewModel.TotalText, Mode=OneWay}"/>
+                <TextBlock x:Name="UsageTotalCaption" Text="used by Anvil" FontSize="12"
+                           LineHeight="16" LineStackingStrategy="BlockLineHeight"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+
+            <!-- Open Anvil's folder: icon over a two-line label ("Open folder" is wider than the key on one line). The
+                 mark is a drawn Path (no unverified glyph), scaled to 18 by the Viewbox. -->
+            <Button x:Name="OpenAnvilFolderButton" Width="50" Height="50" Padding="0" VerticalAlignment="Center"
+                    ToolTipService.ToolTip="Open Anvil's folder"
+                    AutomationProperties.Name="Open Anvil's folder"
+                    Click="OnOpenAnvilFolderClick">
+                <StackPanel Spacing="2" HorizontalAlignment="Center">
+                    <Viewbox Width="18" Height="18" HorizontalAlignment="Center">
+                        <Grid Width="16" Height="16">
+                            <Path StrokeThickness="1.1" StrokeLineJoin="Round"
+                                  Stroke="{ThemeResource TextFillColorSecondaryBrush}"
+                                  Data="M1.5,4.5 L1.5,12.5 A1,1 0 0 0 2.5,13.5 L13.5,13.5 A1,1 0 0 0 14.5,12.5 L14.5,6.5 A1,1 0 0 0 13.5,5.5 L8,5.5 L6.5,3.5 L2.5,3.5 A1,1 0 0 0 1.5,4.5 Z"/>
+                        </Grid>
+                    </Viewbox>
+                    <TextBlock FontSize="10" LineHeight="11" LineStackingStrategy="BlockLineHeight" TextAlignment="Center">
+                        <Run Text="Open"/><LineBreak/><Run Text="folder"/>
+                    </TextBlock>
+                </StackPanel>
+            </Button>
         </StackPanel>
 
         <!-- The bar. A transparent host so the whole band (not just the drawn segments) opens the legend. -->

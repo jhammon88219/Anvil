@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- StorageSettingsTab — the Storage page of the Settings window: what Anvil keeps on disk, and its limits.
 
-                                                                      ( Open Anvil's folder )   ← right edge = the console's
        ┌──────────────────────────────────────────────────────────────────────────────────────┐
-       │ 2.2 GB  used by Anvil                                                                 │
-       │ ████████████████████████████████████████████▌▌▏▏                                      │
-       │ DATA                       SIZE ?                     MAX SIZE ?  KEEP FOR ?          │   Controls/StorageManagers/
-       │ ■ Radar volumes …          1.8 GB  [ Clear ] [📁]  [5 GB ⌄]  [5 days ⌄]              │   StorageManagerSettingsConsole
+       │ 6.1 GB         [📁 Open folder]                                                       │   Controls/StorageManagers/
+       │ used by Anvil                                                                         │   StorageManagerSettingsConsole
+       │ ████████████████████████████████████████████▌▌▏▏                                      │   (the page IS the console —
+       │ DATA                       SIZE ?                     MAX SIZE ?  KEEP FOR ?          │    "Open Anvil's folder" moved
+       │ ■ Radar volumes …          1.8 GB  [ Clear ] [📁]  [5 GB ⌄]  [5 days ⌄]              │    INTO it, beside the total)
        │ …                                                                                     │
        └──────────────────────────────────────────────────────────────────────────────────────┘
 
-     No expander (the console IS the page). Everything inside is StorageManagerSettingsConsole over MapViewModel.Storage.
+     No expander and nothing above the console. Everything is StorageManagerSettingsConsole over MapViewModel.Storage.
 
      ⚠️ The sizes are only re-measured when this tab becomes VISIBLE (MapViewModel.RefreshForSettingsTab, fired when the
      window opens and when the tab changes) — it walks several folders, so it must not run on every Settings open.
@@ -24,11 +24,6 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <StackPanel Spacing="8" VerticalAlignment="Top">
-        <Button x:Name="OpenAnvilFolderButton" Content="Open Anvil's folder" HorizontalAlignment="Right"
-                ToolTipService.ToolTip="Open the folder where Anvil keeps everything on this list"
-                Click="OnOpenAnvilFolderClick"/>
-        <storageManagers:StorageManagerSettingsConsole x:Name="StorageManagerSettingsConsole"
-                                                      ViewModel="{x:Bind ViewModel.Storage, Mode=OneWay}"/>
-    </StackPanel>
+    <storageManagers:StorageManagerSettingsConsole x:Name="StorageManagerSettingsConsole" VerticalAlignment="Top"
+                                                  ViewModel="{x:Bind ViewModel.Storage, Mode=OneWay}"/>
 </UserControl>
