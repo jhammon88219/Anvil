@@ -8,8 +8,8 @@ namespace Anvil.ViewModels
 {
 	/// <summary>
 	/// The Settings rows for ONE range ring's look — colour, opacity, thickness, line pattern — over whichever
-	/// AppSettings properties hold that ring. One class for all three rings (Composites/RingStyleEditor draws
-	/// it three times), so the three sections can't drift apart.
+	/// AppSettings properties hold that ring. One class for all three rings (RingsSettingsConsoles/RingsSettingsConsoleRingStyle
+	/// draws it three times), so the three sections can't drift apart.
 	/// </summary>
 	/// <remarks>
 	/// The ring's STROKE is one <see cref="RingStyle"/> record, replaced whole; its COLOUR comes through its own
@@ -25,13 +25,29 @@ namespace Anvil.ViewModels
 		private readonly Action _changed;
 
 		public RingStyleViewModel(Func<RingStyle> getStyle, Action<RingStyle> setStyle,
-			Func<string> getColor, Action<string> setColor, Action changed)
+			Func<string> getColor, Action<string> setColor, Action changed, RingStyle defaults)
 		{
 			_getStyle = getStyle;
 			_setStyle = setStyle;
 			_getColor = getColor;
 			_setColor = setColor;
 			_changed = changed;
+			Defaults = defaults;
+		}
+
+		/// <summary>This ring's first-run look — what its card's Restore defaults writes and its DEFAULT column says.</summary>
+		public RingStyle Defaults { get; }
+
+		public string DefaultColorText => "Theme";
+		public string DefaultOpacityText => $"{Defaults.OpacityPct}%";
+		public string DefaultWidthText => $"{Defaults.Width:0.0} px";
+		public string DefaultLineText => RingLines.Labels[RingLines.IndexOf(Defaults.Line)];
+
+		/// <summary>The card's Restore defaults: <see cref="Defaults"/> + the theme's colour, pushed to the map like any edit.</summary>
+		public void RestoreDefaults()
+		{
+			SetColor(ScopeColors.ThemeDefault);
+			SetStyle(Defaults);
 		}
 
 		/// <summary>The colour presets (hex; empty = the theme's colour for this ring).</summary>

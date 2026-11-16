@@ -145,6 +145,40 @@ namespace Anvil.Tests
 			Assert.Equal(vm.DefaultScrubberStyleText, vm.Radar.ScrubberStyleLabels[vm.Radar.ScrubberStyleIndex]);
 		}
 
+		// ── Settings → Rings & Ruler (2026-11-16): every card's Restore defaults = a first run, and says so in its DEFAULT column ──
+
+		[Fact]
+		public void A_ring_card_restores_its_own_defaults_and_the_theme_colour()
+		{
+			var s = new AppSettings { VelocityRingStyle = new RingStyle(90, 4.0, RingLines.Solid), VelocityRingColor = "#FF0000",
+				ScopeColor = "#00FF00", OutlineRingStyle = new RingStyle(20, 3.0, RingLines.Dotted) };
+			var rings = New(s).Radar.RangeRings;
+
+			rings.Velocity.RestoreDefaults();
+			Assert.Equal(RingStyle.VelocityDefault, s.VelocityRingStyle);
+			Assert.Equal(ScopeColors.ThemeDefault, s.VelocityRingColor);
+			Assert.Equal(new RingStyle(20, 3.0, RingLines.Dotted), s.OutlineRingStyle); // the other cards untouched
+			Assert.Equal("#00FF00", s.ScopeColor);
+			Assert.Equal("1.2 px", rings.Velocity.DefaultWidthText);
+			Assert.Equal("Dashed", rings.Velocity.DefaultLineText);
+		}
+
+		[Fact]
+		public void Rings_labels_and_ruler_restore_a_first_run()
+		{
+			var fresh = new AppSettings();
+			var s = new AppSettings { ShowSiteRing = false, ShowDistanceRings = true, DistanceRingSpacing = 50, RulerAnchor = RulerAnchors.Location,
+				DistanceLabelStyle = new RingLabelStyle(40, 20, 3), DistanceLabelBearing = 90, ShowDistanceLabelHandle = false, RingKnobSize = 44 };
+			var vm = New(s);
+			vm.ResetRingsPage();
+
+			Assert.Equal((fresh.ShowSiteRing, fresh.ShowDistanceRings, fresh.DistanceRingSpacing, fresh.RulerAnchor),
+				(s.ShowSiteRing, s.ShowDistanceRings, s.DistanceRingSpacing, s.RulerAnchor));
+			Assert.Equal((RingLabelStyle.Default, fresh.DistanceLabelBearing, fresh.ShowDistanceLabelHandle, RingKnobSize.Default),
+				(s.DistanceLabelStyle, s.DistanceLabelBearing, s.ShowDistanceLabelHandle, s.RingKnobSize));
+			Assert.Equal(vm.DefaultRulerAnchorText, vm.Radar.RulerAnchorLabels[vm.Radar.RulerAnchorIndex]);
+		}
+
 		[Fact]
 		public void The_retired_Edges_page_opens_Appearance()
 		{

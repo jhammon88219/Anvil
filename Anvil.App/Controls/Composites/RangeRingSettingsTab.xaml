@@ -1,306 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- RangeRingSettingsTab — the Settings window's "Radar Range Ring" tab: WHICH range rings are drawn around
-     the loaded site, how each one LOOKS, where the distance labels sit, and the range ruler's anchor.
+<!-- RangeRingSettingsTab — Settings → Rings & Ruler (was "Radar Range Ring"; redone on the section casing 2026-11-16): WHICH range
+     rings are drawn around the loaded site, how each LOOKS, the distance labels, and the range ruler.
 
-       ┌──────────────────────────────────────────────────────────┐
-       │                                   [ Restore default look ]│  ← look only; which rings is kept. ABOVE
-       │  ⌄  Rings                                                │     the sections (every reset button is)
-       │    [x] Site ring (shown even with the Rings key off)     │  ← plain, OUTSIDE the Rings key
-       │    [x] Reflectivity reach   [x] Velocity reach           │  ← PERSISTED (which rings)
-       │    [ ] Distance rings                                    │
-       │    Spacing   [ Auto | 25 | 50 | 100 ]                    │  ← Units-tab distance; greyed while off
-       │  ⌄  Reflectivity reach                                   │
-       │    Colour    (A)(■)(■)(■)(■)(■)(■)(+)                    │  ← ALSO the range ruler's colour
-       │    Opacity   ━━━━━━━●━━━━━━  55 %                        │
-       │    Thickness ━━●━━━━━━━━━━━  1.3 px                      │  ← Composites/RingStyleEditor ×3
-       │    Line      [ Solid | Dashed | Dotted | Dash-dot ]      │
-       │  ⌄  Velocity reach          (same four rows)             │
-       │  ⌄  Distance rings          (same four rows)             │  ← greyed while distance rings are off
-       │  ⌄  Distance labels ("100 mi", "200 mi"…)               │
-       │    Colour    (A)(■)(■)(■)(■)(■)(■)(+)                    │  ← A = same as the distance rings
-       │    Opacity   ━━━━━━━━━━━━●  100 %                        │
-       │    Font      [ Regular | Medium | Italic ]               │  ← only the bundled glyph stacks
-       │    Size      ━━━●━━━━━━━━━  10 px                        │
-       │    Spacing   ●━━━━━━━━━━━━  0.00 em                      │  ← letter spacing
-       │    Halo      ━━●━━━━━━━━━━  1.2 px                       │
-       │    Halo colour (A)(■)(■)(■)(■)(■)(■)(+)                  │  ← A = the theme's dark casing
-       │    Placement [ Above | On the ring | Below ]             │
-       │    Lines     [ 1 | 2 | 4 ]                               │  ← label lines round the site
-       │    Position  ━━━━━━●━━━━━━  045°  [ North ]              │  ← also set by dragging the knob
-       │    [x] Show the unit (100 mi, not 100)                   │
-       │    [x] Show the drag knob on the map                     │
-       │  ⌄  Knobs                                                │
-       │    Size      ━━━━●━━━━━━━━  32 px                        │  ← SHARED: label knob + ruler knob
-       │  ⌄  Range ruler                                          │
-       │    Ruler from [ Radar site | My location ]               │
-       └──────────────────────────────────────────────────────────┘
+       ┌ Rings  [Restore defaults] ────────────────────────────────── DEFAULT ┐  RingsSettingsConsoleRings
+       │ Site ring · Reflectivity reach · Velocity reach · Distance rings ·    │
+       │ Spacing (greyed unless Distance rings)                                │
+       └────────────────────────────────────────────────────────────────────────┘
+          12 px of the body's darker ground
+       ┌ Reflectivity reach  [Restore defaults] ───────────────────── DEFAULT ┐  RingsSettingsConsoleRingStyle ×3 (ONE control:
+       │ Colour · Opacity · Thickness · Line                                    │  Reflectivity · Velocity · Distance; the
+       └────────────────────────────────────────────────────────────────────────┘  Distance card greys while that ring is off)
+       ┌ Velocity reach … ┐  ┌ Distance rings … ┐
+       ┌ Distance labels  [Restore defaults] ──────────────────────── DEFAULT ┐  RingsSettingsConsoleLabels (greyed while the
+       │ Colour · Opacity · Font · Size · Spacing · Halo · Halo colour ·        │  distance rings are off)
+       │ Placement · Lines · Position · Show the unit · Show the drag knob      │
+       └────────────────────────────────────────────────────────────────────────┘
+       ┌ Ruler  [Restore defaults] ────────────────────────────────── DEFAULT ┐  RingsSettingsConsoleRuler (Range ruler + Knobs)
+       │ Ruler from · Knob size                                                 │
+       └────────────────────────────────────────────────────────────────────────┘
+       [              Reset all Rings & Ruler settings  (caution amber)          ]  Primitives/CautionResetButton
 
-     WHY ITS OWN TAB: the rings grew from three checkboxes into a per-part style editor — too much to sit in
-     the Radar tab's scroll. Everything here was "Range rings & ruler" on the Radar tab; the RULER's anchor
-     came along because the ruler ends ON the reflectivity ring and wears its colour (one object).
-     ⚠️ The DISTANCE UNIT lives on the Units tab: it is app-wide, not a ring setting.
-     ⚠️ Everything applies LIVE to the main map and persists by itself. (The Settings window's own map preview
-        that sat beside this tab was removed 2026-11-16.)
-     ⚠️ The label handle (radar-scope.js) is on the PRIMARY pane only, like the ruler's handles; it writes
-        the same bearing the Position slider does (RangeRingsViewModel.OnLabelBearingDragged, no echo). -->
+     ⚠️ Every reset ASKS first (Dialogs/ConfirmResetDialog). The old single "Restore default look" (looks only) became a
+     Restore defaults per card + Reset all. Everything applies LIVE to the main map and persists by itself.
+     ⚠️ The DISTANCE UNIT lives on General → Units: it is app-wide, not a ring setting. The RULER is here because it ends ON the
+     reflectivity ring and wears its colour (one object). The label knob (radar-scope.js, primary pane) writes the same
+     bearing the Position slider does. -->
 <UserControl x:Class="Anvil.Controls.Composites.RangeRingSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ringsSettingsConsoles="using:Anvil.Controls.RingsSettingsConsoles"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:prim="using:Anvil.Controls.Primitives"
-             xmlns:cmp="using:Anvil.Controls.Composites"
              mc:Ignorable="d">
 
-    <Grid RowSpacing="8" VerticalAlignment="Top">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- restore -->
-            <RowDefinition Height="Auto"/> <!-- rings -->
-            <RowDefinition Height="Auto"/> <!-- reflectivity -->
-            <RowDefinition Height="Auto"/> <!-- velocity -->
-            <RowDefinition Height="Auto"/> <!-- distance -->
-            <RowDefinition Height="Auto"/> <!-- labels -->
-            <RowDefinition Height="Auto"/> <!-- knobs -->
-            <RowDefinition Height="Auto"/> <!-- ruler -->
-        </Grid.RowDefinitions>
-
-        <!-- RESTORE - ABOVE the sections, so it is found without scrolling past every expander (the user's rule for
-             every options tab with a reset button, 2026-10-06). -->
-        <Button Grid.Row="0" HorizontalAlignment="Right"
-                Content="Restore default look"
-                Click="{x:Bind ViewModel.Radar.RangeRings.ResetLook}"
-                ToolTipService.ToolTip="Put every ring's colour, opacity, thickness and line, and the labels, back to how they started. Which rings are shown is kept"/>
-
-        <!-- WHICH RINGS. The page SIZES the first two from the frame on screen; these only choose. -->
-        <prim:SettingsExpander Grid.Row="1" Header="Rings" IsExpanded="True">
-            <Grid RowSpacing="8" ColumnSpacing="12">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- site ring -->
-                    <RowDefinition Height="Auto"/> <!-- the Rings key's three -->
-                    <RowDefinition Height="Auto"/> <!-- spacing -->
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="72"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- ⚠️ The SITE RING is NOT under the tools tier's Rings key — it is the plain ring that stays
-                     when that key is off, and gives way to the styled Reflectivity reach ring while that draws.
-                     Its own line: it is a different kind of switch from the three below. -->
-                <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="4,0,0,0"
-                          Content="Site ring (shown even with the Rings key off)"
-                          IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowSiteRing, Mode=TwoWay}"
-                          ToolTipService.ToolTip="A plain ring at the edge of the radar's data, around every site. The styled Reflectivity reach ring replaces it while that one is on"/>
-
-                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="4,0,0,0"
-                            Orientation="Horizontal" Spacing="16">
-                    <CheckBox Content="Reflectivity reach"
-                              IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowReflectivityRing, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Where the radar's reflectivity data ends on the frame you're viewing"/>
-                    <CheckBox Content="Velocity reach"
-                              IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowVelocityRing, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Where velocity data ends. Past it there is no velocity or storm-relative velocity"/>
-                    <CheckBox Content="Distance rings"
-                              IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Evenly spaced rings for judging distance from the radar, in your distance unit"/>
-                </StackPanel>
-
-                <TextBlock Grid.Row="2" Grid.Column="0" Margin="4,0,0,0"
-                           VerticalAlignment="Center" Text="Spacing"/>
-                <prim:SegmentedPicker Grid.Row="2" Grid.Column="1"
-                                      HorizontalAlignment="Left" Width="240"
-                                      ItemsSource="{x:Bind ViewModel.Radar.RangeRings.DistanceRingSpacingLabels}"
-                                      SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.DistanceRingSpacingIndex, Mode=TwoWay}"
-                                      IsEnabled="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}"
-                                      ToolTipService.ToolTip="How far apart the distance rings are, in your distance unit (Units tab → Distance). Auto picks a step to suit the radar's reach"/>
-            </Grid>
-        </prim:SettingsExpander>
+    <StackPanel Spacing="12" VerticalAlignment="Top">
+        <ringsSettingsConsoles:RingsSettingsConsoleRings x:Name="RingsSettingsConsoleRings" ViewModel="{x:Bind ViewModel}"/>
 
         <!-- ⚠️ This ring's colour is AppSettings.ScopeColor — the range ruler wears it too. -->
-        <prim:SettingsExpander Grid.Row="2" Header="Reflectivity reach" IsExpanded="True">
-            <StackPanel Spacing="6">
-                <cmp:RingStyleEditor ViewModel="{x:Bind ViewModel.Radar.RangeRings.Outline}"/>
-                <TextBlock Margin="4,0,0,0" Opacity="0.75" TextWrapping="Wrap" MaxWidth="420" HorizontalAlignment="Left"
-                           Text="The range ruler takes this ring's colour."/>
-            </StackPanel>
-        </prim:SettingsExpander>
+        <ringsSettingsConsoles:RingsSettingsConsoleRingStyle x:Name="RingsSettingsConsoleRingStyleReflectivity"
+                                                             Title="Reflectivity reach"
+                                                             Ring="{x:Bind ViewModel.Radar.RangeRings.Outline}"
+                                                             ColorHint="The range ruler wears it too"/>
+        <ringsSettingsConsoles:RingsSettingsConsoleRingStyle x:Name="RingsSettingsConsoleRingStyleVelocity"
+                                                             Title="Velocity reach"
+                                                             Ring="{x:Bind ViewModel.Radar.RangeRings.Velocity}"/>
+        <ringsSettingsConsoles:RingsSettingsConsoleRingStyle x:Name="RingsSettingsConsoleRingStyleDistance"
+                                                             Title="Distance rings"
+                                                             Ring="{x:Bind ViewModel.Radar.RangeRings.Distance}"
+                                                             IsEditable="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}"
+                                                             LockedHint="Turn on Distance rings first"/>
 
-        <prim:SettingsExpander Grid.Row="3" Header="Velocity reach" IsExpanded="True">
-            <cmp:RingStyleEditor ViewModel="{x:Bind ViewModel.Radar.RangeRings.Velocity}"/>
-        </prim:SettingsExpander>
+        <ringsSettingsConsoles:RingsSettingsConsoleLabels x:Name="RingsSettingsConsoleLabels" ViewModel="{x:Bind ViewModel}"/>
+        <ringsSettingsConsoles:RingsSettingsConsoleRuler x:Name="RingsSettingsConsoleRuler" ViewModel="{x:Bind ViewModel}"/>
 
-        <prim:SettingsExpander Grid.Row="4" Header="Distance rings" IsExpanded="True">
-            <cmp:RingStyleEditor ViewModel="{x:Bind ViewModel.Radar.RangeRings.Distance}"
-                                 IsEnabled="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}"/>
-        </prim:SettingsExpander>
-
-        <!-- DISTANCE LABELS - their own rows, not a RingStyleEditor: text has a font, size and halo, not a pattern.
-             Grouped: how the text LOOKS, then what it SAYS and where it SITS. -->
-        <prim:SettingsExpander Grid.Row="5" Header="Distance labels" IsExpanded="True">
-            <!-- ⚠️ A ContentControl only to carry IsEnabled: a Panel has none, and it greys every row at once. -->
-            <ContentControl HorizontalContentAlignment="Stretch" IsTabStop="False"
-                            IsEnabled="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}">
-            <Grid RowSpacing="8" ColumnSpacing="12">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- 0 colour -->
-                    <RowDefinition Height="Auto"/> <!-- 1 opacity -->
-                    <RowDefinition Height="Auto"/> <!-- 2 font -->
-                    <RowDefinition Height="Auto"/> <!-- 3 size -->
-                    <RowDefinition Height="Auto"/> <!-- 4 letter spacing -->
-                    <RowDefinition Height="Auto"/> <!-- 5 halo width -->
-                    <RowDefinition Height="Auto"/> <!-- 6 halo colour -->
-                    <RowDefinition Height="Auto"/> <!-- 7 placement -->
-                    <RowDefinition Height="Auto"/> <!-- 8 label lines -->
-                    <RowDefinition Height="Auto"/> <!-- 9 position -->
-                    <RowDefinition Height="Auto"/> <!-- 10 show unit -->
-                    <RowDefinition Height="Auto"/> <!-- 11 handle -->
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="72"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Grid.Row="0" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Colour"/>
-                <prim:ColorSwatchPicker Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Left"
-                                        AllowCustom="True"
-                                        ItemsSource="{x:Bind ViewModel.Radar.RangeRings.LabelColorSwatches}"
-                                        ToolTips="{x:Bind ViewModel.Radar.RangeRings.LabelColorNames}"
-                                        SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.LabelColorIndex, Mode=TwoWay}"
-                                        CustomHex="{x:Bind ViewModel.Radar.RangeRings.LabelColorHex, Mode=TwoWay}"/>
-
-                <TextBlock Grid.Row="1" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Opacity"/>
-                <Slider Grid.Row="1" Grid.Column="1" Width="220" VerticalAlignment="Center"
-                        Minimum="5" Maximum="100" StepFrequency="1" SmallChange="1" LargeChange="10"
-                        IsThumbToolTipEnabled="False"
-                        Value="{x:Bind ViewModel.Radar.RangeRings.LabelOpacity, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
-                           Text="{x:Bind Pct(ViewModel.Radar.RangeRings.LabelOpacity), Mode=OneWay}"/>
-
-                <!-- Only the three stacks the bundled glyph host serves; any other renders nothing. -->
-                <TextBlock Grid.Row="2" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Font"/>
-                <prim:SegmentedPicker Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
-                                      HorizontalAlignment="Left" Width="240"
-                                      ItemsSource="{x:Bind ViewModel.Radar.RangeRings.LabelFontLabels}"
-                                      SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.LabelFontIndex, Mode=TwoWay}"/>
-
-                <TextBlock Grid.Row="3" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Size"/>
-                <Slider Grid.Row="3" Grid.Column="1" Width="220" VerticalAlignment="Center"
-                        Minimum="8" Maximum="24" StepFrequency="1" SmallChange="1" LargeChange="2"
-                        IsThumbToolTipEnabled="False"
-                        Value="{x:Bind ViewModel.Radar.RangeRings.LabelSize, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
-                           Text="{x:Bind Px0(ViewModel.Radar.RangeRings.LabelSize), Mode=OneWay}"/>
-
-                <TextBlock Grid.Row="4" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Spacing"/>
-                <Slider Grid.Row="4" Grid.Column="1" Width="220" VerticalAlignment="Center"
-                        Minimum="0" Maximum="0.5" StepFrequency="0.01" SmallChange="0.01" LargeChange="0.05"
-                        IsThumbToolTipEnabled="False"
-                        ToolTipService.ToolTip="Extra space between the letters"
-                        Value="{x:Bind ViewModel.Radar.RangeRings.LabelSpacing, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="4" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
-                           Text="{x:Bind Em(ViewModel.Radar.RangeRings.LabelSpacing), Mode=OneWay}"/>
-
-                <TextBlock Grid.Row="5" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Halo"/>
-                <Slider Grid.Row="5" Grid.Column="1" Width="220" VerticalAlignment="Center"
-                        Minimum="0" Maximum="4" StepFrequency="0.1" SmallChange="0.1" LargeChange="0.5"
-                        IsThumbToolTipEnabled="False"
-                        ToolTipService.ToolTip="The outline behind each label that keeps it readable over radar returns (0 = none)"
-                        Value="{x:Bind ViewModel.Radar.RangeRings.LabelHalo, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="5" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
-                           Text="{x:Bind Px(ViewModel.Radar.RangeRings.LabelHalo), Mode=OneWay}"/>
-
-                <TextBlock Grid.Row="6" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Halo colour"
-                           TextWrapping="Wrap"/>
-                <prim:ColorSwatchPicker Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Left"
-                                        AllowCustom="True"
-                                        ItemsSource="{x:Bind ViewModel.Radar.RangeRings.HaloColorSwatches}"
-                                        ToolTips="{x:Bind ViewModel.Radar.RangeRings.HaloColorNames}"
-                                        SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.HaloColorIndex, Mode=TwoWay}"
-                                        CustomHex="{x:Bind ViewModel.Radar.RangeRings.HaloColorHex, Mode=TwoWay}"/>
-
-                <TextBlock Grid.Row="7" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Placement"/>
-                <prim:SegmentedPicker Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="2"
-                                      HorizontalAlignment="Left" Width="280"
-                                      ItemsSource="{x:Bind ViewModel.Radar.RangeRings.LabelPlacementLabels}"
-                                      SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.LabelPlacementIndex, Mode=TwoWay}"
-                                      ToolTipService.ToolTip="Where each label sits against its ring"/>
-
-                <TextBlock Grid.Row="8" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Lines"/>
-                <prim:SegmentedPicker Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2"
-                                      HorizontalAlignment="Left" Width="160"
-                                      ItemsSource="{x:Bind ViewModel.Radar.RangeRings.LabelAxesLabels}"
-                                      SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.LabelAxesIndex, Mode=TwoWay}"
-                                      ToolTipService.ToolTip="How many lines of labels run out from the site, evenly spaced round from the Position bearing"/>
-
-                <TextBlock Grid.Row="9" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Position"/>
-                <Slider Grid.Row="9" Grid.Column="1" Width="220" VerticalAlignment="Center"
-                        Minimum="0" Maximum="359" StepFrequency="1" SmallChange="1" LargeChange="15"
-                        IsThumbToolTipEnabled="False"
-                        ToolTipService.ToolTip="The bearing the labels sit on, clockwise from north. You can also drag the knob on the outer range ring"
-                        Value="{x:Bind ViewModel.Radar.RangeRings.LabelBearing, Mode=TwoWay}"/>
-                <StackPanel Grid.Row="9" Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <TextBlock VerticalAlignment="Center" Opacity="0.75" MinWidth="36"
-                               Text="{x:Bind Deg(ViewModel.Radar.RangeRings.LabelBearing), Mode=OneWay}"/>
-                    <Button Content="North" Padding="10,2"
-                            Click="{x:Bind ViewModel.Radar.RangeRings.ResetLabelBearing}"
-                            ToolTipService.ToolTip="Put the labels back due north of the site"/>
-                </StackPanel>
-
-                <CheckBox Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="3" Margin="4,0,0,0"
-                          Content="Show the unit (100 mi, not 100)"
-                          IsChecked="{x:Bind ViewModel.Radar.RangeRings.LabelShowUnits, Mode=TwoWay}"/>
-
-                <CheckBox Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="3" Margin="4,0,0,0"
-                          Content="Show the drag knob on the map"
-                          IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowLabelHandle, Mode=TwoWay}"
-                          ToolTipService.ToolTip="The knob on the outer range ring, drawn like the range ruler's. Drag it around to move every label; hide it once they're where you want them"/>
-            </Grid>
-            </ContentControl>
-        </prim:SettingsExpander>
-
-        <!-- KNOBS - their own section, NOT under the labels: the size is SHARED with the range ruler's knob (the two
-             are drawn identically), so it must stay live while the distance rings are off. -->
-        <prim:SettingsExpander Grid.Row="6" Header="Knobs" IsExpanded="True">
-            <Grid RowSpacing="6" ColumnSpacing="12">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="72"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Row="0" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Size"/>
-                <Slider Grid.Row="0" Grid.Column="1" Width="220" VerticalAlignment="Center"
-                        Minimum="20" Maximum="48" StepFrequency="1" SmallChange="1" LargeChange="4"
-                        IsThumbToolTipEnabled="False"
-                        Value="{x:Bind ViewModel.Radar.RangeRings.KnobSize, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
-                           Text="{x:Bind Px0(ViewModel.Radar.RangeRings.KnobSize), Mode=OneWay}"/>
-                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="4,0,0,0" Opacity="0.75"
-                           TextWrapping="Wrap" MaxWidth="420" HorizontalAlignment="Left"
-                           Text="Sizes both knobs that ride the outer ring: the distance-label knob and the range ruler's."/>
-            </Grid>
-        </prim:SettingsExpander>
-
-        <!-- RANGE RULER - the anchor preference behind the tools tier's Ruler key (arming it is a gesture and
-             stays on the tier). ⚠️ "My location" is kept even with no location marker placed - the ruler
-             measures from the site meanwhile and its chip says so. Don't grey the segment. -->
-        <prim:SettingsExpander Grid.Row="7" Header="Range ruler" IsExpanded="True">
-            <Grid ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="72"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Ruler from"/>
-                <prim:SegmentedPicker Grid.Column="1"
-                                      HorizontalAlignment="Left" Width="240"
-                                      ItemsSource="{x:Bind ViewModel.Radar.RulerAnchorLabels}"
-                                      SelectedIndex="{x:Bind ViewModel.Radar.RulerAnchorIndex, Mode=TwoWay}"
-                                      ToolTipService.ToolTip="Where the range ruler starts: the radar site, or your location marker (the site until one is placed)"/>
-            </Grid>
-        </prim:SettingsExpander>
-    </Grid>
+        <prim:CautionResetButton x:Name="RingsSettingsResetAllButton"
+                                 Text="Reset all Rings &amp; Ruler settings" Click="OnResetAll"
+                                 ToolTipService.ToolTip="Every Rings &amp; Ruler card back to its DEFAULT column (asks first)"/>
+    </StackPanel>
 </UserControl>

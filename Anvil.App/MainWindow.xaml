@@ -507,7 +507,7 @@
                                                           Click="OnSettingsPageClick">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xEC05;"/></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
-                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuRangeRingItem" Text="Radar Range Ring" Tag="2"
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuRangeRingItem" Text="Rings &amp; Ruler" Tag="2"
                                                           IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 2), Mode=OneWay}"
                                                           Click="OnSettingsPageClick">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE81D;"/></ToggleMenuFlyoutItem.Icon>

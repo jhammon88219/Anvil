@@ -74,7 +74,7 @@ namespace Anvil.Controls.Windows
 			_sectionsPersisted = true;
 			// (map + edges: now Appearance — console sections that never collapse, so nothing to persist.)
 			// (radar + console: now Radar — console sections, nothing to persist.)
-			Persist(RangeRingTab, "rangering");
+			// (rangering: now Rings & Ruler — console sections, nothing to persist.)
 			Persist(StorageTab, "storage");
 			// (windowmode + startup + units: now General — console sections, nothing to persist.)
 			Persist(BasemapTab, "basemap");
@@ -151,7 +151,7 @@ namespace Anvil.Controls.Windows
 				new() { PageIndex = (int)SettingsTab.Startup, Glyph = "\uE7E8", Label = "General", Tooltip = "How Anvil starts and your home site, the units every readout speaks in, and the window layout" },
 				new() { PageIndex = (int)SettingsTab.Map, Glyph = "\uE774", Label = "Appearance", Tooltip = "The app's theme, the basemap's colours, and how the bars and panes meet the map (the edge hatch)" },
 				new() { PageIndex = (int)SettingsTab.Radar, Glyph = "\uEC05", Label = "Radar", Tooltip = "Live polling, radar memory, which radar-site keys show, and the radar console's scrubber" },
-				new() { PageIndex = (int)SettingsTab.RangeRing, Glyph = "\uE81D", Label = "Radar Range Ring", Tooltip = "Which range rings are drawn, how each looks, the distance labels and the ruler's anchor" },
+				new() { PageIndex = (int)SettingsTab.RangeRing, Glyph = "\uE81D", Label = "Rings & Ruler", Tooltip = "Which range rings are drawn, how each looks, the distance labels and the range ruler" },
 				new() { PageIndex = (int)SettingsTab.LiveData, Glyph = "\uE701", Label = "Live Data", Tooltip = "Where live updates come from (IEM, NOAA Weather Wire or polling), the polling intervals and the connection" },
 				new() { PageIndex = (int)SettingsTab.Basemap, Glyph = "\uE826", Label = "Basemap", Tooltip = "The map under the weather: your map files, downloading an offline map, the online map key, and map setup at launch" },
 				new() { PageIndex = (int)SettingsTab.Storage, Glyph = "\uEDA2", Label = "Storage", Tooltip = "What Anvil keeps on disk: sizes, clearing, and how much and how long each kind is kept" },

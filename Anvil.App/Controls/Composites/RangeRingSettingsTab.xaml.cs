@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
@@ -6,9 +5,9 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The Settings window's Radar Range Ring tab (see the XAML header): which range rings are drawn, how each
-	/// looks, the distance labels, and the ruler's anchor. Bound to the coordinator <see cref="MapViewModel"/>;
-	/// the state lives on <see cref="RadarViewModel.RangeRings"/>.
+	/// Settings → Rings &amp; Ruler (see the XAML header): which range rings are drawn, how each looks, the distance labels and
+	/// the ruler — each its own section control — over the coordinator <see cref="MapViewModel"/>; the state lives on
+	/// <see cref="RadarViewModel.RangeRings"/>.
 	/// </summary>
 	public sealed partial class RangeRingSettingsTab : UserControl
 	{
@@ -27,19 +26,14 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(RangeRingSettingsTab), new PropertyMetadata(null));
 
-		/// <summary>x:Bind readout: "100 %".</summary>
-		public string Pct(double value) => string.Create(CultureInfo.CurrentCulture, $"{value:0} %");
-
-		/// <summary>x:Bind readout: "1.2 px".</summary>
-		public string Px(double value) => string.Create(CultureInfo.CurrentCulture, $"{value:0.0} px");
-
-		/// <summary>x:Bind readout: "10 px".</summary>
-		public string Px0(double value) => string.Create(CultureInfo.CurrentCulture, $"{value:0} px");
-
-		/// <summary>x:Bind readout: "0.10 em".</summary>
-		public string Em(double value) => string.Create(CultureInfo.CurrentCulture, $"{value:0.00} em");
-
-		/// <summary>x:Bind readout: "045°".</summary>
-		public string Deg(double value) => string.Create(CultureInfo.InvariantCulture, $"{value:000}°");
+		private async void OnResetAll(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Reset all Rings & Ruler settings?",
+				"Which rings are drawn, every ring's look, the distance labels and the ruler go back to their defaults — the DEFAULT " +
+				"column on this page. This can't be undone."))
+			{
+				vm.ResetRingsPage();
+			}
+		}
 	}
 }

@@ -1911,6 +1911,30 @@ namespace Anvil.ViewModels
 			Radar.HatchLook.RestoreDefaults();
 		}
 
+		// ── Settings → Rings & Ruler (was Radar Range Ring, 2026-11-16). The ring cards reset through RangeRings; the ruler's
+		//    anchor lives on RadarViewModel's overlays (not engine), so its card's reset is here. ──
+
+		/// <summary>Ruler card's Restore defaults: from the radar site, the shipped knob size.</summary>
+		public void ResetRuler()
+		{
+			Radar.RulerAnchorIndex = RulerAnchors.IndexOf(FreshSettings.RulerAnchor);
+			Radar.RangeRings.KnobSize = RingKnobSize.Default;
+		}
+
+		/// <summary>"Reset all Rings &amp; Ruler settings": every card's Restore defaults (asked first, by the page).</summary>
+		public void ResetRingsPage()
+		{
+			var rings = Radar.RangeRings;
+			rings.ResetWhichRings();
+			rings.Outline.RestoreDefaults();
+			rings.Velocity.RestoreDefaults();
+			rings.Distance.RestoreDefaults();
+			rings.ResetLabels();
+			ResetRuler();
+		}
+
+		public string DefaultRulerAnchorText => Radar.RulerAnchorLabels[RulerAnchors.IndexOf(FreshSettings.RulerAnchor)];
+
 		public string DefaultLivePollingModeText => Radar.LivePollingModeLabels[FreshSettings.RegimeAwarePolling ? 0 : 1];
 		public string DefaultLivePollIntervalText => $"{FreshSettings.LivePollSeconds} s";
 		public string DefaultRadarMemoryText => $"{Radar.Memory.RecommendedGb:0.#} GB (¼ of RAM)";

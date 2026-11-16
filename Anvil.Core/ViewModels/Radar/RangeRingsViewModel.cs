@@ -37,15 +37,15 @@ namespace Anvil.ViewModels
 				() => _settings.Settings.OutlineRingStyle, v => _settings.Settings.OutlineRingStyle = v,
 				() => _settings.Settings.ScopeColor,
 				v => { _settings.Settings.ScopeColor = v; _ = PushOutlineColorAsync(); },
-				() => _ = PushStyleAsync());
+				() => _ = PushStyleAsync(), RingStyle.OutlineDefault);
 			Velocity = new RingStyleViewModel(
 				() => _settings.Settings.VelocityRingStyle, v => _settings.Settings.VelocityRingStyle = v,
 				() => _settings.Settings.VelocityRingColor, v => _settings.Settings.VelocityRingColor = v,
-				() => _ = PushStyleAsync());
+				() => _ = PushStyleAsync(), RingStyle.VelocityDefault);
 			Distance = new RingStyleViewModel(
 				() => _settings.Settings.DistanceRingStyle, v => _settings.Settings.DistanceRingStyle = v,
 				() => _settings.Settings.DistanceRingColor, v => _settings.Settings.DistanceRingColor = v,
-				() => _ = PushStyleAsync());
+				() => _ = PushStyleAsync(), RingStyle.DistanceDefault);
 		}
 
 		/// <summary>The reflectivity outline's look. Its colour is <c>ScopeColor</c> — the ruler wears it too.</summary>
@@ -315,9 +315,6 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>Swing the labels back to north (the Settings "North" button).</summary>
-		public void ResetLabelBearing() => LabelBearing = 0;
-
 		/// <summary>The page reports a finished drag of the label handle. Persist it, re-read the slider, and do
 		/// NOT push it back — see the class remarks.</summary>
 		public void OnLabelBearingDragged(double degrees)
@@ -328,24 +325,53 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(LabelBearing));
 		}
 
-		/// <summary>Put every ring's LOOK back to the defaults: strokes, colours (the outline's too, so the ruler
-		/// follows), label style and bearing. Which rings are shown, and the spacing, are left alone.</summary>
-		public void ResetLook()
+		// ── Settings → Rings & Ruler: each card's Restore defaults + its DEFAULT column (2026-11-16). Defaults = a fresh
+		//    AppSettings / the RingLabelStyle + RingKnobSize defaults — the same values a first run gets. ──
+		private static readonly AppSettings Fresh = new();
+
+		/// <summary>Rings card: which rings are drawn, and the distance spacing.</summary>
+		public void ResetWhichRings()
 		{
-			Outline.Reset(RingStyle.OutlineDefault);
-			Velocity.Reset(RingStyle.VelocityDefault);
-			Distance.Reset(RingStyle.DistanceDefault);
+			ShowSiteRing = Fresh.ShowSiteRing;
+			ShowReflectivityRing = Fresh.ShowReflectivityRing;
+			ShowVelocityRing = Fresh.ShowVelocityRing;
+			ShowDistanceRings = Fresh.ShowDistanceRings;
+			DistanceRingSpacingIndex = RangeRingSpacings.IndexOf(Fresh.DistanceRingSpacing);
+		}
+
+		/// <summary>Distance labels card: colours, style, bearing, the drag knob.</summary>
+		public void ResetLabels()
+		{
 			var s = _settings.Settings;
 			s.DistanceLabelColor = ScopeColors.ThemeDefault;
 			s.DistanceLabelHaloColor = ScopeColors.ThemeDefault;
 			s.DistanceLabelStyle = RingLabelStyle.Default;
-			s.RingKnobSize = RingKnobSize.Default;
-			s.DistanceLabelBearing = 0;
-			s.ShowDistanceLabelHandle = true;
+			s.DistanceLabelBearing = Fresh.DistanceLabelBearing;
+			s.ShowDistanceLabelHandle = Fresh.ShowDistanceLabelHandle;
 			OnPropertyChanged(string.Empty);
-			_ = PushOutlineColorAsync();
 			_ = PushStyleAsync();
 		}
+
+		public string DefaultSiteRingText => OnOff(Fresh.ShowSiteRing);
+		public string DefaultReflectivityRingText => OnOff(Fresh.ShowReflectivityRing);
+		public string DefaultVelocityRingText => OnOff(Fresh.ShowVelocityRing);
+		public string DefaultDistanceRingsText => OnOff(Fresh.ShowDistanceRings);
+		public string DefaultSpacingText => RangeRingSpacings.Labels[RangeRingSpacings.IndexOf(Fresh.DistanceRingSpacing)];
+		public string DefaultLabelColorText => "Rings'";
+		public string DefaultLabelOpacityText => $"{RingLabelStyle.Default.OpacityPct}%";
+		public string DefaultLabelFontText => RingLabelFonts.Labels[RingLabelFonts.IndexOf(RingLabelStyle.Default.Font)];
+		public string DefaultLabelSizeText => $"{RingLabelStyle.Default.Size:0} px";
+		public string DefaultLabelSpacingText => $"{RingLabelStyle.Default.Spacing:0.00} em";
+		public string DefaultLabelHaloText => $"{RingLabelStyle.Default.Halo:0.0} px";
+		public string DefaultHaloColorText => "Theme";
+		public string DefaultPlacementText => RingLabelPlacements.Labels[RingLabelPlacements.IndexOf(RingLabelStyle.Default.Placement)];
+		public string DefaultLabelLinesText => RingLabelStyle.Default.Axes.ToString(System.Globalization.CultureInfo.InvariantCulture);
+		public string DefaultLabelBearingText => $"{Fresh.DistanceLabelBearing:000}° (North)";
+		public string DefaultShowUnitsText => OnOff(RingLabelStyle.Default.ShowUnits);
+		public string DefaultLabelHandleText => OnOff(Fresh.ShowDistanceLabelHandle);
+		public string DefaultKnobSizeText => $"{RingKnobSize.Default:0} px";
+
+		private static string OnOff(bool on) => on ? "On" : "Off";
 
 		/// <summary>Replays every persisted ring preference into a freshly loaded page. Called from
 		/// <c>RadarViewModel.OnMapsReadyAsync</c>.</summary>
