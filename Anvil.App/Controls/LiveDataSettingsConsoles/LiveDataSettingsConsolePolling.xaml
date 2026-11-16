@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LiveDataSettingsConsolePolling — Settings → Live Data's "Polling" section, on a Primitives/SettingsConsolePlate: how often each
+     NowCast feed is checked when no live source carries it (the live feed is down, or Polling only).
+
+       Polling  [Restore defaults]                                                                 DEFAULT
+       Warnings      [ 30 ⌃⌄]  seconds · min 15 s           [Live]  Waits for the live feed while connected     30 s
+       …             (one row per feed, LiveDataViewModel.Polling)
+       Storm cells   [ 60 ⌃⌄]  seconds · min 30 s           [Polled] No live feed carries it                    1 min
+       Radar         Follows the radar's scan pattern        Settings → Radar → Live polling
+       96            420 (NumberBox 96 · unit text)          hint: tag + words (one line)                150, right
+
+     ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's — the row template repeats them. Each NumberBox is clamped to the feed's
+     minimum … 30 min (LivePollRow.Seconds). "Live" = no schedule while connected: the feed fetches when the NWS issues one of
+     its products (+ a few re-checks and a 10-min safety — LiveFeedChannel); the interval is the OUTAGE / Polling-only cadence.
+     ⚠️ The Live / Polled tags are THEME brushes (SystemFillColorSuccess*, ControlFill*) — chrome, not data. -->
+<UserControl x:Class="Anvil.Controls.LiveDataSettingsConsoles.LiveDataSettingsConsolePolling"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:local="using:Anvil.Controls.LiveDataSettingsConsoles"
+             xmlns:vm="using:Anvil.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- One feed. Columns = the page's (keep in step with the Radar row below). -->
+        <DataTemplate x:Key="PollRowTemplate" x:DataType="vm:LivePollRow">
+            <Grid ColumnSpacing="12" MinHeight="32" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="96"/>
+                    <ColumnDefinition Width="420"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="150"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <NumberBox Width="96" Value="{x:Bind Seconds, Mode=TwoWay}"
+                               Minimum="{x:Bind MinimumSeconds}" Maximum="{x:Bind MaximumSeconds}"
+                               SmallChange="5" LargeChange="60" SpinButtonPlacementMode="Compact"
+                               ToolTipService.ToolTip="Seconds between checks when no live source carries this feed"/>
+                    <TextBlock Text="{x:Bind UnitText}" VerticalAlignment="Center" FontSize="12"
+                               Style="{StaticResource TabularNumberTextStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Border Padding="6,1" CornerRadius="3" VerticalAlignment="Center" Visibility="{x:Bind IsLive}"
+                            Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}">
+                        <TextBlock Text="Live" FontSize="11" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                    </Border>
+                    <Border Padding="6,1" CornerRadius="3" VerticalAlignment="Center" Visibility="{x:Bind local:LiveDataSettingsConsolePolling.Not(IsLive)}"
+                            Background="{ThemeResource ControlFillColorSecondaryBrush}">
+                        <TextBlock Text="Polled" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </Border>
+                    <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind LiveHint}"/>
+                </StackPanel>
+                <TextBlock Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind DefaultText}"/>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <prim:SettingsConsolePlate x:Name="LiveDataSettingsConsolePollingPlate" Title="Polling" ShowDefaultHeader="True">
+        <prim:SettingsConsolePlate.HeaderContent>
+            <Button x:Name="PollingRestoreDefaultsButton" Content="Restore defaults" Click="OnRestoreDefaults"
+                    ToolTipService.ToolTip="Every feed's interval back to the DEFAULT column (asks first)"/>
+        </prim:SettingsConsolePlate.HeaderContent>
+
+        <StackPanel>
+            <ItemsControl x:Name="PollRows" IsTabStop="False" ItemsSource="{x:Bind ViewModel.Polling}" ItemTemplate="{StaticResource PollRowTemplate}"/>
+
+            <!-- The radar keeps its own scan schedule — shown so the list reads as every NowCast feed. -->
+            <Grid ColumnSpacing="12" MinHeight="32">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="96"/>
+                    <ColumnDefinition Width="420"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="150"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Radar" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Grid.Column="1" Text="Follows the radar's scan pattern" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Settings → Radar → Live polling"/>
+            </Grid>
+        </StackPanel>
+    </prim:SettingsConsolePlate>
+</UserControl>

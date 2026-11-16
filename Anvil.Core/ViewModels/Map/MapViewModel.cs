@@ -161,6 +161,7 @@ namespace Anvil.ViewModels
 			SiteFavorites.HoldLaunchLoad = () => !_isNowCast || ShortRange.IsDrawing;
 			SiteUsage = new SiteUsageTracker(Radar, siteUsageStore);
 			Storage.AttachSiteUsage(SiteUsage.ClearAll);
+			Storage.AttachMaps(BasemapSetup.MapFilePaths, () => BasemapSetup.SaveFolder); // the Maps row = the Map card's files
 			// The PastCast load-time log (one line per load). Optional so tests that don't care can omit it.
 			if (loopLoadLog is not null) LoadTimes = new LoopLoadRecorder(Radar, loopLoadLog);
 			// The live-poll timing log (one line per new live frame / volume change): proof regime-aware polling holds. Every build.
@@ -1760,6 +1761,7 @@ namespace Anvil.ViewModels
 				if (value == (int)SettingsTab.Edges) value = (int)SettingsTab.Map;
 				if (value is (int)SettingsTab.Units or (int)SettingsTab.WindowMode) value = (int)SettingsTab.Startup;
 			if (value == (int)SettingsTab.RadarConsole) value = (int)SettingsTab.Radar; // merged into Radar (2026-11-16)
+			if (value == (int)SettingsTab.Basemap) value = (int)SettingsTab.Storage;    // merged into Storage (2026-11-16)
 				var clamped = Math.Clamp(value, 0, SettingsTabCount - 1);
 				if (SetProperty(ref _settingsTabIndex, clamped))
 				{
@@ -1843,7 +1845,11 @@ namespace Anvil.ViewModels
 			StartInFullScreen = FreshSettings.StartInFullScreen;
 			SiteFavorites.LoadHomeOnLaunch = FreshSettings.LoadHomeOnLaunch;
 			SiteFavorites.ClearHome();
+			BasemapSetup.ShowAtLaunch = FreshSettings.ShowBasemapSetupAtLaunch;
 		}
+
+		/// <summary>Startup's "Show map setup at launch" DEFAULT (moved from the Basemap page, 2026-11-16).</summary>
+		public string DefaultShowMapSetupText => FreshSettings.ShowBasemapSetupAtLaunch ? "On" : "Off";
 
 		/// <summary>Window's Restore defaults: single monitor (the only mode built, so today a no-op — the button is greyed).</summary>
 		public void ResetWindow() => MonitorModeIndex = (int)MonitorMode.Single;

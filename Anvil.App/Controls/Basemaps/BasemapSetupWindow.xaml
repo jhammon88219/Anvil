@@ -16,7 +16,7 @@
        │  ───────────────────────────────────────────────────  │
        │  Continue without a map                [Use online map]  ← names what it'll do (Download map — greyed
                                                                         while no area is ticked)
-       │  You can set this up later in Settings → Basemap.     │
+       │  You can set this up later in Settings → Storage.     │
        │  [ ] Stop showing this at launch                      │
        │                                                       │
        │  EXISTING FILE (1)  path [Browse…] · three checks (BasemapFileCheck: readable · radars covered · detail,
@@ -112,7 +112,7 @@
                 <StackPanel>
                     <HyperlinkButton x:Name="ContinueWithoutMapLink" Content="Continue without a map" Padding="0,2"
                                      Click="OnOpenAnvilClick"/>
-                    <TextBlock Text="You can set this up later in Settings → Basemap." Style="{StaticResource BasemapSetupFootNoteStyle}"/>
+                    <TextBlock Text="You can set this up later in Settings → Storage." Style="{StaticResource BasemapSetupFootNoteStyle}"/>
                 </StackPanel>
                 <Button x:Name="BasemapSetupPrimaryButton" Grid.Column="1" VerticalAlignment="Bottom"
                         Style="{StaticResource AccentButtonStyle}"
@@ -235,7 +235,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock VerticalAlignment="Center" Text="Change it anytime in Settings → Basemap."
+                <TextBlock VerticalAlignment="Center" Text="Change it anytime in Settings → Storage."
                            Style="{StaticResource BasemapSetupFootNoteStyle}"/>
                 <!-- LIT: the accent face, a size up, an arrow — the one thing to press. -->
                 <Button x:Name="OpenAnvilButton" Grid.Column="1" Style="{StaticResource AccentButtonStyle}"
@@ -277,7 +277,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                     <HyperlinkButton Content="Back to map choice" Padding="0,2" Click="{x:Bind ViewModel.BackToChoice}"/>
-                    <TextBlock Text="Or continue without a map and finish later in Settings → Basemap."
+                    <TextBlock Text="Or continue without a map and finish later in Settings → Storage."
                                Style="{StaticResource BasemapSetupFootNoteStyle}"/>
                 </StackPanel>
                 <Button x:Name="RetryDownloadButton" Grid.Column="1" VerticalAlignment="Bottom" Content="Retry"

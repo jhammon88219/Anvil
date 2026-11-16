@@ -21,5 +21,14 @@ namespace Anvil.Controls.StorageManagers
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(StorageSettingsViewModel), typeof(StorageManagerSettingsConsole),
 				new PropertyMetadata(null));
+
+		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Restore On disk defaults?",
+				"Every Max size and Keep for goes back to the DEFAULT column. Anything over a restored limit is removed, as with any limit change."))
+			{
+				vm.RestoreDefaults();
+			}
+		}
 	}
 }

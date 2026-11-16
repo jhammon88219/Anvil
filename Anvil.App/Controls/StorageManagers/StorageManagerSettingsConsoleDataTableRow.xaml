@@ -3,12 +3,13 @@
      StorageManagerSettingsConsoleDataTable, in StorageKind order).
 
        ──────────────────────────────────────────────────────────────────────────────────────────────── ← hairline (top)
-       ■  Radar volumes        Loops you've loaded    1.8 GB  [  Clear  ]  [📁]  [ 5 GB   ⌄]  [ 5 days ⌄]
-       16 NAME (= widest name)  * grey hint (trims)   80 ←R   96          36    104          112
+       ■  Radar volumes        Loops you've loaded    1.8 GB  [  Clear  ]  [📁]  [ 5 GB   ⌄]  [ 5 days ⌄]   5 GB · 5 days
+       ■  Maps                 Offline map files     33.8 GB              [📁]   ─────────    ─────────   (no Clear, no limits)
+       16 NAME (= widest name)  * grey hint (trims)   80 ←R   96          36    104          112           150 DEFAULT, right
        ■ = 14 × 14 (the usage bar's height) · NAME 16 Medium · hint 12 regular, secondary
                                                       ↑ Low = normal text · Medium = caution · High = critical (bold)
 
-     ⚠️ THE COLUMNS ARE THE TABLE'S — the same eight columns + ColumnSpacing 10 as the header row in
+     ⚠️ THE COLUMNS ARE THE TABLE'S — the same nine columns + ColumnSpacing 10 as the header row in
      StorageManagerSettingsConsoleDataTable. Change both, or the controls stop lining up down the table.
      ⚠️ NAME is Auto until the table measures every row's name (NaturalNameWidth) and hands the WIDEST back
      (SetNameColumnWidth) — so the grey hints all start on one edge. The names never change, so it runs once.
@@ -35,6 +36,7 @@
             <ColumnDefinition Width="36"/>  <!-- folder -->
             <ColumnDefinition Width="104"/> <!-- Max size -->
             <ColumnDefinition Width="112"/> <!-- Keep for -->
+            <ColumnDefinition Width="150"/> <!-- DEFAULT (the card's column, right-aligned) -->
         </Grid.ColumnDefinitions>
 
         <VisualStateManager.VisualStateGroups>
@@ -55,7 +57,7 @@
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
 
-        <Rectangle x:Name="RowRule" Grid.ColumnSpan="8" Height="1" VerticalAlignment="Top"
+        <Rectangle x:Name="RowRule" Grid.ColumnSpan="9" Height="1" VerticalAlignment="Top"
                    Fill="{ThemeResource CardStrokeColorDefaultBrush}"/>
 
         <!-- 14 × 14 = the usage bar's height (StorageManagerSettingsConsoleUsageBar's segments) — change both. -->
@@ -75,10 +77,10 @@
 
         <!-- Clear: at once, or (usage history) after a yes. Both declared; Item.ConfirmClear picks. -->
         <Button x:Name="ClearButton" Grid.Column="4" Width="96" Content="Clear"
-                Visibility="{x:Bind Show(Item.ConfirmClear, x:False), Mode=OneWay}"
+                Visibility="{x:Bind ShowClear(Item.HasClear, Item.ConfirmClear, x:False), Mode=OneWay}"
                 IsEnabled="{x:Bind Item.CanClear, Mode=OneWay}" Click="OnClearClick"/>
         <Button x:Name="ClearConfirmButton" Grid.Column="4" Width="96" Content="Clear…"
-                Visibility="{x:Bind Show(Item.ConfirmClear, x:True), Mode=OneWay}"
+                Visibility="{x:Bind ShowClear(Item.HasClear, Item.ConfirmClear, x:True), Mode=OneWay}"
                 IsEnabled="{x:Bind Item.CanClear, Mode=OneWay}">
             <Button.Flyout>
                 <Flyout x:Name="ClearConfirmFlyout" Placement="Bottom">
@@ -122,9 +124,17 @@
                   ItemsSource="{x:Bind Item.KeepChoices, Mode=OneWay}"
                   SelectedItem="{x:Bind Item.SelectedKeep, Mode=TwoWay}"/>
         <!-- Lines up with the dropdown text above: the ComboBox's own padding (ComboBoxPadding) + its 1 px border. -->
-        <TextBlock x:Name="KeepForAlwaysText" Grid.Column="7" Text="Always kept" VerticalAlignment="Center"
+        <TextBlock x:Name="KeepForAlwaysText" Grid.Column="7" Text="{x:Bind Item.NoKeepText, Mode=OneWay}" VerticalAlignment="Center"
                    Margin="1,0,0,0" Padding="{ThemeResource ComboBoxPadding}"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                   Visibility="{x:Bind Show(Item.HasKeep, x:False), Mode=OneWay}"/>
+                   Visibility="{x:Bind ShowNoKeep(Item.HasKeep, Item.NoKeepText, x:True), Mode=OneWay}"/>
+        <!-- No Keep for and no words for it (Maps): the same hairline as an absent Max size. -->
+        <Rectangle x:Name="KeepForNoneRule" Grid.Column="7" Height="1" Margin="12,0" VerticalAlignment="Center"
+                   HorizontalAlignment="Stretch" Fill="{ThemeResource TextFillColorTertiaryBrush}"
+                   Visibility="{x:Bind ShowNoKeep(Item.HasKeep, Item.NoKeepText, x:False), Mode=OneWay}"/>
+
+        <!-- DEFAULT: the limits a first run gets ("5 GB · 5 days"), right-aligned under the card's DEFAULT title. -->
+        <TextBlock x:Name="DefaultLimitsText" Grid.Column="8" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
+                   Text="{x:Bind Item.DefaultText, Mode=OneWay}"/>
     </Grid>
 </UserControl>

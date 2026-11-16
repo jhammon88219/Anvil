@@ -35,6 +35,7 @@ namespace Anvil.Controls.StorageManagers
 			if (_namesAligned) return;
 			var rows = new[]
 			{
+				StorageManagerSettingsConsoleDataTableRowMaps,
 				StorageManagerSettingsConsoleDataTableRowRadarVolumes, StorageManagerSettingsConsoleDataTableRowRadarDiagnostics,
 				StorageManagerSettingsConsoleDataTableRowWeatherData, StorageManagerSettingsConsoleDataTableRowLogs,
 				StorageManagerSettingsConsoleDataTableRowUsageHistory,

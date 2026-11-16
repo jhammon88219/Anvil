@@ -517,11 +517,6 @@
                                                           Click="OnSettingsPageClick">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE701;"/></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
-                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuBasemapItem" Text="Basemap" Tag="8"
-                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 8), Mode=OneWay}"
-                                                          Click="OnSettingsPageClick">
-                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE826;"/></ToggleMenuFlyoutItem.Icon>
-                                    </ToggleMenuFlyoutItem>
                                     <ToggleMenuFlyoutItem x:Name="SettingsMenuStorageItem" Text="Storage" Tag="3"
                                                           IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 3), Mode=OneWay}"
                                                           Click="OnSettingsPageClick">

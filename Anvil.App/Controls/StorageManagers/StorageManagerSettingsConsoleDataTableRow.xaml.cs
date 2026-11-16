@@ -44,6 +44,14 @@ namespace Anvil.Controls.StorageManagers
 
 		public Visibility Show(bool value, bool when) => value == when ? Visibility.Visible : Visibility.Collapsed;
 
+		/// <summary>A Clear button: only when the kind can be cleared (not Maps), the plain or the asking one.</summary>
+		public Visibility ShowClear(bool hasClear, bool confirm, bool wantConfirm) =>
+			hasClear && confirm == wantConfirm ? Visibility.Visible : Visibility.Collapsed;
+
+		/// <summary>Keep for with no dropdown: its words ("Always kept"), or a hairline when there are none (Maps).</summary>
+		public Visibility ShowNoKeep(bool hasKeep, string text, bool asText) =>
+			!hasKeep && string.IsNullOrEmpty(text) != asText ? Visibility.Visible : Visibility.Collapsed;
+
 		/// <summary>The name's own width while its column is still Auto (0 before the first layout).</summary>
 		internal double NaturalNameWidth => KindName.ActualWidth;
 

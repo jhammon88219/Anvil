@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StorageSettingsConsoleOnlineMap — Settings → Storage's "Online map" section (from the retired Basemap page), on a
+     Primitives/SettingsConsolePlate: draw the map from Protomaps' servers with your free key. Over BasemapSetupViewModel.
+
+       Online map                                                                       (no reset, no DEFAULT — the key is yours)
+       Map key    [a1b2c3d4e5…                  ] [Test] [Use online map]   Free for personal use · Get a free key
+                  Key works. …                                               ← the key's last message
+       96         420                                                        hint (one line)
+
+     ⚠️ Plain words only (map, map key — never tiles/API). The key lives inside AppSettings.OnlineTilesUrl (ProtomapsKeys).
+     "Use online map" is drawn AT ONCE (MapViewModel.OnBasemapSettingChanged). -->
+<UserControl x:Class="Anvil.Controls.StorageSettingsConsoles.StorageSettingsConsoleOnlineMap"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <prim:SettingsConsolePlate x:Name="StorageSettingsConsoleOnlineMapPlate" Title="Online map">
+        <Grid ColumnSpacing="12" RowSpacing="6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="96"/>
+                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="150"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock VerticalAlignment="Center" Text="Map key"/>
+            <Grid Grid.Column="1" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="OnlineMapKeyTextBox" PlaceholderText="a1b2c3d4e5f6…"
+                         Text="{x:Bind ViewModel.MapKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <Button x:Name="OnlineMapTestKeyButton" Grid.Column="1" Content="Test" Click="{x:Bind ViewModel.TestKey}"
+                        IsEnabled="{x:Bind ViewModel.CanTestKey, Mode=OneWay}"/>
+                <Button x:Name="OnlineMapUseButton" Grid.Column="2" Content="Use online map" Click="{x:Bind ViewModel.UseOnlineMap}"
+                        IsEnabled="{x:Bind ViewModel.CanTestKey, Mode=OneWay}"/>
+            </Grid>
+            <StackPanel Grid.Column="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Free for personal use ·"/>
+                <HyperlinkButton Content="Get a free key at protomaps.com" Padding="0" FontSize="12"
+                                 NavigateUri="https://protomaps.com/account"/>
+            </StackPanel>
+
+            <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" FontSize="12" TextWrapping="Wrap"
+                       Text="{x:Bind ViewModel.KeyMessage, Mode=OneWay}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Grid>
+    </prim:SettingsConsolePlate>
+</UserControl>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LiveDataSettingsConsoleConnection — Settings → Live Data's "Connection" section, on a Primitives/SettingsConsolePlate: how the
+     live link stands. READ-ONLY — no Restore defaults, no DEFAULT.
+
+       Connection
+       Status        ● IEM · connected since 11:02:14 AM
+       Last product  12:04:31 PM · Severe thunderstorm warning, OUN
+       Missed        None this session
+       96            the rest of the row
+
+     ⚠️ The status dot's colours are DATA literals (code-behind), like the activity rows' — never a theme brush in C#. -->
+<UserControl x:Class="Anvil.Controls.LiveDataSettingsConsoles.LiveDataSettingsConsoleConnection"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <prim:SettingsConsolePlate x:Name="LiveDataSettingsConsoleConnectionPlate" Title="Connection">
+        <Grid ColumnSpacing="12" RowSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="96"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Status"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{x:Bind StateBrush(ViewModel.LinkState), Mode=OneWay}"/>
+                <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" TextWrapping="Wrap" Style="{StaticResource TabularNumberTextStyle}"/>
+            </StackPanel>
+
+            <TextBlock Grid.Row="1" Text="Last product"/>
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.LastProductText, Mode=OneWay}" TextWrapping="Wrap"
+                       Style="{StaticResource TabularNumberTextStyle}"/>
+
+            <TextBlock Grid.Row="2" Text="Missed"/>
+            <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.MissedText, Mode=OneWay}" TextWrapping="Wrap"/>
+        </Grid>
+    </prim:SettingsConsolePlate>
+</UserControl>

@@ -1,29 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- StorageSettingsTab — the Storage page of the Settings window: what Anvil keeps on disk, and its limits.
+<!-- StorageSettingsTab — Settings → Storage (2026-11-16: + the whole Basemap page): what Anvil keeps on disk and its limits, the
+     map in use and your map files, getting an offline map, and the online map.
 
-       ┌──────────────────────────────────────────────────────────────────────────────────────┐
-       │ 6.1 GB         [📁 Open folder]                                                       │   Controls/StorageManagers/
-       │ used by Anvil                                                                         │   StorageManagerSettingsConsole
-       │ ████████████████████████████████████████████▌▌▏▏                                      │   (the page IS the console —
-       │ DATA                       SIZE ?                     MAX SIZE ?  KEEP FOR ?          │    "Open Anvil's folder" moved
-       │ ■ Radar volumes …          1.8 GB  [ Clear ] [📁]  [5 GB ⌄]  [5 days ⌄]              │    INTO it, beside the total)
-       │ …                                                                                     │
-       └──────────────────────────────────────────────────────────────────────────────────────┘
+       ┌ On disk  [Restore defaults] ─────────────────────────────── DEFAULT ┐  StorageManagers/StorageManagerSettingsConsole
+       │ 39.9 GB [📁 Open folder] · the bar (Maps first) · the table (Maps ·    │  (Maps = every map file Anvil knows; no Clear,
+       │ Radar volumes · Radar diagnostics · Weather data · Logs · Your usage)  │   no limits)
+       └────────────────────────────────────────────────────────────────────────┘
+          12 px of the body's darker ground
+       ┌ Map ───────────────────────────────────────────────────────────────── ┐  StorageSettingsConsoles/StorageSettingsConsoleMap
+       │ In use · Files (Use / folder / delete-asks-inline) · Add a map file…   │
+       └────────────────────────────────────────────────────────────────────────┘
+       ┌ Offline map  [Restore defaults] ──────────────────────────── DEFAULT ┐  …ConsoleOfflineMap
+       │ Area · Detail · Save to · File · Download (+ progress / Retry)         │
+       └────────────────────────────────────────────────────────────────────────┘
+       ┌ Online map ────────────────────────────────────────────────────────── ┐  …ConsoleOnlineMap
+       │ Map key · Test · Use online map                                        │
+       └────────────────────────────────────────────────────────────────────────┘
+       [                  Reset all Storage settings  (caution amber)            ]  Primitives/CautionResetButton
 
-     No expander and nothing above the console. Everything is StorageManagerSettingsConsole over MapViewModel.Storage.
-
-     ⚠️ The sizes are only re-measured when this tab becomes VISIBLE (MapViewModel.RefreshForSettingsTab, fired when the
-     window opens and when the tab changes) — it walks several folders, so it must not run on every Settings open.
-     ⚠️ The basemap folder picker does NOT belong here yet — it lives on the MAP tab, beside the online-tiles URL. (A later
-     step moves the offline-map controls here; until then no hint to it either.) -->
+     ⚠️ Every reset ASKS first. Reset all = every limit + the Offline map choices; it deletes no map file and keeps the map key.
+     ⚠️ The sizes are only re-measured when this page becomes VISIBLE (MapViewModel.RefreshForSettingsTab) — it walks several
+     folders, so it must not run on every Settings open. The map files are re-read on show too (BasemapSetupViewModel.Refresh:
+     the folder can change from the setup window or Explorer).
+     ⚠️ "Show map setup at launch" moved to General → Startup (a launch preference). The Basemap page's enum slot redirects here. -->
 <UserControl x:Class="Anvil.Controls.Composites.StorageSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:storageManagers="using:Anvil.Controls.StorageManagers"
+             xmlns:storageSettingsConsoles="using:Anvil.Controls.StorageSettingsConsoles"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <storageManagers:StorageManagerSettingsConsole x:Name="StorageManagerSettingsConsole" VerticalAlignment="Top"
-                                                  ViewModel="{x:Bind ViewModel.Storage, Mode=OneWay}"/>
+    <StackPanel Spacing="12" VerticalAlignment="Top">
+        <storageManagers:StorageManagerSettingsConsole x:Name="StorageManagerSettingsConsole"
+                                                      ViewModel="{x:Bind ViewModel.Storage, Mode=OneWay}"/>
+        <storageSettingsConsoles:StorageSettingsConsoleMap x:Name="StorageSettingsConsoleMap" ViewModel="{x:Bind ViewModel.BasemapSetup}"/>
+        <storageSettingsConsoles:StorageSettingsConsoleOfflineMap x:Name="StorageSettingsConsoleOfflineMap" ViewModel="{x:Bind ViewModel.BasemapSetup}"/>
+        <storageSettingsConsoles:StorageSettingsConsoleOnlineMap x:Name="StorageSettingsConsoleOnlineMap" ViewModel="{x:Bind ViewModel.BasemapSetup}"/>
+        <prim:CautionResetButton x:Name="StorageResetAllButton"
+                                 Text="Reset all Storage settings" Click="OnResetAll"
+                                 ToolTipService.ToolTip="Every limit and the Offline map choices back to their DEFAULT columns (asks first). No map file is deleted"/>
+    </StackPanel>
 </UserControl>

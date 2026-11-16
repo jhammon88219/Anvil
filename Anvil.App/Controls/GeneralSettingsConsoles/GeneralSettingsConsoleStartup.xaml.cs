@@ -25,7 +25,7 @@ namespace Anvil.Controls.GeneralSettingsConsoles
 		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
 		{
 			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Restore Startup defaults?",
-				"What Anvil opens on, full screen and loading the home site go back to the DEFAULT column. Your home site is cleared."))
+				"What Anvil opens on, full screen, loading the home site and map setup go back to the DEFAULT column. Your home site is cleared."))
 			{
 				vm.ResetStartup();
 			}

@@ -129,6 +129,16 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void The_retired_Basemap_page_opens_Storage()
+		{
+			var vm = New(new AppSettings { SettingsTabIndex = (int)SettingsTab.Basemap });
+			Assert.Equal((int)SettingsTab.Storage, vm.SettingsTabIndex);
+
+			vm.OpenSettings(SettingsTab.Basemap);
+			Assert.Equal((int)SettingsTab.Storage, vm.SettingsTabIndex);
+		}
+
+		[Fact]
 		public void Radar_page_defaults_match_a_first_run()
 		{
 			var fresh = new AppSettings();

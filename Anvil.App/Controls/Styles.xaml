@@ -244,6 +244,8 @@
     <SolidColorBrush x:Key="StorageWeatherDataBrush" Color="#FF3FB7A6"/>
     <SolidColorBrush x:Key="StorageLogsBrush" Color="#FFA685E2"/>
     <SolidColorBrush x:Key="StorageUsageHistoryBrush" Color="#FF9A9A9A"/>
+    <!-- Maps (2026-11-16): the land-green of a map, apart from Weather data's teal. The bar's FIRST segment. -->
+    <SolidColorBrush x:Key="StorageMapsBrush" Color="#FF7CB85A"/>
 
     <!-- The room under the LAST layer section of a temporal pane, so scrolled to the end it clears the activity
          expander's tab (26 high) and shade (36 deep). The Contents keep no bottom margin. -->

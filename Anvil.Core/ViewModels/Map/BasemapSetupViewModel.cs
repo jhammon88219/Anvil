@@ -253,6 +253,22 @@ namespace Anvil.ViewModels
 
 		// ── Offline ─────────────────────────────────────────────────────────────────────────────────────────
 
+		// ── Settings → Storage → Offline map: its Restore defaults + DEFAULT column (2026-11-16) ──
+
+		public string DefaultAreaText => BasemapAreas.Lower48.Name;
+		public string DefaultDetailText => DetailLabels[0];
+		public string DefaultSaveFolderText => Path.GetFileName(DefaultSaveFolder);
+
+		/// <summary>The Offline map card's Restore defaults: Lower 48 only, Standard, the "Anvil Maps" folder. Nothing while a
+		/// download runs (it's writing with these choices — the card's button is greyed then too).</summary>
+		public void RestoreOfflineDefaults()
+		{
+			if (IsDownloading) return;
+			foreach (var option in Areas) option.IsChecked = option.Area == BasemapAreas.Lower48;
+			DetailIndex = 0;
+			SaveFolder = DefaultSaveFolder;
+		}
+
 		/// <summary>The detail picker's segments (index = <see cref="DetailIndex"/>).</summary>
 		public IReadOnlyList<string> DetailLabels { get; } = new[] { "Standard", "Full" };
 
@@ -729,25 +745,7 @@ namespace Anvil.ViewModels
 		{
 			Files.Clear();
 			var inUse = InUsePath();
-			var paths = new List<string>();
-			void Consider(string path)
-			{
-				try
-				{
-					var full = Path.GetFullPath(path);
-					if (File.Exists(full) && !paths.Contains(full, StringComparer.OrdinalIgnoreCase)) paths.Add(full);
-				}
-				catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException) { }
-			}
-			Consider(Path.Combine(_settings.LegacyMapDataFolder, SettingsService.LegacyMapDataFileName));
-			if (inUse is not null) Consider(inUse);
-			foreach (var name in ExistingMapFileNames().Where(n => BasemapFileNames.TryParse(n) is not null).OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
-			{
-				Consider(Path.Combine(_saveFolder, name));
-			}
-			foreach (var added in _settings.Settings.BasemapAddedFiles) Consider(added);
-			// A delete Windows refused (the map still held it open) is gone as far as the user is concerned.
-			paths.RemoveAll(p => _settings.Settings.BasemapPendingDeletes.Contains(p, StringComparer.OrdinalIgnoreCase));
+			var paths = MapFilePaths();
 
 			foreach (var path in paths)
 			{
@@ -771,6 +769,36 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(ShouldShowAtLaunch));
 			OnPropertyChanged(nameof(FreeSpaceText));
 			RaiseChoice(); // the next free file name depends on what's in the folder
+		}
+
+		/// <summary>
+		/// Every map file Anvil knows, existing, once each: the legacy usa_full, the one in use, the downloaded maps in the save
+		/// folder, and every file the user added — minus deletes Windows refused. The Map card's rows AND Settings → Storage's
+		/// Maps size (StorageSettingsViewModel.AttachMaps) — one list, so the two can't disagree.
+		/// </summary>
+		public IReadOnlyList<string> MapFilePaths()
+		{
+			var inUse = InUsePath();
+			var paths = new List<string>();
+			void Consider(string path)
+			{
+				try
+				{
+					var full = Path.GetFullPath(path);
+					if (File.Exists(full) && !paths.Contains(full, StringComparer.OrdinalIgnoreCase)) paths.Add(full);
+				}
+				catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException) { }
+			}
+			Consider(Path.Combine(_settings.LegacyMapDataFolder, SettingsService.LegacyMapDataFileName));
+			if (inUse is not null) Consider(inUse);
+			foreach (var name in ExistingMapFileNames().Where(n => BasemapFileNames.TryParse(n) is not null).OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
+			{
+				Consider(Path.Combine(_saveFolder, name));
+			}
+			foreach (var added in _settings.Settings.BasemapAddedFiles) Consider(added);
+			// A delete Windows refused (the map still held it open) is gone as far as the user is concerned.
+			paths.RemoveAll(p => _settings.Settings.BasemapPendingDeletes.Contains(p, StringComparer.OrdinalIgnoreCase));
+			return paths;
 		}
 
 		/// <summary>App calls this as Anvil opens: a dev "new user" launch ends here.</summary>

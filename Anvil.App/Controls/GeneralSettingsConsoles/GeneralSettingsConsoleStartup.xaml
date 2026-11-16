@@ -10,6 +10,7 @@
        Home site  KTLX · Norman                                                                        None
        ☐ Load home site on launch                          Only when Anvil starts in NowCast            Off
        ☐ Start in full screen                                                                           Off
+       ☑ Show map setup at launch                          Only while Anvil has no map                   On
        96         420                                              hint (one line)              150, right
 
      ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's — every General section uses the same, so labels, controls and
@@ -39,6 +40,7 @@
                 <ColumnDefinition Width="150"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -89,6 +91,15 @@
                       ToolTipService.ToolTip="Open Anvil full screen (F11 or Esc leaves it)"/>
             <TextBlock Grid.Row="5" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultStartInFullScreenText}"/>
+
+            <!-- Moved from the Basemap page (2026-11-16): a launch preference. The setup window's "Stop showing this at launch"
+                 is the SAME setting, inverted (BasemapSetupViewModel.ShowAtLaunch). -->
+            <CheckBox x:Name="ShowMapSetupAtLaunchCheckBox" Grid.Row="6" Grid.ColumnSpan="2" VerticalAlignment="Center"
+                      Content="Show map setup at launch"
+                      IsChecked="{x:Bind ViewModel.BasemapSetup.ShowAtLaunch, Mode=TwoWay}"/>
+            <TextBlock Grid.Row="6" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Only while Anvil has no map"/>
+            <TextBlock Grid.Row="6" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
+                       Text="{x:Bind ViewModel.DefaultShowMapSetupText}"/>
         </Grid>
     </prim:SettingsConsolePlate>
 </UserControl>

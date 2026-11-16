@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LiveDataSettingsConsoleWeatherWire — Settings → Live Data's "Weather Wire account" section, on a Primitives/SettingsConsolePlate:
+     the NOAA Weather Wire (NWWS-OI) sign-in.
+
+       Weather Wire account                                                       (no Restore defaults, no DEFAULT)
+       User name  [firstname.lastname                     ]   From the NWS · one computer only
+       Password   [Saved — type to replace                ]   Kept in Windows Credential Manager
+                  [Save account] [Test connection]             Signed in. The account works.   ← the account message
+       96         420                                          hint (one line)
+
+     ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's. GREYED (IsEnabled) unless the source is NOAA Weather Wire — pick it, then
+     sign in. An account is YOURS: no DEFAULT, no Restore defaults, and Reset all keeps it.
+     ⚠️ The password lives ONLY in Credential Manager (ICredentialStore), never AppSettings: the PasswordBox hands it to the VM
+     from code-behind (SetPendingPassword), never through a binding. NWWS-OI is untested live (no account yet). -->
+<UserControl x:Class="Anvil.Controls.LiveDataSettingsConsoles.LiveDataSettingsConsoleWeatherWire"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <prim:SettingsConsolePlate x:Name="LiveDataSettingsConsoleWeatherWirePlate" Title="Weather Wire account">
+        <ContentControl HorizontalContentAlignment="Stretch" IsTabStop="False" IsEnabled="{x:Bind ViewModel.IsNwws, Mode=OneWay}">
+            <Grid ColumnSpacing="12" RowSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="96"/>
+                    <ColumnDefinition Width="420"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="150"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock VerticalAlignment="Center" Text="User name"/>
+                <TextBox x:Name="NwwsUsernameTextBox" Grid.Column="1" PlaceholderText="firstname.lastname"
+                         Text="{x:Bind ViewModel.NwwsUsername, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="From the NWS · one computer only"/>
+
+                <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Password"/>
+                <PasswordBox x:Name="NwwsPasswordBox" Grid.Row="1" Grid.Column="1"
+                             PlaceholderText="{x:Bind ViewModel.PasswordPlaceholder, Mode=OneWay}"
+                             PasswordChanged="OnPasswordChanged"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Kept in Windows Credential Manager"/>
+
+                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="NwwsSaveAccountButton" Content="Save account" Click="OnSaveAccountClick"
+                            ToolTipService.ToolTip="Saves the password in Windows Credential Manager and connects"/>
+                    <Button x:Name="NwwsTestConnectionButton" Content="Test connection" Click="OnTestConnectionClick"
+                            IsEnabled="{x:Bind ViewModel.CanTest, Mode=OneWay}"
+                            ToolTipService.ToolTip="Signs in to NOAA Weather Wire and straight back out"/>
+                </StackPanel>
+                <TextBlock Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
+                           Text="{x:Bind AccountHint(ViewModel.IsNwws, ViewModel.AccountMessage), Mode=OneWay}"/>
+            </Grid>
+        </ContentControl>
+    </prim:SettingsConsolePlate>
+</UserControl>

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- StorageManagerSettingsConsole — everything Settings → Storage manages, on ONE surface (no expander header).
+<!-- StorageManagerSettingsConsole — Settings → Storage's "On disk" card: everything Anvil keeps on disk, on a
+     Primitives/SettingsConsolePlate (2026-11-16 — it drew its own surface before). Title row: On disk · Restore defaults (every
+     limit, asks first; a lowered limit sweeps like any change) · DEFAULT (each row's limits a first run gets, the table's 9th column).
 
        ┌──────────────────────────────────────────────────────────────────────────────────────┐
        │ 6.1 GB         [📁 Open folder]   (wide key, 50 tall, 15 px from the total) │ ← StorageManagerSettingsConsoleUsageBar
@@ -18,18 +20,22 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:storageManagers="using:Anvil.Controls.StorageManagers"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <Border x:Name="StorageManagerSettingsConsoleSurface" CornerRadius="6" BorderThickness="1" Padding="12,14,12,10"
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-            BorderBrush="{ThemeResource SectionBorderBrush}">
+    <prim:SettingsConsolePlate x:Name="StorageManagerSettingsConsolePlate" Title="On disk" ShowDefaultHeader="True">
+        <prim:SettingsConsolePlate.HeaderContent>
+            <Button x:Name="OnDiskRestoreDefaultsButton" Content="Restore defaults" Click="OnRestoreDefaults"
+                    ToolTipService.ToolTip="Every Max size and Keep for back to the DEFAULT column (asks first)"/>
+        </prim:SettingsConsolePlate.HeaderContent>
+
         <StackPanel Spacing="14">
             <storageManagers:StorageManagerSettingsConsoleUsageBar x:Name="StorageManagerSettingsConsoleUsageBar"
                                                                   ViewModel="{x:Bind ViewModel, Mode=OneWay}"/>
             <storageManagers:StorageManagerSettingsConsoleDataTable x:Name="StorageManagerSettingsConsoleDataTable"
                                                                    ViewModel="{x:Bind ViewModel, Mode=OneWay}"/>
         </StackPanel>
-    </Border>
+    </prim:SettingsConsolePlate>
 </UserControl>

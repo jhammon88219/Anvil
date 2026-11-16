@@ -75,9 +75,8 @@ namespace Anvil.Controls.Windows
 			// (map + edges: now Appearance — console sections that never collapse, so nothing to persist.)
 			// (radar + console: now Radar — console sections, nothing to persist.)
 			// (rangering: now Rings & Ruler — console sections, nothing to persist.)
-			Persist(StorageTab, "storage");
-			// (windowmode + startup + units: now General — console sections, nothing to persist.)
-			Persist(BasemapTab, "basemap");
+			// (storage + basemap: now Storage; livedata; windowmode + startup + units: General — every page is console
+			// sections now, so only Dev's expanders persist — DevSettingsTab does its own.)
 		}
 
 		// A tab body is a UserControl whose root panel holds its sections.
@@ -147,14 +146,13 @@ namespace Anvil.Controls.Windows
 			var tabs = new ObservableCollection<TabEntry>
 			{
 				// DISPLAY order (the user's six-page plan, 2026-11-16); each entry names its page by PageIndex, so the order is
-				// free. Retired pages (Edges, Units, WindowMode, RadarConsole) have NO entry — SettingsTabIndex sends their saved index on.
+				// free. Retired pages (Edges, Units, WindowMode, RadarConsole, Basemap) have NO entry — SettingsTabIndex sends their saved index on.
 				new() { PageIndex = (int)SettingsTab.Startup, Glyph = "\uE7E8", Label = "General", Tooltip = "How Anvil starts and your home site, the units every readout speaks in, and the window layout" },
 				new() { PageIndex = (int)SettingsTab.Map, Glyph = "\uE774", Label = "Appearance", Tooltip = "The app's theme, the basemap's colours, and how the bars and panes meet the map (the edge hatch)" },
 				new() { PageIndex = (int)SettingsTab.Radar, Glyph = "\uEC05", Label = "Radar", Tooltip = "Live polling, radar memory, which radar-site keys show, and the radar console's scrubber" },
 				new() { PageIndex = (int)SettingsTab.RangeRing, Glyph = "\uE81D", Label = "Rings & Ruler", Tooltip = "Which range rings are drawn, how each looks, the distance labels and the range ruler" },
 				new() { PageIndex = (int)SettingsTab.LiveData, Glyph = "\uE701", Label = "Live Data", Tooltip = "Where live updates come from (IEM, NOAA Weather Wire or polling), the polling intervals and the connection" },
-				new() { PageIndex = (int)SettingsTab.Basemap, Glyph = "\uE826", Label = "Basemap", Tooltip = "The map under the weather: your map files, downloading an offline map, the online map key, and map setup at launch" },
-				new() { PageIndex = (int)SettingsTab.Storage, Glyph = "\uEDA2", Label = "Storage", Tooltip = "What Anvil keeps on disk: sizes, clearing, and how much and how long each kind is kept" },
+				new() { PageIndex = (int)SettingsTab.Storage, Glyph = "\uEDA2", Label = "Storage", Tooltip = "What Anvil keeps on disk and its limits, your map files, an offline map, and the online map" },
 			};
 
 #if DEBUG

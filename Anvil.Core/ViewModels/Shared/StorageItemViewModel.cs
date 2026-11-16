@@ -15,17 +15,18 @@ namespace Anvil.ViewModels
 	{
 		private readonly Action<long>? _setMax;
 		private readonly Action<long>? _setKeep;
-		private readonly Func<Task> _clear;
+		private readonly Func<Task>? _clear;
 
-		internal StorageItemViewModel(StorageKind kind, string name, string hint, string folder, Func<Task> clear,
+		internal StorageItemViewModel(StorageKind kind, string name, string hint, string folder, Func<Task>? clear,
 			bool confirmClear,
 			IReadOnlyList<StorageLimitChoice>? maxChoices, StorageLimitChoice? max, Action<long>? setMax,
-			IReadOnlyList<StorageLimitChoice>? keepChoices, StorageLimitChoice? keep, Action<long>? setKeep)
+			IReadOnlyList<StorageLimitChoice>? keepChoices, StorageLimitChoice? keep, Action<long>? setKeep,
+			long? defaultMax = null, long? defaultKeep = null, string noKeepText = "Always kept")
 		{
 			Kind = kind;
 			Name = name;
 			Hint = hint;
-			Folder = folder;
+			_folder = folder;
 			_clear = clear;
 			ConfirmClear = confirmClear;
 			MaxChoices = maxChoices ?? Array.Empty<StorageLimitChoice>();
@@ -34,14 +35,56 @@ namespace Anvil.ViewModels
 			KeepChoices = keepChoices ?? Array.Empty<StorageLimitChoice>();
 			_keep = keep;
 			_setKeep = setKeep;
+			_defaultMax = defaultMax;
+			_defaultKeep = defaultKeep;
+			NoKeepText = noKeepText;
 		}
 
 		public StorageKind Kind { get; }
 		public string Name { get; }
 		/// <summary>The grey words in the column after the name ("Loops you've loaded"); empty for none.</summary>
 		public string Hint { get; }
-		/// <summary>The folder the row's folder button opens.</summary>
-		public string Folder { get; }
+
+		private string _folder;
+		/// <summary>The folder the row's folder button opens. (Maps: set when the map folder is known — AttachMaps.)</summary>
+		public string Folder
+		{
+			get => _folder;
+			internal set => SetProperty(ref _folder, value);
+		}
+
+		/// <summary>False = no Clear button (Maps: files are deleted one by one in the Map card).</summary>
+		public bool HasClear => _clear is not null;
+
+		/// <summary>The Keep for cell when there is no dropdown: "Always kept" (usage), or "" = a hairline (Maps).</summary>
+		public string NoKeepText { get; }
+
+		// ── DEFAULT (the card's DEFAULT column + its Restore defaults) ──
+		private readonly long? _defaultMax, _defaultKeep;
+
+		/// <summary>"5 GB · 5 days" — the limits a first run gets; "" when the kind has none.</summary>
+		public string DefaultText
+		{
+			get
+			{
+				var max = _defaultMax is { } m ? LabelOf(MaxChoices, m) : null;
+				var keep = _defaultKeep is { } k ? LabelOf(KeepChoices, k) : null;
+				return max is not null && keep is not null ? $"{max} · {keep}" : max ?? keep ?? "";
+			}
+		}
+
+		private static string? LabelOf(IReadOnlyList<StorageLimitChoice> list, long value)
+		{
+			foreach (var c in list) if (c.Value == value) return c.Label;
+			return null;
+		}
+
+		/// <summary>Both limits back to <see cref="DefaultText"/>'s values (through the setters, so the owner sweeps).</summary>
+		internal void RestoreDefaults()
+		{
+			if (_defaultMax is { } m) foreach (var c in MaxChoices) if (c.Value == m) { SelectedMax = c; break; }
+			if (_defaultKeep is { } k) foreach (var c in KeepChoices) if (c.Value == k) { SelectedKeep = c; break; }
+		}
 		public string FolderToolTip => $"Open the {Name.ToLowerInvariant()} folder";
 
 		/// <summary>Usage history asks first (it's your record, not a cache); the rest clear at once.</summary>
@@ -122,7 +165,7 @@ namespace Anvil.ViewModels
 		/// <summary>Delete this kind's files, then the owner re-measures. A second click while one runs is ignored.</summary>
 		public async Task ClearAsync()
 		{
-			if (_isClearing) return;
+			if (_isClearing || _clear is null) return;
 			_isClearing = true;
 			OnPropertyChanged(nameof(CanClear));
 			try { await _clear(); }

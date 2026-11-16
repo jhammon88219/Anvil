@@ -4,8 +4,9 @@ using System.Globalization;
 
 namespace Anvil.Models
 {
-	/// <summary>The five kinds of data Settings → Storage lists, in row order (= the usage bar's order).</summary>
-	public enum StorageKind { RadarVolumes, RadarDiagnostics, WeatherData, Logs, UsageHistory }
+	/// <summary>The six kinds of data Settings → Storage lists. ⚠️ The ROW order is StorageSettingsViewModel.Items (Maps first —
+	/// the biggest), not this enum's: Maps was added LAST (2026-11-16) so no ordinal moved.</summary>
+	public enum StorageKind { RadarVolumes, RadarDiagnostics, WeatherData, Logs, UsageHistory, Maps }
 
 	/// <summary>How close a kind is to its Max size — the Size column's colour (white / yellow / red).</summary>
 	public enum StorageFill { Low, Medium, High }

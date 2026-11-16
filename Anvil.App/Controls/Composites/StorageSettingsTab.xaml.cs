@@ -1,20 +1,21 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Anvil.Controls.StorageManagers;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The Settings window's Storage page (see the XAML header): just <see cref="StorageManagerSettingsConsole"/>
-	/// (its usage bar holds "Open Anvil's folder"). Bound to the coordinator <see cref="MapViewModel"/>; the state lives
-	/// on <see cref="MapViewModel.Storage"/>.
+	/// Settings → Storage (see the XAML header): On disk, Map, Offline map and Online map — each its own section control — over
+	/// the coordinator <see cref="MapViewModel"/> (<see cref="MapViewModel.Storage"/> + <see cref="MapViewModel.BasemapSetup"/>).
 	/// </summary>
 	public sealed partial class StorageSettingsTab : UserControl
 	{
 		public StorageSettingsTab()
 		{
 			InitializeComponent();
+			// The map files can change outside this page (the setup window, Explorer): re-read them on show.
+			Loaded += (_, _) => ViewModel?.BasemapSetup.Refresh();
+			RegisterPropertyChangedCallback(VisibilityProperty, (_, _) => { if (Visibility == Visibility.Visible) ViewModel?.BasemapSetup.Refresh(); });
 		}
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
@@ -26,5 +27,16 @@ namespace Anvil.Controls.Composites
 
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(StorageSettingsTab), new PropertyMetadata(null));
+
+		private async void OnResetAll(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Reset all Storage settings?",
+				"Every Max size and Keep for, and the Offline map's area, detail and folder, go back to their defaults — the DEFAULT " +
+				"column on this page. No map file is deleted and your map key is kept."))
+			{
+				vm.Storage.RestoreDefaults();
+				vm.BasemapSetup.RestoreOfflineDefaults();
+			}
+		}
 	}
 }

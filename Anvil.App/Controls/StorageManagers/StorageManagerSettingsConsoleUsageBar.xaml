@@ -2,15 +2,16 @@
 <!-- StorageManagerSettingsConsoleUsageBar — the top of Settings → Storage: the total + the folder key, then ONE bar
      split by kind.
 
-       6.1 GB          ┌──────────────────┐
+       39.9 GB         ┌──────────────────┐   (the total INCLUDES Maps — every map file Anvil knows, wherever it lives)
        used by Anvil   │ 📁   Open folder  │  ← total 28 SemiBold tabular (line 34) over the caption 12 (line 16) = 50 tall;
                        └──────────────────┘    15 px; "Open Anvil's folder" = a WIDE key 50 tall, padding 12/16, the 26 px
                                                icon then 10 px then "Open folder" (14, one line)
-       ████████████████████████████▌▌▌▏▏  ← 14 tall, a segment per kind in StorageKind order, 2 px apart, rounded 3
+       ████████████████████████████▌▌▌▏▏  ← 14 tall, a segment per kind in the TABLE's row order (Maps first), 2 px apart, rounded 3
 
        hover the bar ↓
        ┌──────────────────────────────────┐
-       │ ■ Radar volumes      1.8 GB   85% │ ← the LEGEND: every kind, so the 3 px slivers (logs, usage)
+       │ ■ Maps              33.8 GB   85% │ ← the LEGEND: every kind, so the 3 px slivers (logs, usage)
+       │ ■ Radar volumes      1.8 GB    5% │
        │ ■ Radar diagnostics  242 MB   11% │   are readable — hovering a sliver itself is too fine
        │ ■ Weather data        68 MB    3% │
        │ ■ Logs               4.7 MB  <1%  │
@@ -71,33 +72,38 @@
                             <ColumnDefinition Width="36"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
-                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
                         </Grid.RowDefinitions>
 
-                        <Rectangle Grid.Row="0" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageRadarVolumesBrush}"/>
-                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind ViewModel.RadarVolumes.Name, Mode=OneWay}"/>
-                        <TextBlock Grid.Row="0" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.RadarVolumes.SizeText, Mode=OneWay}"/>
-                        <TextBlock Grid.Row="0" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.RadarVolumes.ShareText, Mode=OneWay}"/>
+                        <Rectangle Grid.Row="0" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageMapsBrush}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind ViewModel.Maps.Name, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.Maps.SizeText, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.Maps.ShareText, Mode=OneWay}"/>
 
-                        <Rectangle Grid.Row="1" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageRadarDiagnosticsBrush}"/>
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.RadarDiagnostics.Name, Mode=OneWay}"/>
-                        <TextBlock Grid.Row="1" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.RadarDiagnostics.SizeText, Mode=OneWay}"/>
-                        <TextBlock Grid.Row="1" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.RadarDiagnostics.ShareText, Mode=OneWay}"/>
+                        <Rectangle Grid.Row="1" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageRadarVolumesBrush}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.RadarVolumes.Name, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.RadarVolumes.SizeText, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.RadarVolumes.ShareText, Mode=OneWay}"/>
 
-                        <Rectangle Grid.Row="2" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageWeatherDataBrush}"/>
-                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.WeatherData.Name, Mode=OneWay}"/>
-                        <TextBlock Grid.Row="2" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.WeatherData.SizeText, Mode=OneWay}"/>
-                        <TextBlock Grid.Row="2" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.WeatherData.ShareText, Mode=OneWay}"/>
+                        <Rectangle Grid.Row="2" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageRadarDiagnosticsBrush}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.RadarDiagnostics.Name, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.RadarDiagnostics.SizeText, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.RadarDiagnostics.ShareText, Mode=OneWay}"/>
 
-                        <Rectangle Grid.Row="3" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageLogsBrush}"/>
-                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{x:Bind ViewModel.Logs.Name, Mode=OneWay}"/>
-                        <TextBlock Grid.Row="3" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.Logs.SizeText, Mode=OneWay}"/>
-                        <TextBlock Grid.Row="3" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.Logs.ShareText, Mode=OneWay}"/>
+                        <Rectangle Grid.Row="3" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageWeatherDataBrush}"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{x:Bind ViewModel.WeatherData.Name, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="3" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.WeatherData.SizeText, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="3" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.WeatherData.ShareText, Mode=OneWay}"/>
 
-                        <Rectangle Grid.Row="4" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageUsageHistoryBrush}"/>
-                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{x:Bind ViewModel.UsageHistory.Name, Mode=OneWay}"/>
-                        <TextBlock Grid.Row="4" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.UsageHistory.SizeText, Mode=OneWay}"/>
-                        <TextBlock Grid.Row="4" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.UsageHistory.ShareText, Mode=OneWay}"/>
+                        <Rectangle Grid.Row="4" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageLogsBrush}"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{x:Bind ViewModel.Logs.Name, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="4" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.Logs.SizeText, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="4" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.Logs.ShareText, Mode=OneWay}"/>
+
+                        <Rectangle Grid.Row="5" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{StaticResource StorageUsageHistoryBrush}"/>
+                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{x:Bind ViewModel.UsageHistory.Name, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="5" Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind ViewModel.UsageHistory.SizeText, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="5" Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.UsageHistory.ShareText, Mode=OneWay}"/>
                     </Grid>
                 </ToolTip>
             </ToolTipService.ToolTip>
@@ -105,17 +111,19 @@
             <!-- Height 14 = the table rows' swatch size (StorageManagerSettingsConsoleDataTableRow.KindSwatch) — change both. -->
             <Grid x:Name="UsageBarSegments" Height="14" CornerRadius="3" ColumnSpacing="2">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.Maps.SizeBytes), Mode=OneWay}"/>
                     <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.RadarVolumes.SizeBytes), Mode=OneWay}"/>
                     <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.RadarDiagnostics.SizeBytes), Mode=OneWay}"/>
                     <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.WeatherData.SizeBytes), Mode=OneWay}"/>
                     <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.Logs.SizeBytes), Mode=OneWay}"/>
                     <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.UsageHistory.SizeBytes), Mode=OneWay}"/>
                 </Grid.ColumnDefinitions>
-                <Rectangle Grid.Column="0" Fill="{StaticResource StorageRadarVolumesBrush}"/>
-                <Rectangle Grid.Column="1" Fill="{StaticResource StorageRadarDiagnosticsBrush}"/>
-                <Rectangle Grid.Column="2" Fill="{StaticResource StorageWeatherDataBrush}"/>
-                <Rectangle Grid.Column="3" Fill="{StaticResource StorageLogsBrush}"/>
-                <Rectangle Grid.Column="4" Fill="{StaticResource StorageUsageHistoryBrush}"/>
+                <Rectangle Grid.Column="0" Fill="{StaticResource StorageMapsBrush}"/>
+                <Rectangle Grid.Column="1" Fill="{StaticResource StorageRadarVolumesBrush}"/>
+                <Rectangle Grid.Column="2" Fill="{StaticResource StorageRadarDiagnosticsBrush}"/>
+                <Rectangle Grid.Column="3" Fill="{StaticResource StorageWeatherDataBrush}"/>
+                <Rectangle Grid.Column="4" Fill="{StaticResource StorageLogsBrush}"/>
+                <Rectangle Grid.Column="5" Fill="{StaticResource StorageUsageHistoryBrush}"/>
             </Grid>
         </Grid>
     </StackPanel>

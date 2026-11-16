@@ -1,24 +1,21 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Anvil.Controls.Basemaps;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.Basemaps
+namespace Anvil.Controls.StorageSettingsConsoles
 {
 	/// <summary>
-	/// The Settings window's Basemap tab (see the XAML header). State lives on <see cref="BasemapSetupViewModel"/>; the
-	/// file rows' buttons hand their row to it.
+	/// Settings → Storage's Map section (see the XAML header): the map in use and the map files. The file rows' buttons hand
+	/// their row to <see cref="BasemapSetupViewModel"/>.
 	/// </summary>
-	public sealed partial class BasemapSettingsTab : UserControl
+	public sealed partial class StorageSettingsConsoleMap : UserControl
 	{
-		public BasemapSettingsTab()
+		public StorageSettingsConsoleMap()
 		{
 			InitializeComponent();
-			// The folder can change outside this tab (the Map tab's Browse…, a file added in Explorer): re-read on show.
-			Loaded += (_, _) => ViewModel?.Refresh();
-			RegisterPropertyChangedCallback(VisibilityProperty, (_, _) => { if (Visibility == Visibility.Visible) ViewModel?.Refresh(); });
 		}
 
-		/// <summary>The map setup view model; bound from the host.</summary>
 		public BasemapSetupViewModel ViewModel
 		{
 			get => (BasemapSetupViewModel)GetValue(ViewModelProperty);
@@ -26,7 +23,8 @@ namespace Anvil.Controls.Basemaps
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(BasemapSetupViewModel), typeof(BasemapSettingsTab), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(BasemapSetupViewModel), typeof(StorageSettingsConsoleMap),
+				new PropertyMetadata(null));
 
 		// A row button's DataContext is its BasemapFileRow (the ItemsControl's item).
 		private static BasemapFileRow? RowOf(object sender) => (sender as FrameworkElement)?.DataContext as BasemapFileRow;
@@ -41,13 +39,5 @@ namespace Anvil.Controls.Basemaps
 		{
 			if (await BasemapPickers.PickMapFileAsync(this) is { } path && ViewModel is { } vm) await vm.AddFileAsync(path);
 		}
-
-		private async void OnBrowseSaveFolderClick(object sender, RoutedEventArgs e)
-		{
-			if (await BasemapPickers.PickFolderAsync(this) is { } folder && ViewModel is { } vm) vm.SaveFolder = folder;
-		}
-
-		/// <summary>The save folder can't move while a download is writing into it.</summary>
-		public bool CanBrowse(bool isDownloading) => !isDownloading;
 	}
 }

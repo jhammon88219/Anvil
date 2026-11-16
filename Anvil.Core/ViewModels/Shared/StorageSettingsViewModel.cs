@@ -34,6 +34,13 @@ namespace Anvil.ViewModels
 			_radar = radarService;
 			_storage = storage;
 			_settings = settings.Settings;
+			var fresh = new AppSettings(); // the DEFAULT column = what a first run gets
+
+			// MAPS (2026-11-16): every map file Anvil knows (in use, downloaded, added from anywhere — AttachMaps). No Clear and no
+			// limits: maps are deleted one file at a time in Storage's Map card.
+			Maps = new StorageItemViewModel(StorageKind.Maps, "Maps", "Offline map files",
+				StorageService.AnvilRoot, clear: null, confirmClear: false,
+				null, null, null, null, null, null, noKeepText: "");
 
 			// Radar volumes + diagnostics: the ENGINE applies these (Level2RadarService re-sweeps on the setting change), so
 			// this side only re-measures a moment later.
@@ -42,36 +49,41 @@ namespace Anvil.ViewModels
 			RadarVolumes = new StorageItemViewModel(StorageKind.RadarVolumes, "Radar volumes", "Loops you've loaded",
 				storage.FolderOf(StorageKind.RadarVolumes), ClearRadarVolumesAsync, confirmClear: false,
 				radarMax.List, radarMax.Pick, v => { _settings.RadarCacheMaxGb = (int)(v / StorageLimits.GB); _ = RefreshAfterEngineSweepAsync(); },
-				radarKeep.List, radarKeep.Pick, v => { _settings.RadarCacheKeepDays = (int)v; _ = RefreshAfterEngineSweepAsync(); });
+				radarKeep.List, radarKeep.Pick, v => { _settings.RadarCacheKeepDays = (int)v; _ = RefreshAfterEngineSweepAsync(); },
+				(long)fresh.RadarCacheMaxGb * StorageLimits.GB, fresh.RadarCacheKeepDays);
 
 			var diagMax = StorageLimits.Resolve(StorageLimits.DiagnosticsMax, (long)Math.Max(1, _settings.RadarDiagnosticsMaxGb) * StorageLimits.GB, days: false);
 			var diagKeep = StorageLimits.Resolve(StorageLimits.DiagnosticsKeep, Math.Max(1, _settings.RadarDiagnosticsKeepDays), days: true);
 			RadarDiagnostics = new StorageItemViewModel(StorageKind.RadarDiagnostics, "Radar diagnostics", "Troubleshooting records",
 				storage.FolderOf(StorageKind.RadarDiagnostics), () => ClearKindAsync(StorageKind.RadarDiagnostics), confirmClear: false,
 				diagMax.List, diagMax.Pick, v => { _settings.RadarDiagnosticsMaxGb = (int)(v / StorageLimits.GB); _ = RefreshAfterEngineSweepAsync(); },
-				diagKeep.List, diagKeep.Pick, v => { _settings.RadarDiagnosticsKeepDays = (int)v; _ = RefreshAfterEngineSweepAsync(); });
+				diagKeep.List, diagKeep.Pick, v => { _settings.RadarDiagnosticsKeepDays = (int)v; _ = RefreshAfterEngineSweepAsync(); },
+				(long)fresh.RadarDiagnosticsMaxGb * StorageLimits.GB, fresh.RadarDiagnosticsKeepDays);
 
 			var wMax = StorageLimits.Resolve(StorageLimits.WeatherDataMax, (long)_settings.WeatherDataMaxMb * StorageLimits.MB, days: false);
 			var wKeep = StorageLimits.Resolve(StorageLimits.WeatherDataKeep, _settings.WeatherDataKeepDays, days: true);
 			WeatherData = new StorageItemViewModel(StorageKind.WeatherData, "Weather data", "Outlooks, warnings, reports, cells",
 				storage.FolderOf(StorageKind.WeatherData), () => ClearKindAsync(StorageKind.WeatherData), confirmClear: false,
 				wMax.List, wMax.Pick, v => { _settings.WeatherDataMaxMb = (int)(v / StorageLimits.MB); _ = SweepThenRefreshAsync(StorageKind.WeatherData); },
-				wKeep.List, wKeep.Pick, v => { _settings.WeatherDataKeepDays = (int)v; _ = SweepThenRefreshAsync(StorageKind.WeatherData); });
+				wKeep.List, wKeep.Pick, v => { _settings.WeatherDataKeepDays = (int)v; _ = SweepThenRefreshAsync(StorageKind.WeatherData); },
+				(long)fresh.WeatherDataMaxMb * StorageLimits.MB, fresh.WeatherDataKeepDays);
 
 			var lMax = StorageLimits.Resolve(StorageLimits.LogsMax, (long)_settings.LogsMaxMb * StorageLimits.MB, days: false);
 			var lKeep = StorageLimits.Resolve(StorageLimits.LogsKeep, _settings.LogsKeepDays, days: true);
 			Logs = new StorageItemViewModel(StorageKind.Logs, "Logs", "",
 				storage.FolderOf(StorageKind.Logs), () => ClearKindAsync(StorageKind.Logs), confirmClear: false,
 				lMax.List, lMax.Pick, v => { _settings.LogsMaxMb = (int)(v / StorageLimits.MB); _ = SweepThenRefreshAsync(StorageKind.Logs); },
-				lKeep.List, lKeep.Pick, v => { _settings.LogsKeepDays = (int)v; _ = SweepThenRefreshAsync(StorageKind.Logs); });
+				lKeep.List, lKeep.Pick, v => { _settings.LogsKeepDays = (int)v; _ = SweepThenRefreshAsync(StorageKind.Logs); },
+				(long)fresh.LogsMaxMb * StorageLimits.MB, fresh.LogsKeepDays);
 
 			UsageHistory = new StorageItemViewModel(StorageKind.UsageHistory, "Your usage history", "Atlas “Your use”",
 				storage.FolderOf(StorageKind.UsageHistory), ClearUsageAsync, confirmClear: true,
 				null, null, null, null, null, null);
 
-			Items = new[] { RadarVolumes, RadarDiagnostics, WeatherData, Logs, UsageHistory };
+			Items = new[] { Maps, RadarVolumes, RadarDiagnostics, WeatherData, Logs, UsageHistory };
 		}
 
+		public StorageItemViewModel Maps { get; }
 		public StorageItemViewModel RadarVolumes { get; }
 		public StorageItemViewModel RadarDiagnostics { get; }
 		public StorageItemViewModel WeatherData { get; }
@@ -96,6 +108,39 @@ namespace Anvil.ViewModels
 		/// this VM) — MapViewModel hands it in.</summary>
 		internal void AttachSiteUsage(Action clearAll) => _clearSiteUsage = clearAll;
 
+		private Func<IReadOnlyList<string>>? _mapFiles;
+		private Func<string>? _mapFolder;
+
+		/// <summary>The Maps row: the map files to measure + the folder its button opens (BasemapSetupViewModel owns both —
+		/// MapViewModel hands them in, like <see cref="AttachSiteUsage"/>). Both re-read at every refresh (the folder can move).</summary>
+		internal void AttachMaps(Func<IReadOnlyList<string>> mapFiles, Func<string> folder)
+		{
+			_mapFiles = mapFiles;
+			_mapFolder = folder;
+			Maps.Folder = folder();
+		}
+
+		/// <summary>The On disk card's Restore defaults: every limit back to the DEFAULT column (sweeps follow the setters).</summary>
+		public void RestoreDefaults()
+		{
+			foreach (var item in Items) item.RestoreDefaults();
+		}
+
+		// The paths are read on the UI thread (the settings + folder list), then sized off it.
+		private Task<long> MeasureMapsAsync()
+		{
+			var paths = _mapFiles?.Invoke() ?? Array.Empty<string>();
+			return Task.Run(() =>
+			{
+				long total = 0;
+				foreach (var p in paths)
+				{
+					try { total += new System.IO.FileInfo(p).Length; } catch { /* gone or unreadable: not counted */ }
+				}
+				return total;
+			});
+		}
+
 		/// <summary>Weather data + logs limits, once per launch, off the startup path. (Radar volumes are swept by the
 		/// engine itself.)</summary>
 		public void SweepAtLaunch()
@@ -108,6 +153,7 @@ namespace Anvil.ViewModels
 		public async Task RefreshAsync()
 		{
 			var version = ++_refreshVersion;
+			if (_mapFolder is not null) { Maps.Folder = _mapFolder(); }
 			var sizes = new long?[Items.Count];
 			var tasks = new Task[Items.Count];
 			for (int i = 0; i < Items.Count; i++)
@@ -129,8 +175,12 @@ namespace Anvil.ViewModels
 			TotalText = StorageLimits.FormatBytes(total);
 		}
 
-		private Task<long> MeasureOneAsync(StorageKind kind) =>
-			kind == StorageKind.RadarVolumes ? _radar.GetCacheSizeBytesAsync() : _storage.MeasureAsync(kind);
+		private Task<long> MeasureOneAsync(StorageKind kind) => kind switch
+		{
+			StorageKind.RadarVolumes => _radar.GetCacheSizeBytesAsync(),
+			StorageKind.Maps => MeasureMapsAsync(),
+			_ => _storage.MeasureAsync(kind),
+		};
 
 		private async Task SweepThenRefreshAsync(StorageKind kind)
 		{

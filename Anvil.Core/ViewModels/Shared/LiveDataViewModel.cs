@@ -57,8 +57,32 @@ namespace Anvil.ViewModels
 				OnPropertyChanged(nameof(IsIem));
 				OnPropertyChanged(nameof(IsNwws));
 				OnPropertyChanged(nameof(IsPollOnly));
+				OnPropertyChanged(nameof(SourceHint));
 				_hub.Restart();
 			}
+		}
+
+		/// <summary>Settings → Live Data → Source: the picker's segment names, in <see cref="LiveSources.All"/> order.</summary>
+		public System.Collections.Generic.IReadOnlyList<string> SourceLabels { get; } = new[] { "IEM live feed", "NOAA Weather Wire", "Polling only" };
+
+		/// <summary>The source's one-line hint — what the pick gives you.</summary>
+		public string SourceHint => SourceIndex switch
+		{
+			1 => "About 10 s behind issuance · needs an NWS account",
+			2 => "No outside service · slower to catch new products",
+			_ => "Within seconds · no account · from Iowa State",
+		};
+
+		/// <summary>The Source card's DEFAULT column.</summary>
+		public string DefaultSourceText => SourceLabels[0];
+
+		/// <summary>The Source card's Restore defaults: IEM. The account is kept.</summary>
+		public void ResetSource() => IsIem = true;
+
+		/// <summary>The Polling card's Restore defaults: every interval back to its default.</summary>
+		public void ResetPolling()
+		{
+			foreach (var row in Polling) { row.Reset(); }
 		}
 
 		// The three radio buttons (two-way; only a TRUE lands — a radio unticking itself is ignored).
@@ -242,6 +266,18 @@ namespace Anvil.ViewModels
 
 		/// <summary>The MINIMUM column: "15 s" / "2 min".</summary>
 		public string MinimumText => FeedStatus.EveryWords(LiveFeedKinds.MinimumPoll(Kind));
+
+		/// <summary>Beside the number box: "seconds · min 15 s".</summary>
+		public string UnitText => "seconds · min " + MinimumText;
+
+		/// <summary>True = a live source carries it while connected (the "Live" tag); false = always polled.</summary>
+		public bool IsLive => LiveFeedKinds.IsPushed(Kind);
+
+		/// <summary>The hint after the tag.</summary>
+		public string LiveHint => IsLive ? "Waits for the live feed while connected" : "No live feed carries it";
+
+		/// <summary>The DEFAULT column: "30 s" / "2 min".</summary>
+		public string DefaultText => FeedStatus.EveryWords(LiveFeedKinds.DefaultPoll(Kind));
 
 		internal void Reset()
 		{
