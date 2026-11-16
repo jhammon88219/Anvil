@@ -5,6 +5,7 @@
        ──────────────────────────────────────────────────────────────────────────────────────────────── ← hairline (top)
        ■  Radar volumes        Loops you've loaded    1.8 GB  [  Clear  ]  [📁]  [ 5 GB   ⌄]  [ 5 days ⌄]
        16 NAME (= widest name)  * grey hint (trims)   80 ←R   96          36    104          112
+       ■ = 14 × 14 (the usage bar's height) · NAME 16 Medium · hint 12 regular, secondary
                                                       ↑ Low = normal text · Medium = caution · High = critical (bold)
 
      ⚠️ THE COLUMNS ARE THE TABLE'S — the same eight columns + ColumnSpacing 10 as the header row in
@@ -57,10 +58,12 @@
         <Rectangle x:Name="RowRule" Grid.ColumnSpan="8" Height="1" VerticalAlignment="Top"
                    Fill="{ThemeResource CardStrokeColorDefaultBrush}"/>
 
-        <Rectangle x:Name="KindSwatch" Grid.Column="0" Width="10" Height="10" RadiusX="2" RadiusY="2"
+        <!-- 14 × 14 = the usage bar's height (StorageManagerSettingsConsoleUsageBar's segments) — change both. -->
+        <Rectangle x:Name="KindSwatch" Grid.Column="0" Width="14" Height="14" RadiusX="2" RadiusY="2"
                    HorizontalAlignment="Left" Fill="{x:Bind Swatch, Mode=OneWay}"/>
 
-        <TextBlock x:Name="KindName" Grid.Column="1" VerticalAlignment="Center"
+        <!-- The name stands well above its grey hint: 16 Medium vs the hint's 12 regular, secondary colour. -->
+        <TextBlock x:Name="KindName" Grid.Column="1" VerticalAlignment="Center" FontSize="16" FontWeight="Medium"
                    Text="{x:Bind Item.Name, Mode=OneWay}"/>
         <TextBlock x:Name="KindHint" Grid.Column="2" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                    FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
