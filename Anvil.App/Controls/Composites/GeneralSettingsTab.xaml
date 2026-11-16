@@ -2,19 +2,22 @@
 <!-- GeneralSettingsTab — Settings → General (SettingsTab.Startup's slot, renamed 2026-11-16; FIRST in the rail): how Anvil
      starts, the units it speaks, and its windows. Merged the Startup, Units and Window Mode pages.
 
-       ┌ Startup ──────────────────────────────────────────────────── DEFAULT ┐  GeneralSettingsConsoleStartup
-       │ Opens on · Start in · Home site · Load home site on launch           │
+       ┌ Startup  [Restore defaults] ──────────────────────────────── DEFAULT ┐  GeneralSettingsConsoleStartup
+       │ Opens on · Start in · Home site · Load home site · Full screen       │
        └──────────────────────────────────────────────────────────────────────┘
           12 px of the body's darker ground
        ┌ Units  [Restore defaults] ───────────────────────────────── DEFAULT ┐  GeneralSettingsConsoleUnits
-       │ Start from · Clock · Time zone · Distance · Speed · Height · Hail    │
+       │ Unit set · Clock · Time zone · Date · Distance · Speed · Height ·   │
+       │ Hail · Coordinates                                                   │
        └──────────────────────────────────────────────────────────────────────┘
-       ┌ Window ───────────────────────────────────────────────────── DEFAULT ┐  GeneralSettingsConsoleWindow
-       │ Monitors                                                             │
+       ┌ Window  [Restore defaults (greyed)] ──────────────────────── DEFAULT ┐  GeneralSettingsConsoleWindow
+       │ Monitors (greyed)                                                    │
        └──────────────────────────────────────────────────────────────────────┘
+       [              Reset all General settings  (caution amber)            ]  GeneralSettingsResetAllButton
 
+     ⚠️ Every reset ASKS first (Dialogs/ConfirmResetDialog) — Reset all here, and each section's Restore defaults.
      ⚠️ Every launch preference lives in Startup — a new one is a row there, not a new page. The HOME SITE shows here ONLY
-     (the Radar page's copy went with this merge); it is PICKED in the Radar Atlas.
+     (the Radar page's copy went with this merge); it is PICKED in the Radar Atlas, and a reset CLEARS it.
      ⚠️ Units + Window Mode keep their enum slots (saved indexes) and open this page (MapViewModel.SettingsTabIndex). -->
 <UserControl x:Class="Anvil.Controls.Composites.GeneralSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -28,5 +31,8 @@
         <generalSettingsConsoles:GeneralSettingsConsoleStartup x:Name="GeneralSettingsConsoleStartup" ViewModel="{x:Bind ViewModel}"/>
         <generalSettingsConsoles:GeneralSettingsConsoleUnits x:Name="GeneralSettingsConsoleUnits" ViewModel="{x:Bind ViewModel}"/>
         <generalSettingsConsoles:GeneralSettingsConsoleWindow x:Name="GeneralSettingsConsoleWindow" ViewModel="{x:Bind ViewModel}"/>
+        <Button x:Name="GeneralSettingsResetAllButton" Style="{StaticResource SettingsCautionButtonStyle}"
+                Content="Reset all General settings" Click="OnResetAll"
+                ToolTipService.ToolTip="Startup, Units and Window back to their DEFAULT columns (asks first)"/>
     </StackPanel>
 </UserControl>

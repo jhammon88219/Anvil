@@ -38,7 +38,7 @@ namespace Anvil.ViewModels
 			get
 			{
 				var site = _selectedRadarOption?.Site;
-				return site is null ? string.Empty : $"{site.Latitude:0.000}, {site.Longitude:0.000}";
+				return site is null ? string.Empty : UnitFormat.LatLon(site.Latitude, site.Longitude);
 			}
 		}
 

@@ -516,7 +516,7 @@ namespace Anvil.ViewModels
 
 			if (p.Phase > BasemapDownloadPhase.FindingBuild)
 			{
-				FindStep.Detail = p.BuildDay is { } day ? $"{day.ToString("d MMM yyyy", CultureInfo.CurrentCulture)} build" : "Found";
+				FindStep.Detail = p.BuildDay is { } day ? $"{UnitFormat.Day(day)} build" : "Found";
 			}
 			switch (p.Phase)
 			{
@@ -754,7 +754,7 @@ namespace Anvil.ViewModels
 				try
 				{
 					var info = new FileInfo(path);
-					var details = $"{GigabytesText(info.Length)} · {info.LastWriteTime.ToString("d MMM yyyy", CultureInfo.CurrentCulture)} · {info.Name}";
+					var details = $"{GigabytesText(info.Length)} · {UnitFormat.Day(info.LastWriteTime)} · {info.Name}";
 					Files.Add(new BasemapFileRow(path, TitleOf(path), details,
 						isInUse: inUse is not null && string.Equals(path, inUse, StringComparison.OrdinalIgnoreCase)));
 				}

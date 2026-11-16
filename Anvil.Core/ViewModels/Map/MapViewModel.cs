@@ -1168,7 +1168,7 @@ namespace Anvil.ViewModels
 				var mode = StartupModes.Normalize(s.StartupMode);
 				past = mode == StartupModes.Past;
 				now = mode is StartupModes.Now or StartupModes.NowFore;
-				fore = mode == StartupModes.NowFore;
+				fore = mode is StartupModes.Fore or StartupModes.NowFore;
 			}
 
 			// At launch the panes are HELD for ShowLaunchPanesAsync (LAUNCH WINDOWS above) — set BEFORE the modes come
@@ -1553,11 +1553,72 @@ namespace Anvil.ViewModels
 		public IReadOnlyList<string> SpeedUnitLabels => UnitChoices.Speed.Labels;
 		public IReadOnlyList<string> HeightUnitLabels => UnitChoices.Height.Labels;
 		public IReadOnlyList<string> HailUnitLabels => UnitChoices.Hail.Labels;
+		public IReadOnlyList<string> DateFormatLabels => UnitChoices.Date.Labels;
+		public IReadOnlyList<string> CoordinateFormatLabels => UnitChoices.Coords.Labels;
+		public IReadOnlyList<string> UnitSetLabels => UnitChoices.Set.Labels;
 
 		private UnitSet UnitsFromSettings()
 		{
 			var s = _settingsService.Settings;
-			return new UnitSet(s.ClockFormat, s.TimeZoneChoice, s.SpeedUnits, s.HeightUnits, s.HailUnits).Normalized();
+			return new UnitSet(s.ClockFormat, s.TimeZoneChoice, s.SpeedUnits, s.HeightUnits, s.HailUnits, s.DateFormat,
+				s.CoordinateFormat).Normalized();
+		}
+
+		/// <summary>
+		/// Settings → General → Units → Unit set (US · Metric · Forecaster · Custom). PERSISTED as a token. A PRESET writes its
+		/// whole set through and LOCKS the pickers (<see cref="AreUnitsCustom"/>); Custom frees them and brings back the last
+		/// custom picks. ⚠️ Leaving Custom SAVES the custom picks first (AppSettings.Custom…) — that is the only time they are
+		/// written, because while Custom is chosen the live unit properties ARE the custom picks.
+		/// </summary>
+		public int UnitSetIndex
+		{
+			get => UnitChoices.Set.IndexOf(_settingsService.Settings.UnitSetChoice);
+			set
+			{
+				var s = _settingsService.Settings;
+				var token = UnitChoices.Set.FromIndex(value);
+				if (token == s.UnitSetChoice) { return; }
+				if (s.UnitSetChoice == "custom") { SaveCustomUnits(s); }
+				s.UnitSetChoice = token;
+				if (UnitChoices.Preset(token) is { } preset) { WriteUnits(preset.Distance, preset.Units); }
+				else
+				{
+					WriteUnits(s.CustomDistanceUnits, new UnitSet(s.CustomClockFormat, s.CustomTimeZoneChoice, s.CustomSpeedUnits,
+						s.CustomHeightUnits, s.CustomHailUnits, s.CustomDateFormat, s.CustomCoordinateFormat));
+				}
+				OnPropertyChanged();
+				OnPropertyChanged(nameof(AreUnitsCustom));
+			}
+		}
+
+		/// <summary>The six unit pickers are free only while the Unit set is Custom (else greyed, showing the preset).</summary>
+		public bool AreUnitsCustom => _settingsService.Settings.UnitSetChoice == "custom";
+
+		private static void SaveCustomUnits(AppSettings s)
+		{
+			s.CustomClockFormat = s.ClockFormat;
+			s.CustomTimeZoneChoice = s.TimeZoneChoice;
+			s.CustomDistanceUnits = s.DistanceUnits;
+			s.CustomSpeedUnits = s.SpeedUnits;
+			s.CustomHeightUnits = s.HeightUnits;
+			s.CustomHailUnits = s.HailUnits;
+			s.CustomDateFormat = s.DateFormat;
+			s.CustomCoordinateFormat = s.CoordinateFormat;
+		}
+
+		// Every unit at once (a preset, Custom's return, a reset), then ONE refresh + page push.
+		private void WriteUnits(string distance, UnitSet units)
+		{
+			var s = _settingsService.Settings;
+			s.ClockFormat = units.Clock;
+			s.TimeZoneChoice = units.Zone;
+			s.SpeedUnits = units.Speed;
+			s.HeightUnits = units.Height;
+			s.HailUnits = units.Hail;
+			s.DateFormat = units.Date;
+			s.CoordinateFormat = units.Coords;
+			DistanceUnitIndex = Models.DistanceUnits.IndexOf(distance);
+			OnUnitsChanged();
 		}
 
 		/// <summary>12-hour / 24-hour. Reads 24-hour (and the 12-hour segment is greyed) while the zone is UTC.</summary>
@@ -1594,50 +1655,52 @@ namespace Anvil.ViewModels
 			set => SetUnit(UnitChoices.Hail, value, s => s.HailUnits, (s, t) => s.HailUnits = t);
 		}
 
-		/// <summary>Sample lines under each picker ("Shows as …"), in the chosen units.</summary>
-		public string ClockSample => "Shows as " + UnitFormat.Clock(SampleTime) + " · until " + UnitFormat.Clock(SampleTime.AddMinutes(26));
-		public string DistanceSample => "Shows as " + Models.DistanceUnits.Format(151_000, DistanceUnits) + " · ring "
-			+ Models.DistanceUnits.Format(230_000, DistanceUnits);
-		public string SpeedSample => "Shows as " + UnitFormat.SpeedFromKt(43) + " storm motion · " + UnitFormat.SpeedFromMph(70) + " wind report";
-		public string HeightSample => "Shows as " + UnitFormat.HeightFromKft(44) + " storm top";
-		public string HailSample => "Shows as " + UnitFormat.HailFromInches(1.75) + " hail";
+		public int DateFormatIndex
+		{
+			get => UnitChoices.Date.IndexOf(_settingsService.Settings.DateFormat);
+			set => SetUnit(UnitChoices.Date, value, s => s.DateFormat, (s, t) => s.DateFormat = t);
+		}
+
+		public int CoordinateFormatIndex
+		{
+			get => UnitChoices.Coords.IndexOf(_settingsService.Settings.CoordinateFormat);
+			set => SetUnit(UnitChoices.Coords, value, s => s.CoordinateFormat, (s, t) => s.CoordinateFormat = t);
+		}
+
+		/// <summary>The hint beside each picker: what that unit LOOKS like with the current pick — the result only, no words
+		/// (the buttons carry the names).</summary>
+		public string ClockSample => UnitFormat.Clock(SampleTime);
+		public string TimeZoneSample => UnitFormat.Clock(SampleTime) + (UnitFormat.Current.IsUtc ? string.Empty : " " + LocalZoneAbbreviation());
+		public string DateSample => UnitFormat.DateWeekday(SampleTime, year: true);
+		public string DistanceSample => Models.DistanceUnits.Format(230_000, DistanceUnits);
+		public string SpeedSample => UnitFormat.SpeedFromKt(43);
+		public string HeightSample => UnitFormat.HeightFromKft(44);
+		public string HailSample => UnitFormat.HailFromInches(1.75);
+		public string CoordinateSample => UnitFormat.LatLon(35.333, -97.278);
 
 		// A fixed afternoon moment, so the sample reads the same every time you look.
 		private static DateTimeOffset SampleTime =>
 			new DateTimeOffset(DateTime.Today.AddHours(17).AddMinutes(4), TimeZoneInfo.Local.GetUtcOffset(DateTime.Today.AddHours(17)));
 
-		/// <summary>A preset: "us" (12-hour local, mi, mph, kft, in), "metric" (24-hour local, km, km/h, km, cm) or
-		/// "forecaster" (UTC, nm, kt, kft, in).</summary>
-		public void ApplyUnitPreset(string preset)
+		// "CST" from "Central Standard Time" (Windows has no abbreviations); a name that isn't words → its initials anyway.
+		private static string LocalZoneAbbreviation()
 		{
-			var (clock, zone, dist, speed, height, hail) = preset switch
-			{
-				"metric" => ("24h", "local", Models.DistanceUnits.Kilometers, "kmh", "km", "cm"),
-				"forecaster" => ("24h", "utc", Models.DistanceUnits.NauticalMiles, "kt", "kft", "in"),
-				_ => ("12h", "local", Models.DistanceUnits.Miles, "mph", "kft", "in"),
-			};
-			var s = _settingsService.Settings;
-			s.ClockFormat = clock;
-			s.TimeZoneChoice = zone;
-			s.SpeedUnits = speed;
-			s.HeightUnits = height;
-			s.HailUnits = hail;
-			DistanceUnitIndex = Models.DistanceUnits.IndexOf(dist);
-			OnUnitsChanged();
+			var zone = TimeZoneInfo.Local;
+			var name = zone.IsDaylightSavingTime(SampleTime) ? zone.DaylightName : zone.StandardName;
+			var letters = name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(w => char.IsLetter(w[0])).Select(w => char.ToUpperInvariant(w[0]));
+			return string.Concat(letters);
 		}
 
-		/// <summary>Restore defaults: 12-hour local, km, mph, kft, in — what Anvil showed before Settings → Units.</summary>
+		/// <summary>Units' Restore defaults: Custom, with the shipped units (12-hour local, km, mph, kft, in, written, decimal).
+		/// The saved custom picks become those defaults too.</summary>
 		public void ResetUnits()
 		{
 			var s = _settingsService.Settings;
-			var d = UnitSet.Default;
-			s.ClockFormat = d.Clock;
-			s.TimeZoneChoice = d.Zone;
-			s.SpeedUnits = d.Speed;
-			s.HeightUnits = d.Height;
-			s.HailUnits = d.Hail;
-			DistanceUnitIndex = 0;
-			OnUnitsChanged();
+			s.UnitSetChoice = UnitChoices.Set.Default;
+			WriteUnits(Models.DistanceUnits.Kilometers, UnitSet.Default);
+			SaveCustomUnits(s);
+			OnPropertyChanged(nameof(UnitSetIndex));
+			OnPropertyChanged(nameof(AreUnitsCustom));
 		}
 
 		private void SetUnit(UnitFamily family, int index, Func<AppSettings, string> get, Action<AppSettings, string> set)
@@ -1653,8 +1716,9 @@ namespace Anvil.ViewModels
 		{
 			UnitFormat.Apply(UnitsFromSettings());
 			foreach (var name in new[] { nameof(ClockFormatIndex), nameof(ClockFormatDisabledIndex), nameof(TimeZoneIndex),
-				nameof(SpeedUnitIndex), nameof(HeightUnitIndex), nameof(HailUnitIndex), nameof(ClockSample), nameof(DistanceSample),
-				nameof(SpeedSample), nameof(HeightSample), nameof(HailSample) })
+				nameof(SpeedUnitIndex), nameof(HeightUnitIndex), nameof(HailUnitIndex), nameof(DateFormatIndex), nameof(CoordinateFormatIndex),
+				nameof(ClockSample), nameof(TimeZoneSample), nameof(DateSample), nameof(DistanceSample), nameof(SpeedSample),
+				nameof(HeightSample), nameof(HailSample), nameof(CoordinateSample) })
 			{
 				OnPropertyChanged(name);
 			}
@@ -1755,13 +1819,55 @@ namespace Anvil.ViewModels
 		//    ResetUnits writes), so the column can't drift from what a reset — or a first run — actually gives you. ──
 		private static readonly AppSettings FreshSettings = new();
 
+		/// <summary>Open in full screen (Settings → General → Startup). PERSISTED, default off; read ONCE at launch by
+		/// MainWindow (full screen itself is never saved).</summary>
+		public bool StartInFullScreen
+		{
+			get => _settingsService.Settings.StartInFullScreen;
+			set
+			{
+				if (_settingsService.Settings.StartInFullScreen == value) { return; }
+				_settingsService.Settings.StartInFullScreen = value;
+				OnPropertyChanged();
+			}
+		}
+
+		/// <summary>Startup's Restore defaults: a fresh install's start — and NO home site (the user's call: a reset clears it).</summary>
+		public void ResetStartup()
+		{
+			StartupResume = FreshSettings.StartupResume;
+			StartupModeIndex = StartupModes.IndexOf(FreshSettings.StartupMode);
+			StartInFullScreen = FreshSettings.StartInFullScreen;
+			SiteFavorites.LoadHomeOnLaunch = FreshSettings.LoadHomeOnLaunch;
+			SiteFavorites.ClearHome();
+		}
+
+		/// <summary>Window's Restore defaults: single monitor (the only mode built, so today a no-op — the button is greyed).</summary>
+		public void ResetWindow() => MonitorModeIndex = (int)MonitorMode.Single;
+
+		/// <summary>"Reset all General settings": every section's Restore defaults at once (asked first, by the page).</summary>
+		public void ResetGeneral()
+		{
+			ResetStartup();
+			ResetUnits();
+			ResetWindow();
+		}
+
+		/// <summary>Window's Restore defaults is live only once a second mode exists to reset FROM.</summary>
+		public bool CanResetWindow => IsMultiMonitorModeBuilt;
+
+		public string DefaultStartInFullScreenText => FreshSettings.StartInFullScreen ? "On" : "Off";
+		public string DefaultUnitSetText => UnitChoices.Set.Labels[UnitChoices.Set.IndexOf(FreshSettings.UnitSetChoice)];
+		public string DefaultDateText => UnitChoices.Date.Labels[UnitChoices.Date.IndexOf(UnitSet.Default.Date)];
+		public string DefaultCoordinateText => UnitChoices.Coords.Labels[UnitChoices.Coords.IndexOf(UnitSet.Default.Coords)];
+
 		public string DefaultStartupResumeText => FreshSettings.StartupResume ? "Where I left off" : "A fixed start";
 		public string DefaultStartupModeText => StartupModes.Labels[StartupModes.IndexOf(FreshSettings.StartupMode)];
 		public string DefaultHomeSiteText => "None";
 		public string DefaultLoadHomeOnLaunchText => FreshSettings.LoadHomeOnLaunch ? "On" : "Off";
 		public string DefaultClockText => UnitChoices.Clock.Labels[UnitChoices.Clock.IndexOf(UnitSet.Default.Clock)];
 		public string DefaultTimeZoneText => UnitChoices.Zone.Labels[UnitChoices.Zone.IndexOf(UnitSet.Default.Zone)];
-		public string DefaultDistanceText => Models.DistanceUnits.Labels[0]; // ResetUnits' DistanceUnitIndex = 0
+		public string DefaultDistanceText => Models.DistanceUnits.Labels[Models.DistanceUnits.IndexOf(FreshSettings.DistanceUnits)];
 		public string DefaultSpeedText => UnitChoices.Speed.Labels[UnitChoices.Speed.IndexOf(UnitSet.Default.Speed)];
 		public string DefaultHeightText => UnitChoices.Height.Labels[UnitChoices.Height.IndexOf(UnitSet.Default.Height)];
 		public string DefaultHailText => UnitChoices.Hail.Labels[UnitChoices.Hail.IndexOf(UnitSet.Default.Hail)];

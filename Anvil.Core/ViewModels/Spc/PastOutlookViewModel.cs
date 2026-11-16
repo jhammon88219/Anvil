@@ -485,8 +485,8 @@ namespace Anvil.ViewModels
 		// "Day 1 · May 24, 2011", plus the issuance once it is known.
 		private static string ContextFor(int day, DateOnly date, int? cycle) =>
 			cycle is { } c
-				? $"Day {day} · {SpcIssuanceCycles.Label(c)} issuance · {date:MMM d, yyyy}"
-				: $"Day {day} · {date:MMM d, yyyy}";
+				? $"Day {day} · {SpcIssuanceCycles.Label(c)} issuance · {UnitFormat.Day(date.ToDateTime(TimeOnly.MinValue))}"
+				: $"Day {day} · {UnitFormat.Day(date.ToDateTime(TimeOnly.MinValue))}";
 
 		// ── Lifecycle / coordination (called by MapViewModel) ──
 
@@ -659,7 +659,7 @@ namespace Anvil.ViewModels
 		{
 			if (times is null) return string.Empty;
 			var parts = new List<string>(2);
-			if (times.Issued is { } iss) parts.Add($"Issued {UnitFormat.Date(iss, "ddd MMM d")} {UnitFormat.Clock(iss)}");
+			if (times.Issued is { } iss) parts.Add($"Issued {UnitFormat.DateWeekday(iss)} {UnitFormat.Clock(iss)}");
 			if (times.Valid is { } v && times.Expire is { } e)
 				parts.Add($"Valid {UnitFormat.Date(v, "ddd")} {UnitFormat.Clock(v)} → {UnitFormat.Date(e, "ddd")} {UnitFormat.Clock(e)}");
 			return string.Join("  ·  ", parts);

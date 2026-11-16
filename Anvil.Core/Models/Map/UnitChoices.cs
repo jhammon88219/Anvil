@@ -29,6 +29,31 @@ namespace Anvil.Models
 
 		/// <summary>Hail stone size.</summary>
 		public static readonly UnitFamily Hail = new("in", new[] { "in", "cm" }, new[] { "in", "cm" });
+
+		/// <summary>How a calendar date reads: "Nov 16, 2026" · "11/16/2026" · "16/11/2026" · "2026-11-16". The buttons carry
+		/// the NAMES; the Settings sample shows the result.</summary>
+		public static readonly UnitFamily Date = new("written", new[] { "written", "monthfirst", "dayfirst", "iso" },
+			new[] { "Written", "Month first", "Day first", "ISO" });
+
+		/// <summary>How a latitude / longitude reads: "35.333° N, 97.278° W" or "35°19′59″ N, 97°16′41″ W".</summary>
+		public static readonly UnitFamily Coords = new("decimal", new[] { "decimal", "dms" }, new[] { "Decimal", "Deg · min · sec" });
+
+		/// <summary>
+		/// Settings → General → Units' "Unit set": a PRESET (every unit fixed, the pickers locked) or Custom (the pickers
+		/// free; the last custom picks are kept apart, so a preset never overwrites them). Default Custom — the shipped
+		/// defaults (km + mph) match no preset.
+		/// </summary>
+		public static readonly UnitFamily Set = new("custom", new[] { "us", "metric", "forecaster", "custom" },
+			new[] { "US", "Metric", "Forecaster", "Custom" });
+
+		/// <summary>The whole set a PRESET fixes (null for "custom"): ground distance + the <see cref="UnitSet"/>.</summary>
+		public static (string Distance, UnitSet Units)? Preset(string token) => token switch
+		{
+			"us" => (DistanceUnits.Miles, new UnitSet("12h", "local", "mph", "kft", "in", "written", "decimal")),
+			"metric" => (DistanceUnits.Kilometers, new UnitSet("24h", "local", "kmh", "km", "cm", "dayfirst", "decimal")),
+			"forecaster" => (DistanceUnits.NauticalMiles, new UnitSet("24h", "utc", "kt", "kft", "in", "iso", "decimal")),
+			_ => null,
+		};
 	}
 
 	/// <summary>One unit choice: its tokens (picker order), their labels, and the default.</summary>

@@ -435,7 +435,7 @@ namespace Anvil.ViewModels
 
 		/// <summary>"May 3, 1999 Bridge Creek-Moore, OK" — the picked LEG's local date, then the event's name.</summary>
 		public string PlayingTitle => Playing is { } ev
-			? $"{ev.Legs[Math.Clamp(_selectedLeg, 0, ev.Legs.Count - 1)].StartUtc.ToLocalTime():MMM d, yyyy} {ev.Name}"
+			? $"{UnitFormat.DateFull(ev.Legs[Math.Clamp(_selectedLeg, 0, ev.Legs.Count - 1)].StartUtc)} {ev.Name}"
 			: string.Empty;
 
 		public SavedEventKind PlayingKind => Playing?.Kind ?? SavedEventKind.Other;
@@ -510,7 +510,7 @@ namespace Anvil.ViewModels
 		{
 			var loadedStart = _radar.LoadedReplayStartUtc;
 			var site = _radar.SelectedRadarOption?.Site?.Id;
-			var date = loadedStart is { } s ? s.ToLocalTime().ToString("MMM d, yyyy") : "an earlier date";
+			var date = loadedStart is { } s ? UnitFormat.DateFull(s) : "an earlier date";
 			var detail = site is null ? date : $"{date}, {site}";
 			var playing = _selectedId is not null
 				? _library.GetEvents().FirstOrDefault(e => e.Id == _selectedId)?.Name

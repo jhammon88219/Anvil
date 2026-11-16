@@ -87,7 +87,8 @@ namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 			// The clock is the header's Readout control; the date is the header's own. (The status square is bound in
 			// XAML — WarningsViewModel.HeaderSquareFill.)
 			TemporalPaneHeaderNowCastReadout.Time = now;
-			TemporalPaneHeader.Subtitle = now.ToString("dddd MMM d", CultureInfo.CurrentCulture);
+			// Full weekday + the date part per Settings → Units → Date ("Sunday Nov 16" · "Sunday 11/16" …), in the display zone.
+			TemporalPaneHeader.Subtitle = Anvil.Models.UnitFormat.Date(now, "dddd") + " " + Anvil.Models.UnitFormat.DateShort(now);
 		}
 
 		/// <summary>The coordinator view model; bound from the host.</summary>

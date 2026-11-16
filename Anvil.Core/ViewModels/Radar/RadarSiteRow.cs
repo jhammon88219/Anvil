@@ -43,7 +43,7 @@ namespace Anvil.ViewModels
 		};
 
 		/// <summary>Antenna coordinates for the Atlas detail, e.g. "35.333, -97.278".</summary>
-		public string Coords => $"{Site.Latitude:0.000}, {Site.Longitude:0.000}";
+		public string Coords => UnitFormat.LatLon(Site.Latitude, Site.Longitude); // Settings → Units → Coordinates
 
 		private SiteAvailability _availability;
 		private bool _isReplayDay;

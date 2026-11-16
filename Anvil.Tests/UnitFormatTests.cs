@@ -83,8 +83,61 @@ namespace Anvil.Tests
 		[Fact]
 		public void PageJson_CarriesTokensOnly()
 		{
-			Assert.Equal("{\"clock\":\"12h\",\"zone\":\"utc\",\"speed\":\"mph\",\"height\":\"kft\",\"hail\":\"in\"}",
+			Assert.Equal("{\"clock\":\"12h\",\"zone\":\"utc\",\"speed\":\"mph\",\"height\":\"kft\",\"hail\":\"in\",\"date\":\"written\",\"coords\":\"decimal\"}",
 				UnitFormat.PageJson(Utc));
+		}
+
+		// ── Date (General B, 2026-11-16) ──
+
+		[Theory]
+		[InlineData("written", "May 20, 2024", "May 20")]
+		[InlineData("monthfirst", "5/20/2024", "5/20")]
+		[InlineData("dayfirst", "20/5/2024", "20/5")]
+		[InlineData("iso", "2024-05-20", "05-20")]
+		public void Date_FollowsTheChosenStyle(string style, string full, string shortForm)
+		{
+			var u = Utc with { Date = style };
+			Assert.Equal(full, UnitFormat.DateFull(At, u));
+			Assert.Equal(shortForm, UnitFormat.DateShort(At, u));
+		}
+
+		[Fact]
+		public void Date_Weekday_PrefixesTheDay()
+		{
+			var weekday = At.UtcDateTime.ToString("ddd", System.Globalization.CultureInfo.CurrentCulture);
+			Assert.Equal(weekday + " 2024-05-20", UnitFormat.DateWeekday(At, Utc with { Date = "iso" }, year: true));
+		}
+
+		[Fact]
+		public void Date_Utc_TheDateIsTheUtcDate()
+		{
+			// 23:30Z on May 20 is May 21 or 20 locally depending on the PC — in UTC it is always the 20th.
+			var late = new DateTimeOffset(2024, 5, 20, 23, 30, 0, TimeSpan.Zero);
+			Assert.Equal("2024-05-20", UnitFormat.DateFull(late, Utc with { Date = "iso" }));
+		}
+
+		// ── Coordinates ──
+
+		[Fact]
+		public void Coordinates_Decimal_NamesTheHemispheres()
+		{
+			Assert.Equal("35.333° N, 97.278° W", UnitFormat.LatLon(35.333, -97.278, UnitSet.Default));
+			Assert.Equal("33.900° S, 151.200° E", UnitFormat.LatLon(-33.9, 151.2, UnitSet.Default));
+		}
+
+		[Fact]
+		public void Coordinates_Dms_CarriesIntoTheNextMinute()
+		{
+			var dms = UnitSet.Default with { Coords = "dms" };
+			Assert.Equal("35°19′59″ N, 97°16′41″ W", UnitFormat.LatLon(35.333, -97.278, dms));
+			Assert.Equal("36°00′00″ N, 97°00′00″ W", UnitFormat.LatLon(35.99999, -96.99999, dms)); // 59.99″ rounds UP
+		}
+
+		[Fact]
+		public void UnknownDateAndCoordTokens_FallBackToTheDefaults()
+		{
+			var set = (UnitSet.Default with { Date = "julian", Coords = "utm" }).Normalized();
+			Assert.Equal(UnitSet.Default, set);
 		}
 
 		[Fact]

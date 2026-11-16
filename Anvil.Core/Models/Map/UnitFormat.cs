@@ -4,15 +4,19 @@ using System.Globalization;
 namespace Anvil.Models
 {
 	/// <summary>The unit choices in force (Settings → Units). Tokens, already normalized.</summary>
-	public sealed record UnitSet(string Clock, string Zone, string Speed, string Height, string Hail)
+	public sealed record UnitSet(string Clock, string Zone, string Speed, string Height, string Hail,
+		string Date = "written", string Coords = "decimal")
 	{
-		/// <summary>12-hour local, mph, kft, inches — what every readout showed before Settings → Units.</summary>
+		/// <summary>12-hour local, mph, kft, inches, written dates, decimal degrees — what every readout showed before
+		/// Settings → Units.</summary>
 		public static UnitSet Default { get; } = new(UnitChoices.Clock.Default, UnitChoices.Zone.Default,
-			UnitChoices.Speed.Default, UnitChoices.Height.Default, UnitChoices.Hail.Default);
+			UnitChoices.Speed.Default, UnitChoices.Height.Default, UnitChoices.Hail.Default,
+			UnitChoices.Date.Default, UnitChoices.Coords.Default);
 
 		/// <summary>Every token through its family's gate.</summary>
 		public UnitSet Normalized() => new(UnitChoices.Clock.Normalize(Clock), UnitChoices.Zone.Normalize(Zone),
-			UnitChoices.Speed.Normalize(Speed), UnitChoices.Height.Normalize(Height), UnitChoices.Hail.Normalize(Hail));
+			UnitChoices.Speed.Normalize(Speed), UnitChoices.Height.Normalize(Height), UnitChoices.Hail.Normalize(Hail),
+			UnitChoices.Date.Normalize(Date), UnitChoices.Coords.Normalize(Coords));
 
 		public bool IsUtc => Zone == "utc";
 
@@ -21,7 +25,7 @@ namespace Anvil.Models
 	}
 
 	/// <summary>
-	/// The ONE place a time, speed, height or hail size becomes text a person reads, in the units chosen in Settings →
+	/// The ONE place a time, date, coordinate, speed, height or hail size becomes text a person reads, in the units chosen in Settings →
 	/// Units (ground distance is <see cref="DistanceUnits"/>). <see cref="Current"/> is set by <c>MapViewModel</c> from
 	/// the settings and pushed to the page, whose js/units.js MIRRORS these rules — change both.
 	/// </summary>
@@ -96,9 +100,59 @@ namespace Anvil.Models
 		}
 		public static string ClockSpan(DateTimeOffset a, DateTimeOffset b) => ClockSpan(a, b, Current);
 
-		/// <summary>A date part in the display zone, e.g. <c>Date(t, "ddd MMM d")</c> → "Tue May 20".</summary>
+		/// <summary>A RAW date part in the display zone — only for the weekday ("ddd") now; every calendar date goes
+		/// through <see cref="DateFull"/> / <see cref="DateShort"/> / <see cref="DateWeekday"/> so it follows Settings →
+		/// Units → Date.</summary>
 		public static string Date(DateTimeOffset t, string format, UnitSet u) => Zoned(t, u).ToString(format, CultureInfo.CurrentCulture);
 		public static string Date(DateTimeOffset t, string format) => Date(t, format, Current);
+
+		// ── Date (Settings → Units → Date) ──
+		//   Written "Nov 16, 2026" · Month first "11/16/2026" · Day first "16/11/2026" · ISO "2026-11-16"
+		//   …without the year: "Nov 16" · "11/16" · "16/11" · "11-16";  with a weekday: "Sun " + either.
+
+		/// <summary>A calendar DAY (already a local / chosen day — no zone shift) as text.</summary>
+		public static string Day(DateTime day, UnitSet u, bool year = true, bool weekday = false)
+		{
+			var core = u.Date switch
+			{
+				"monthfirst" => day.ToString(year ? "M/d/yyyy" : "M/d", Inv),
+				"dayfirst" => day.ToString(year ? "d/M/yyyy" : "d/M", Inv),
+				"iso" => day.ToString(year ? "yyyy-MM-dd" : "MM-dd", Inv),
+				_ => day.ToString(year ? "MMM d, yyyy" : "MMM d", CultureInfo.CurrentCulture),
+			};
+			return weekday ? day.ToString("ddd", CultureInfo.CurrentCulture) + " " + core : core;
+		}
+		public static string Day(DateTime day, bool year = true, bool weekday = false) => Day(day, Current, year, weekday);
+
+		/// <summary>The moment's date in the display zone, with the year: "Nov 16, 2026" · "11/16/2026" · …</summary>
+		public static string DateFull(DateTimeOffset t, UnitSet u) => Day(Zoned(t, u).DateTime, u);
+		public static string DateFull(DateTimeOffset t) => DateFull(t, Current);
+
+		/// <summary>The moment's date in the display zone, no year: "Nov 16" · "11/16" · "16/11" · "11-16".</summary>
+		public static string DateShort(DateTimeOffset t, UnitSet u) => Day(Zoned(t, u).DateTime, u, year: false);
+		public static string DateShort(DateTimeOffset t) => DateShort(t, Current);
+
+		/// <summary>Weekday + date in the display zone: "Sun Nov 16" (or with the year: "Sun Nov 16, 2026").</summary>
+		public static string DateWeekday(DateTimeOffset t, UnitSet u, bool year = false) => Day(Zoned(t, u).DateTime, u, year, weekday: true);
+		public static string DateWeekday(DateTimeOffset t, bool year = false) => DateWeekday(t, Current, year);
+
+		// ── Coordinates (Settings → Units → Coordinates) ──
+
+		/// <summary>"35.333° N, 97.278° W" (decimal, <paramref name="digits"/> places) · "35°19′59″ N, 97°16′41″ W".</summary>
+		public static string LatLon(double lat, double lon, UnitSet u, int digits = 3) =>
+			Angle(lat, u, digits) + " " + (lat < 0 ? "S" : "N") + ", " + Angle(lon, u, digits) + " " + (lon < 0 ? "W" : "E");
+		public static string LatLon(double lat, double lon, int digits = 3) => LatLon(lat, lon, Current, digits);
+
+		private static string Angle(double value, UnitSet u, int digits)
+		{
+			var a = Math.Abs(value);
+			if (u.Coords != "dms")
+			{
+				return a.ToString("F" + digits.ToString(Inv), CultureInfo.CurrentCulture) + "°";
+			}
+			var totalSeconds = (int)Math.Round(a * 3600);
+			return $"{totalSeconds / 3600}°{totalSeconds / 60 % 60:00}′{totalSeconds % 60:00}″";
+		}
 
 		// ── Speed ──
 
@@ -160,6 +214,6 @@ namespace Anvil.Models
 
 		/// <summary>The set as the page's js/units.js reads it (tokens only — never free text into the page).</summary>
 		public static string PageJson(UnitSet u) =>
-			$"{{\"clock\":\"{u.Clock}\",\"zone\":\"{u.Zone}\",\"speed\":\"{u.Speed}\",\"height\":\"{u.Height}\",\"hail\":\"{u.Hail}\"}}";
+			$"{{\"clock\":\"{u.Clock}\",\"zone\":\"{u.Zone}\",\"speed\":\"{u.Speed}\",\"height\":\"{u.Height}\",\"hail\":\"{u.Hail}\",\"date\":\"{u.Date}\",\"coords\":\"{u.Coords}\"}}";
 	}
 }

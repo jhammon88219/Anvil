@@ -278,7 +278,7 @@ namespace Anvil.ViewModels
 		private static string ContextFor(DateOnly day)
 		{
 			var start = new DateTimeOffset(day.ToDateTime(new TimeOnly(12, 0)), TimeSpan.Zero);
-			return $"{day:MMM d, yyyy} · {UnitFormat.Clock(start)}–{UnitFormat.Clock(start.AddDays(1))}";
+			return $"{UnitFormat.Day(day.ToDateTime(TimeOnly.MinValue))} · {UnitFormat.Clock(start)}–{UnitFormat.Clock(start.AddDays(1))}";
 		}
 
 		// ── Lifecycle ──

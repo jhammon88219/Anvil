@@ -6,8 +6,8 @@ namespace Anvil.Controls.Primitives
 {
 	/// <summary>
 	/// The casing of one Settings section (see the XAML header): a titled card that never collapses. The section's
-	/// rows are its <see cref="Body"/> (the content property); <see cref="HeaderContent"/> sits 15 px after the title
-	/// (a "Restore defaults"); <see cref="ShowDefaultHeader"/> adds the DEFAULT column title.
+	/// rows are its <see cref="Body"/> (the content property); <see cref="HeaderContent"/> (a "Restore defaults") starts on the
+	/// rows' control column; <see cref="ShowDefaultHeader"/> puts the DEFAULT column title on the same row, far right.
 	/// </summary>
 	[ContentProperty(Name = nameof(Body))]
 	public sealed partial class SettingsConsolePlate : UserControl
@@ -27,7 +27,7 @@ namespace Anvil.Controls.Primitives
 		public static readonly DependencyProperty TitleProperty =
 			DependencyProperty.Register(nameof(Title), typeof(string), typeof(SettingsConsolePlate), new PropertyMetadata(""));
 
-		/// <summary>Beside the title (15 px after it), e.g. the section's Restore defaults. Null = nothing.</summary>
+		/// <summary>On the title row at the rows' control column, e.g. the section's Restore defaults. Null = nothing.</summary>
 		public object? HeaderContent
 		{
 			get => GetValue(HeaderContentProperty);

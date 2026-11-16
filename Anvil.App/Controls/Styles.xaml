@@ -98,6 +98,15 @@
                  almost white so the box stands off the black map (the user's call, 2026-11-11). -->
             <SolidColorBrush x:Key="FloatingHairlineBrush" Color="#FFC4C4C4"/> <!-- was E6E6E6; a step down, the user's call -->
 
+            <!-- SETTINGS CAUTION (2026-11-16): the amber of "this resets things" — the Reset all button's text + edge, its
+                 tinted face, AND the DEFAULT column title on every Settings card (the column a reset writes). -->
+            <SolidColorBrush x:Key="SettingsCautionForegroundBrush" Color="#FFFFC95C"/>
+            <SolidColorBrush x:Key="SettingsCautionBackgroundBrush" Color="#FF3A2C10"/>
+            <SolidColorBrush x:Key="SettingsCautionBorderBrush" Color="#FFC98F1C"/>
+            <!-- A GREYED segmented picker's pick (locked, or not built yet): a slightly LIFTED grey, never the accent, so a
+                 control you can't use doesn't read as available. -->
+            <SolidColorBrush x:Key="SegmentLockedSelectedBrush" Color="#FF3C3C3C"/>
+
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="#FFF3F3F3"/>
@@ -127,6 +136,12 @@
 
             <!-- The floating boxes' outer hairline — the light mirror of the dark theme's near-white: near-black. -->
             <SolidColorBrush x:Key="FloatingHairlineBrush" Color="#FF3D3D3D"/>
+
+            <!-- SETTINGS CAUTION + locked segment — see the Default dictionary. -->
+            <SolidColorBrush x:Key="SettingsCautionForegroundBrush" Color="#FF8A5600"/>
+            <SolidColorBrush x:Key="SettingsCautionBackgroundBrush" Color="#FFFFF1D6"/>
+            <SolidColorBrush x:Key="SettingsCautionBorderBrush" Color="#FFC98F1C"/>
+            <SolidColorBrush x:Key="SegmentLockedSelectedBrush" Color="#FFD6D6D6"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
@@ -156,6 +171,10 @@
             <SolidColorBrush x:Key="SectionRowHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="SectionBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
             <SolidColorBrush x:Key="FloatingHairlineBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            <SolidColorBrush x:Key="SettingsCautionForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            <SolidColorBrush x:Key="SettingsCautionBackgroundBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+            <SolidColorBrush x:Key="SettingsCautionBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            <SolidColorBrush x:Key="SegmentLockedSelectedBrush" Color="{ThemeResource SystemColorGrayTextColor}"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
@@ -230,6 +249,16 @@
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="HorizontalAlignment" Value="Right"/>
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+    </Style>
+    <!-- "Reset all …" under a Settings page's cards: full width, the CAUTION amber. Only the resting look is re-coloured (a
+         Style can't reach the template's hover/pressed keys); it drops to the stock hover — fine for a rare, confirmed act. -->
+    <Style x:Key="SettingsCautionButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="Height" Value="36"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{ThemeResource SettingsCautionForegroundBrush}"/>
+        <Setter Property="Background" Value="{ThemeResource SettingsCautionBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{ThemeResource SettingsCautionBorderBrush}"/>
     </Style>
 
     <!-- ══════════════════════════════ 2. SIZES ══════════════════════════════

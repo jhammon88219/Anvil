@@ -206,6 +206,12 @@ namespace Anvil.ViewModels
 			_ = PushFavoritesOnlyAsync();
 		}
 
+		/// <summary>No home site (Settings → General → Startup's Restore defaults / Reset all). Nothing if there is none.</summary>
+		public void ClearHome()
+		{
+			if (HomeSite is { } home) { ToggleHome(home); }
+		}
+
 		/// <summary>The site picker: load a home/favorite site and fly to it. ⚠️ Picking the site that is ALREADY
 		/// loaded still flies there — that is how you get back to it after panning away.</summary>
 		public void Pick(RadarSiteRow row)

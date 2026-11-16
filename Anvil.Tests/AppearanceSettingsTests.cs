@@ -12,6 +12,7 @@ namespace Anvil.Tests
 	/// Settings → Appearance (2026-11-16): the Basemap pick is PERSISTED ("" = follow the theme), a new theme brings its
 	/// own basemap, and the retired Edges page opens Appearance.
 	/// </summary>
+	[Collection(UnitFormatCollection.Name)] // the Units default-column test resets the GLOBAL units
 	public class AppearanceSettingsTests
 	{
 		private static T N<T>() where T : class => TemporalPanePersistenceTests.Null<T>.Create();

@@ -53,6 +53,14 @@ namespace Anvil.ViewModels
 			// Any recorded change can move the selected site's numbers — or its RANK, which depends on every site.
 			_usage.Changed += (_, _) => RaiseUsage();
 
+			// Settings → Units → Date / Coordinates: re-word the open site's coordinates and its usage dates.
+			UnitFormat.Changed += (_, _) =>
+			{
+				OnPropertyChanged(nameof(DetailCoords));
+				OnPropertyChanged(nameof(DetailSubtitle));
+				RaiseUsage();
+			};
+
 			FilteredSites = new ObservableCollection<RadarSiteRow>();
 			SiteGroups = new ObservableCollection<RadarSiteGroup>();
 			BuildPlaceOptions();
@@ -931,7 +939,7 @@ namespace Anvil.ViewModels
 
 		/// <summary>"since Mar 4, 2026" beside the header, empty with no history.</summary>
 		public string UsageSinceText => SelectedUsage?.FirstUsedUtc is { } first
-			? $"since {first.ToLocalTime():MMM d, yyyy}"
+			? $"since {UnitFormat.DateFull(first)}"
 			: string.Empty;
 
 		public string UsageLoadsValue => (SelectedUsage?.TotalLoads ?? 0).ToString(CultureInfo.CurrentCulture);
@@ -997,7 +1005,7 @@ namespace Anvil.ViewModels
 				if (age.TotalHours < 24) return $"{age.TotalHours:0} hr ago";
 				if (age.TotalDays < 2) return "Yesterday";
 				if (age.TotalDays < 60) return $"{age.TotalDays:0} days ago";
-				return last.ToLocalTime().ToString("MMM d", CultureInfo.CurrentCulture);
+				return UnitFormat.DateShort(last);
 			}
 		}
 
@@ -1026,7 +1034,7 @@ namespace Anvil.ViewModels
 			{
 				var u = SelectedUsage;
 				var loads = u?.TotalLoads ?? 0;
-				var since = u?.FirstUsedUtc is { } f ? $", recorded since {f.ToLocalTime():MMM d, yyyy}" : string.Empty;
+				var since = u?.FirstUsedUtc is { } f ? $", recorded since {UnitFormat.DateFull(f)}" : string.Empty;
 				return $"This removes {HistorySpan(u?.FirstUsedUtc)} for this site: {loads} load{(loads == 1 ? "" : "s")} " +
 					$"and {HoursWords(SelectedSeconds)}{since}. It can't be undone.";
 			}

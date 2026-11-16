@@ -54,7 +54,7 @@ namespace Anvil.ViewModels
 		public string ToolTip => string.IsNullOrEmpty(Event.Source) ? Event.Name : Event.Source;
 
 		/// <summary>"May 31, 2013".</summary>
-		public string DateText => UnitFormat.Date(Event.StartUtc, "MMM d, yyyy");
+		public string DateText => UnitFormat.DateFull(Event.StartUtc);
 
 		/// <summary>"5:30 PM · 2h" for one leg; the overall span for several.</summary>
 		public string SummaryText
@@ -250,7 +250,7 @@ namespace Anvil.ViewModels
 		public string WindowValueText => $"{UnitFormat.Clock(Leg.StartUtc)} · {SavedEventRow.DurationWords(Leg.DurationMinutes)}";
 
 		/// <summary>Tile label: "REPLAY WINDOW · MAY 3, 1999".</summary>
-		public string WindowLabelText => $"REPLAY WINDOW · {UnitFormat.Date(Leg.StartUtc, "MMM d, yyyy")}".ToUpperInvariant();
+		public string WindowLabelText => $"REPLAY WINDOW · {UnitFormat.DateFull(Leg.StartUtc)}".ToUpperInvariant();
 
 		/// <summary>Tile label: "RADAR · LEG 1 OF 2".</summary>
 		public string RadarLabelText => $"RADAR · LEG {Index + 1} OF {_legCount}";

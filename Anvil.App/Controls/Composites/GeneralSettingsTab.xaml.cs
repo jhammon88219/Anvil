@@ -21,5 +21,15 @@ namespace Anvil.Controls.Composites
 
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(GeneralSettingsTab), new PropertyMetadata(null));
+
+		private async void OnResetAll(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Reset all General settings?",
+				"Startup, Units and Window go back to their defaults — the DEFAULT column on this page. Your home site is cleared. " +
+				"This can't be undone."))
+			{
+				vm.ResetGeneral();
+			}
+		}
 	}
 }

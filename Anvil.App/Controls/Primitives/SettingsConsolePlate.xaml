@@ -4,16 +4,18 @@
      (e.g. AppearanceSettingsConsoles/AppearanceSettingsConsoleEdges) that wraps itself in one of these.
 
        ┌─────────────────────────────────────────────────────────────────────────────┐
-       │ Edges   [Restore defaults]                                                   │ ← Title 28 SemiBold (line 34 — the Storage
-       │                                                                     DEFAULT  │   total's size) · 15 px · HeaderContent
-       │ Pattern   [Hatch|Dots]                                                 Hatch │ ← ShowDefaultHeader: the column title, ONCE,
-       │ …                                                                       …    │   right-aligned over the rows' default column
-       └─────────────────────────────────────────────────────────────────────────────┘
-        face CardBackgroundFillColorDefaultBrush · hairline SectionBorderBrush · radius 6 · padding 14,12,14,14
+       │ Units     [Restore defaults]                                        DEFAULT  │ ← ONE title row (General B, 2026-11-16):
+       │ Unit set  [US|Metric|Forecaster|Custom]                              Custom  │   title (28 SemiBold, line 34) in the
+       │ …                                                                       …    │   LABEL column (≥ 96) · HeaderContent
+       └─────────────────────────────────────────────────────────────────────────────┘   on the CONTROL column's left edge, so
+        face CardBackgroundFillColorDefaultBrush · hairline SectionBorderBrush           it lines up with the control below ·
+        radius 6 · padding 14,12,14,14                                                    DEFAULT far right (caution amber)
 
      ⚠️ Pages space plates 12 apart on the body's darker ground — the gap IS the separator (no dividers, no expanders).
-     ⚠️ Never collapses. A section's row grid is ITS OWN (label 96 · control ≤ 420 · default 150, right-aligned) — the
-     plate only right-aligns "DEFAULT" to the same right edge, so it lines up whatever the rows' columns. -->
+     ⚠️ Never collapses. The title row's first column is the rows' LABEL column (96, column spacing 12) so HeaderContent starts
+     where every row's control starts; a title wider than 96 pushes it right rather than clipping. DEFAULT is right-aligned to
+     the same right edge as the rows' default column, whatever their columns. Its amber = SettingsCautionForegroundBrush: the
+     column is what a reset writes. -->
 <UserControl x:Class="Anvil.Controls.Primitives.SettingsConsolePlate"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -25,18 +27,23 @@
             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
             BorderBrush="{ThemeResource SectionBorderBrush}">
         <StackPanel>
-            <StackPanel x:Name="SettingsConsolePlateTitleLine" Orientation="Horizontal" Spacing="15" Margin="0,0,0,12">
+            <Grid x:Name="SettingsConsolePlateTitleLine" ColumnSpacing="12" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" MinWidth="96"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
                 <TextBlock x:Name="SettingsConsolePlateTitle" FontSize="28" FontWeight="SemiBold"
                            LineHeight="34" LineStackingStrategy="BlockLineHeight" VerticalAlignment="Center"
                            Text="{x:Bind Title, Mode=OneWay}"/>
-                <ContentPresenter x:Name="SettingsConsolePlateHeaderContent" VerticalAlignment="Center"
+                <ContentPresenter x:Name="SettingsConsolePlateHeaderContent" Grid.Column="1" VerticalAlignment="Center"
+                                  HorizontalAlignment="Left"
                                   Content="{x:Bind HeaderContent, Mode=OneWay}"/>
-            </StackPanel>
-
-            <TextBlock x:Name="SettingsConsolePlateDefaultHeader" Text="DEFAULT" HorizontalAlignment="Right"
-                       FontSize="11" CharacterSpacing="60" Margin="0,0,0,4"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Visibility="{x:Bind Show(ShowDefaultHeader), Mode=OneWay}"/>
+                <TextBlock x:Name="SettingsConsolePlateDefaultHeader" Grid.Column="2" Text="DEFAULT" VerticalAlignment="Center"
+                           FontSize="11" CharacterSpacing="60"
+                           Foreground="{ThemeResource SettingsCautionForegroundBrush}"
+                           Visibility="{x:Bind Show(ShowDefaultHeader), Mode=OneWay}"/>
+            </Grid>
 
             <ContentPresenter x:Name="SettingsConsolePlateBody" Content="{x:Bind Body, Mode=OneWay}"/>
         </StackPanel>

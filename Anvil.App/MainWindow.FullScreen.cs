@@ -9,7 +9,8 @@
 //
 // Microsoft's documented pattern throughout (and the user's research brief):
 // • Enter = AppWindow.SetPresenter(FullScreen); exit = SetPresenter(DEFAULT) — the window's ORIGINAL presenter ("Manage app
-//   windows") — then Maximize again if it was (queued — microsoft-ui-xaml #10439). NEVER remembered: always starts windowed.
+//   windows") — then Maximize again if it was (queued — microsoft-ui-xaml #10439). NEVER remembered: starts windowed unless
+//   Settings → General → Startup → "Start in full screen" (AppSettings.StartInFullScreen, applied on the first activation).
 // • NO non-client region writes during the switch (the first attempt fail-fasted in Microsoft.UI.Windowing.dll when
 //   AppWindow.Changed rewrote them mid-switch — docs/bugs.md U11): cleared first, the writers stand down while
 //   _isSwitchingPresenter, AfterPresenterSwitch re-writes them on a fresh turn. In full screen: NO caption (no dragging),
@@ -79,8 +80,22 @@ namespace Anvil
 				{
 					HideTopBar();
 				}
+
+				// Settings → General → Startup → "Start in full screen": ONCE, on the first activation (the window is shown and
+				// maximized by then, so leaving full screen comes back maximized). Full screen itself is still never saved.
+				if (!_startFullScreenChecked && e.WindowActivationState != WindowActivationState.Deactivated)
+				{
+					_startFullScreenChecked = true;
+					if (_settingsService.Settings.StartInFullScreen)
+					{
+						_logger.LogInformation("Full screen: starting in it (Settings → General → Startup)");
+						SetFullScreen(true);
+					}
+				}
 			};
 		}
+
+		private bool _startFullScreenChecked;
 
 		// The panes' + selectors' top in full screen: the screen's top (the bar slides OVER them). Read by
 		// ApplyPaneLayerMargin / PlacePaneSelectors (tagged hooks).

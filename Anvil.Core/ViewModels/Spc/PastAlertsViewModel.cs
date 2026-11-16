@@ -263,7 +263,7 @@ namespace Anvil.ViewModels
 
 		/// <summary>Which moment the counts describe (a replay has no "Updated…").</summary>
 		public override string CardContext => _contextAt is { } at
-			? $"In effect at {UnitFormat.Clock(at)} · {UnitFormat.Date(at, "MMM d, yyyy")}"
+			? $"In effect at {UnitFormat.Clock(at)} · {UnitFormat.DateFull(at)}"
 			: _context;
 
 		// The moment the counts describe — kept, not baked into text, so a Settings → Units change re-words it.

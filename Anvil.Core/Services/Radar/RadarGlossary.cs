@@ -183,7 +183,7 @@ namespace Anvil.Services
 			"Latitude and longitude of the tower",
 			"Where the dish physically stands. Every echo the radar reports is measured outward from this point.",
 			string.Empty,
-			"Positive latitude is north of the equator; negative longitude is west of Greenwich.");
+			"N / S of the equator, E / W of Greenwich. Shown as decimal degrees or degrees · minutes · seconds (Settings → General → Units).");
 
 		// ── Site status ──────────────────────────────────────────────────────────────────────────
 		public static RadarGlossaryCard Status(SiteAvailability availability, bool replayDay) => new(

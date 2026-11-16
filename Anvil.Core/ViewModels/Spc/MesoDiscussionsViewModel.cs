@@ -275,7 +275,7 @@ namespace Anvil.ViewModels
 
 		public string ReaderTitle => _selected is { } s ? $"{s.Discussion.Label} · {s.Discussion.Kind.Issuer}" : string.Empty;
 		public string ReaderValid => _selected is { } s
-			? $"{UnitFormat.Date(s.Discussion.Issued, "ddd MMM d")} · {UnitFormat.Clock(s.Discussion.Issued)} → {UnitFormat.Clock(s.Discussion.Expires)}"
+			? $"{UnitFormat.DateWeekday(s.Discussion.Issued)} · {UnitFormat.Clock(s.Discussion.Issued)} → {UnitFormat.Clock(s.Discussion.Expires)}"
 			: string.Empty;
 		public string ReaderAreas => _text?.AreasAffected ?? string.Empty;
 		public string ReaderConcerning => _text is { Concerning.Length: > 0 } t ? t.Concerning : _selected?.Discussion.Concerning ?? string.Empty;

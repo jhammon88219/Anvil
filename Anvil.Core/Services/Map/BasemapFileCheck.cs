@@ -65,7 +65,7 @@ namespace Anvil.Services
 			var sizeWords = size >= Gib
 				? string.Create(CultureInfo.CurrentCulture, $"{size / Gib:0.0} GB")
 				: string.Create(CultureInfo.CurrentCulture, $"{Math.Max(1, Math.Round(size / (1024.0 * 1024))):0} MB");
-			var line = $"{detail} · {sizeWords} · {written.ToString("d MMM yyyy", CultureInfo.CurrentCulture)}";
+			var line = $"{detail} · {sizeWords} · {Models.UnitFormat.Day(written)}";
 			return new BasemapFileCheck(true, "A map Anvil can read.", cover, line);
 		}
 

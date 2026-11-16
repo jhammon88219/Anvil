@@ -579,6 +579,8 @@ namespace Anvil.ViewModels
 				OnPropertyChanged(nameof(RadarCardTime));
 				OnPropertyChanged(nameof(RadarLoopSpanText));
 				OnPropertyChanged(nameof(PastEventRangeText));
+				OnPropertyChanged(nameof(PastEventDateText)); // Settings → Units → Date (2026-11-16)
+				OnPropertyChanged(nameof(RadarCardCoords));   // Settings → Units → Coordinates
 				RaiseLoadedReplayReadouts();
 				WordAutoStormMotion();
 			};
@@ -1271,8 +1273,8 @@ namespace Anvil.ViewModels
 		public IReadOnlyList<string> PastEventDurationShortLabels { get; } =
 			new[] { "30m", "1h", "2h", "3h", "6h", "12h" };
 
-		/// <summary>The selected date, as the card's headline ("Tue May 24, 2011").</summary>
-		public string PastEventDateText => ReplayStartLocal().ToString("ddd MMM d, yyyy");
+		/// <summary>The selected date, as the card's headline ("Tue May 24, 2011" — Settings → Units → Date).</summary>
+		public string PastEventDateText => UnitFormat.Day(ReplayStartLocal().DateTime, weekday: true);
 
 		/// <summary>The selected window, as the card's second line ("5:00 PM → 7:00 PM"). Derived from the
 		/// pickers, so it previews what Load will do rather than reporting what was loaded.</summary>
@@ -1371,9 +1373,11 @@ namespace Anvil.ViewModels
 		// and before one is, the header shows dimmed placeholders. The window as a console-clock pair: digits
 		// "5:00–7:00" + suffix "PM"; a window crossing noon/midnight names the start's designator in the digits.
 
-		/// <summary>The loaded window's date ("Tuesday May 24, 2011"), or the placeholder.</summary>
+		/// <summary>The loaded window's date ("Tuesday May 24, 2011" — the date part per Settings → Units → Date), or the placeholder.</summary>
 		public string LoadedReplayDateText =>
-			_loadedWindowStartUtc is { } start ? start.ToLocalTime().ToString("dddd MMM d, yyyy") : "No replay date";
+			_loadedWindowStartUtc is { } start
+				? start.ToLocalTime().ToString("dddd") + " " + UnitFormat.Day(start.ToLocalTime().DateTime)
+				: "No replay date";
 
 		/// <summary>The loaded window's times, without the final AM/PM ("5:00–7:00"), or the placeholder.</summary>
 		public string LoadedReplayRangeDigits

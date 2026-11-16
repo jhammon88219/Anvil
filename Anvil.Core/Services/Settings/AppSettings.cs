@@ -873,6 +873,15 @@ namespace Anvil.Services
 			set => SetProperty(ref _loadHomeOnLaunch, value);
 		}
 
+		private bool _startInFullScreen;
+		/// <summary>Open Anvil in full screen (Settings → General → Startup). Default OFF. Full screen itself is still never
+		/// saved — this is the one way to start in it (MainWindow.FullScreen.cs).</summary>
+		public bool StartInFullScreen
+		{
+			get => _startInFullScreen;
+			set => SetProperty(ref _startInFullScreen, value);
+		}
+
 		private string _distanceUnits = Models.DistanceUnits.Kilometers;
 		/// <summary>
 		/// The unit every GROUND-DISTANCE readout is shown in — the range ruler's chip and the Inspector's
@@ -913,6 +922,41 @@ namespace Anvil.Services
 		private string _hailUnits = Models.UnitChoices.Hail.Default;
 		/// <summary>"in" | "cm".</summary>
 		public string HailUnits { get => _hailUnits; set => SetProperty(ref _hailUnits, Models.UnitChoices.Hail.Normalize(value)); }
+
+		private string _dateFormat = Models.UnitChoices.Date.Default;
+		/// <summary>"written" | "monthfirst" | "dayfirst" | "iso" — how every calendar date reads.</summary>
+		public string DateFormat { get => _dateFormat; set => SetProperty(ref _dateFormat, Models.UnitChoices.Date.Normalize(value)); }
+
+		private string _coordinateFormat = Models.UnitChoices.Coords.Default;
+		/// <summary>"decimal" | "dms" — how every latitude / longitude reads.</summary>
+		public string CoordinateFormat { get => _coordinateFormat; set => SetProperty(ref _coordinateFormat, Models.UnitChoices.Coords.Normalize(value)); }
+
+		private string _unitSet = Models.UnitChoices.Set.Default;
+		/// <summary>
+		/// "us" | "metric" | "forecaster" | "custom" (Settings → General → Units → Unit set). A preset FIXES the unit
+		/// properties above (written through); "custom" leaves them free. ⚠️ While a preset is chosen, the last CUSTOM picks
+		/// live in the <c>Custom…</c> properties below, so choosing Custom again brings them back.
+		/// </summary>
+		public string UnitSetChoice { get => _unitSet; set => SetProperty(ref _unitSet, Models.UnitChoices.Set.Normalize(value)); }
+
+		// The last CUSTOM unit picks, saved when a preset is chosen (MapViewModel.UnitSetIndex) — only READ on the way back
+		// to Custom. Defaults = the shipped defaults.
+		private string _customClockFormat = Models.UnitChoices.Clock.Default;
+		public string CustomClockFormat { get => _customClockFormat; set => SetProperty(ref _customClockFormat, Models.UnitChoices.Clock.Normalize(value)); }
+		private string _customTimeZoneChoice = Models.UnitChoices.Zone.Default;
+		public string CustomTimeZoneChoice { get => _customTimeZoneChoice; set => SetProperty(ref _customTimeZoneChoice, Models.UnitChoices.Zone.Normalize(value)); }
+		private string _customDistanceUnits = Models.DistanceUnits.Kilometers;
+		public string CustomDistanceUnits { get => _customDistanceUnits; set => SetProperty(ref _customDistanceUnits, Models.DistanceUnits.Normalize(value)); }
+		private string _customSpeedUnits = Models.UnitChoices.Speed.Default;
+		public string CustomSpeedUnits { get => _customSpeedUnits; set => SetProperty(ref _customSpeedUnits, Models.UnitChoices.Speed.Normalize(value)); }
+		private string _customHeightUnits = Models.UnitChoices.Height.Default;
+		public string CustomHeightUnits { get => _customHeightUnits; set => SetProperty(ref _customHeightUnits, Models.UnitChoices.Height.Normalize(value)); }
+		private string _customHailUnits = Models.UnitChoices.Hail.Default;
+		public string CustomHailUnits { get => _customHailUnits; set => SetProperty(ref _customHailUnits, Models.UnitChoices.Hail.Normalize(value)); }
+		private string _customDateFormat = Models.UnitChoices.Date.Default;
+		public string CustomDateFormat { get => _customDateFormat; set => SetProperty(ref _customDateFormat, Models.UnitChoices.Date.Normalize(value)); }
+		private string _customCoordinateFormat = Models.UnitChoices.Coords.Default;
+		public string CustomCoordinateFormat { get => _customCoordinateFormat; set => SetProperty(ref _customCoordinateFormat, Models.UnitChoices.Coords.Normalize(value)); }
 
 		private string _scopeColor = Models.ScopeColors.ThemeDefault;
 		/// <summary>

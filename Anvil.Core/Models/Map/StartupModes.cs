@@ -12,14 +12,15 @@ namespace Anvil.Models
 	{
 		public const string MapOnly = "map";
 		public const string Now = "now";
+		public const string Fore = "fore"; // ForeCast only (2026-11-16)
 		public const string NowFore = "nowfore";
 		public const string Past = "past";
 
 		/// <summary>Picker order.</summary>
-		public static readonly IReadOnlyList<string> Tokens = new[] { MapOnly, Now, NowFore, Past };
+		public static readonly IReadOnlyList<string> Tokens = new[] { MapOnly, Now, Fore, NowFore, Past };
 
-		/// <summary>The picker's words, in <see cref="Tokens"/> order.</summary>
-		public static readonly IReadOnlyList<string> Labels = new[] { "Map only", "NowCast", "NowCast + ForeCast", "PastCast" };
+		/// <summary>The picker's words, in <see cref="Tokens"/> order (short: five share the 394 px picker).</summary>
+		public static readonly IReadOnlyList<string> Labels = new[] { "Map only", "NowCast", "ForeCast", "Now + Fore", "PastCast" };
 
 		/// <summary>A known token, else NowCast (the default fixed start).</summary>
 		public static string Normalize(string? token) => token is not null && Tokens.Contains(token) ? token : Now;

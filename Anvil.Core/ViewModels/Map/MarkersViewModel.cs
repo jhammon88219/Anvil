@@ -263,7 +263,7 @@ namespace Anvil.ViewModels
 
 		/// <summary>The selected marker's coordinates, formatted (or empty).</summary>
 		public string SelectedMarkerCoords => _selectedMarker is { } m
-			? $"{m.Latitude:0.0000}, {m.Longitude:0.0000}"
+			? UnitFormat.LatLon(m.Latitude, m.Longitude, digits: 4) // Settings → Units → Coordinates
 			: string.Empty;
 
 		/// <summary>How the selected marker's position was set — drives the editor's source icon/color.</summary>

@@ -21,5 +21,14 @@ namespace Anvil.Controls.GeneralSettingsConsoles
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(GeneralSettingsConsoleWindow),
 				new PropertyMetadata(null));
+
+		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Restore Window defaults?",
+				"Monitors goes back to the DEFAULT column."))
+			{
+				vm.ResetWindow();
+			}
+		}
 	}
 }

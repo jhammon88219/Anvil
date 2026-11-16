@@ -201,7 +201,7 @@ namespace Anvil.ViewModels
 				return new UptimeDayCell(level, messages > 0, tip);
 			}).ToList();
 
-		public string StripStartLabel => _report?.Days.FirstOrDefault() is { } d ? d.Day.ToDateTime(TimeOnly.MinValue).ToString("MMM d", CultureInfo.CurrentCulture) : string.Empty;
+		public string StripStartLabel => _report?.Days.FirstOrDefault() is { } d ? UnitFormat.Day(d.Day.ToDateTime(TimeOnly.MinValue), year: false) : string.Empty;
 		public string StripEndLabel => _report is null ? string.Empty : "Today";
 
 		/// <summary>The newest holes, outages and gaps together.</summary>
@@ -361,8 +361,8 @@ namespace Anvil.ViewModels
 				$"{s.Frames} frame{(s.Frames == 1 ? "" : "s")}"
 					+ (s.Tilts.Count > 0 ? $" · {s.Tilts.Count} tilts, {s.Tilts.Min():0.0#}–{s.Tilts.Max():0.0#}°" : string.Empty),
 				s.FirstSeenUtc.ToLocalTime().Date == s.LastSeenUtc.ToLocalTime().Date
-					? s.LastSeenUtc.ToLocalTime().ToString("MMM d", CultureInfo.CurrentCulture)
-					: $"{s.FirstSeenUtc.ToLocalTime():MMM d} – {s.LastSeenUtc.ToLocalTime():MMM d}")).ToList();
+					? UnitFormat.Day(s.LastSeenUtc.ToLocalTime().DateTime, year: false)
+					: $"{UnitFormat.Day(s.FirstSeenUtc.ToLocalTime().DateTime, year: false)} – {UnitFormat.Day(s.LastSeenUtc.ToLocalTime().DateTime, year: false)}")).ToList();
 
 		public bool HasNonStandard => _site is not null && _nonStandard.ForSite(_site.Id).Count > 0;
 
@@ -390,7 +390,7 @@ namespace Anvil.ViewModels
 			RaiseNonStandard();
 		}
 
-		private static string Clock(DateTimeOffset utc) => $"{UnitFormat.Date(utc, "MMM d")}, {UnitFormat.Clock(utc)}";
+		private static string Clock(DateTimeOffset utc) => $"{UnitFormat.DateShort(utc)}, {UnitFormat.Clock(utc)}";
 
 		internal static string Duration(TimeSpan span)
 		{

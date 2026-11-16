@@ -1,18 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- GeneralSettingsConsoleStartup — Settings → General's "Startup" section (was the Startup page + the Radar page's
-     duplicate Home site), on a Primitives/SettingsConsolePlate.
+     duplicate Home site), on a Primitives/SettingsConsolePlate. General B (2026-11-16).
 
-       Startup                                                                                      DEFAULT
-       Opens on   (•) Pick up where I left off          The modes that were on when you…   Where I left off
-                  ( ) Start in [Map only|NowCast|…]     PastCast starts ready to load…              NowCast
-       Home site  KTLX · Norman                         Pick it in the Radar Atlas                    None
-       ☐ Load home site on launch                       Skipped when Anvil starts in PastCast          Off
-       96         420                                   hint (one line, trims)                  150, right
+       Startup    [Restore defaults]                                                               DEFAULT
+       Opens on   (•) Pick up where I left off                                              Where I left off
+                  ( ) Start in
+                      [Map only|NowCast|ForeCast|Now + Fore|PastCast]   (394, under the radio's text)  NowCast
+                                                  ↕ 24 px (the "Opens on" group ends)
+       Home site  KTLX · Norman                                                                        None
+       ☐ Load home site on launch  Ignored in PastCast                                                  Off
+       ☐ Start in full screen                                                                           Off
+       96         420                                              (hint column, empty)        150, right
 
-     ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's — every General section uses the same, so labels, controls,
-     hints and defaults line up down the page. Change them together.
-     ⚠️ Read ONCE at map-ready (MapViewModel.RestoreTemporalSession) — a change applies next launch; a fixed start is never
-     saved over the last session. The home site is PICKED in the Radar Atlas; this shows it. -->
+     ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's — every General section uses the same, so labels, controls and
+     defaults line up down the page. Change them together.
+     ⚠️ Read ONCE at launch (MapViewModel.RestoreTemporalSession at map-ready; full screen by MainWindow) — a change applies
+     next launch; a fixed start is never saved over the last session. The home site is PICKED in the Radar Atlas; this shows
+     it. Restore defaults asks first and CLEARS the home site (the user's call). -->
 <UserControl x:Class="Anvil.Controls.GeneralSettingsConsoles.GeneralSettingsConsoleStartup"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -22,6 +26,11 @@
              mc:Ignorable="d">
 
     <prim:SettingsConsolePlate x:Name="GeneralSettingsConsoleStartupPlate" Title="Startup" ShowDefaultHeader="True">
+        <prim:SettingsConsolePlate.HeaderContent>
+            <Button x:Name="StartupRestoreDefaultsButton" Content="Restore defaults" Click="OnRestoreDefaults"
+                    ToolTipService.ToolTip="Put Startup back to the DEFAULT column (asks first)"/>
+        </prim:SettingsConsolePlate.HeaderContent>
+
         <Grid ColumnSpacing="12" RowSpacing="10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="96"/>
@@ -34,48 +43,53 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="Opens on"/>
             <RadioButton x:Name="StartupResumeRadioButton" Grid.Row="0" Grid.Column="1" GroupName="StartupChoice" VerticalAlignment="Center"
                          Content="Pick up where I left off"
                          IsChecked="{x:Bind ViewModel.StartupResume, Mode=TwoWay}"/>
-            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                       Text="The modes that were on when you closed Anvil"/>
             <TextBlock Grid.Row="0" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultStartupResumeText}"/>
 
-            <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="12">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <RadioButton x:Name="StartupFixedRadioButton" GroupName="StartupChoice" VerticalAlignment="Center" MinWidth="0"
-                             Content="Start in"
-                             IsChecked="{x:Bind ViewModel.StartupFixed, Mode=TwoWay}"/>
-                <prim:SegmentedPicker x:Name="StartupModePicker" Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                      ItemsSource="{x:Bind ViewModel.StartupModeLabels}"
-                                      SelectedIndex="{x:Bind ViewModel.StartupModeIndex, Mode=TwoWay}"
-                                      IsEnabled="{x:Bind ViewModel.StartupFixed, Mode=OneWay}"/>
-            </Grid>
-            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                       Text="PastCast starts ready to load, not loaded"/>
-            <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
+            <RadioButton x:Name="StartupFixedRadioButton" Grid.Row="1" Grid.Column="1" GroupName="StartupChoice" VerticalAlignment="Center"
+                         Content="Start in"
+                         IsChecked="{x:Bind ViewModel.StartupFixed, Mode=TwoWay}"/>
+
+            <!-- Under the radio's TEXT: the RadioButton's glyph (20) + its 8 px gap = 28 … rounded to the mock-up's 26. -->
+            <prim:SegmentedPicker x:Name="StartupModePicker" Grid.Row="2" Grid.Column="1" Margin="26,0,0,0"
+                                  HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                                  ItemsSource="{x:Bind ViewModel.StartupModeLabels}"
+                                  SelectedIndex="{x:Bind ViewModel.StartupModeIndex, Mode=TwoWay}"
+                                  IsEnabled="{x:Bind ViewModel.StartupFixed, Mode=OneWay}"/>
+            <TextBlock Grid.Row="2" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultStartupModeText}"/>
 
-            <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="Home site"/>
-            <TextBlock x:Name="HomeSiteNameText" Grid.Row="2" Grid.Column="1" VerticalAlignment="Center"
+            <!-- 24 px above (10 row spacing + 14): the "Opens on" group ends here. -->
+            <TextBlock Grid.Row="3" Margin="0,14,0,0" VerticalAlignment="Center" Text="Home site"/>
+            <TextBlock x:Name="HomeSiteNameText" Grid.Row="3" Grid.Column="1" Margin="0,14,0,0" VerticalAlignment="Center"
                        Text="{x:Bind ViewModel.SiteFavorites.HomeSiteName, Mode=OneWay}"/>
-            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                       Text="Pick it in the Radar Atlas"/>
-            <TextBlock Grid.Row="2" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
+            <TextBlock Grid.Row="3" Grid.Column="3" Margin="0,14,0,0" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultHomeSiteText}"/>
 
-            <CheckBox x:Name="LoadHomeOnLaunchCheckBox" Grid.Row="3" Grid.ColumnSpan="2" VerticalAlignment="Center"
-                      Content="Load home site on launch"
-                      IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Start the live radar loop for your home site when Anvil opens"/>
-            <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                       Text="Skipped when Anvil starts in PastCast"/>
-            <TextBlock Grid.Row="3" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
+            <StackPanel Grid.Row="4" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="12">
+                <CheckBox x:Name="LoadHomeOnLaunchCheckBox" VerticalAlignment="Center" MinWidth="0"
+                          Content="Load home site on launch"
+                          IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"
+                          ToolTipService.ToolTip="Start the live radar loop for your home site when Anvil opens"/>
+                <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Ignored in PastCast"/>
+            </StackPanel>
+            <TextBlock Grid.Row="4" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultLoadHomeOnLaunchText}"/>
+
+            <CheckBox x:Name="StartInFullScreenCheckBox" Grid.Row="5" Grid.ColumnSpan="2" VerticalAlignment="Center"
+                      Content="Start in full screen"
+                      IsChecked="{x:Bind ViewModel.StartInFullScreen, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Open Anvil full screen (F11 or Esc leaves it)"/>
+            <TextBlock Grid.Row="5" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
+                       Text="{x:Bind ViewModel.DefaultStartInFullScreenText}"/>
         </Grid>
     </prim:SettingsConsolePlate>
 </UserControl>
