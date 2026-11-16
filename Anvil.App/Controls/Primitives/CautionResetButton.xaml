@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- CautionResetButton — the amber key of a RESET (a Settings page's "Reset all …"; 2026-11-16). One look in every state:
+
+       rest      [        Reset all General settings        ]   amber text · dark amber face · amber edge
+       hover     [        Reset all General settings        ]   each a step BRIGHTER
+       pressed   [        Reset all General settings        ]   each a step DARKER
+       disabled  [        Reset all General settings        ]   stock disabled grey
+
+     The look is Styles.xaml CautionResetButtonStyle (its OWN template, so hover/pressed never drop to the stock grey/white);
+     Dialogs/ConfirmResetDialog's Reset key wears the same style. Height 36; the HOST sets the width (a page's Reset all
+     stretches full width under its cards).
+     ⚠️ It only RAISES Click — the host asks first (ConfirmResetDialog) and resets. Never reset straight from a click. -->
+<UserControl x:Class="Anvil.Controls.Primitives.CautionResetButton"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Button x:Name="CautionResetButtonKey" Style="{StaticResource CautionResetButtonStyle}"
+            Height="36" HorizontalAlignment="Stretch"
+            Content="{x:Bind Text, Mode=OneWay}"
+            Click="OnKeyClick"/>
+</UserControl>

@@ -13,7 +13,7 @@
        ┌ Window  [Restore defaults (greyed)] ──────────────────────── DEFAULT ┐  GeneralSettingsConsoleWindow
        │ Monitors (greyed)                                                    │
        └──────────────────────────────────────────────────────────────────────┘
-       [              Reset all General settings  (caution amber)            ]  GeneralSettingsResetAllButton
+       [              Reset all General settings  (caution amber)            ]  Primitives/CautionResetButton
 
      ⚠️ Every reset ASKS first (Dialogs/ConfirmResetDialog) — Reset all here, and each section's Restore defaults.
      ⚠️ Every launch preference lives in Startup — a new one is a row there, not a new page. The HOME SITE shows here ONLY
@@ -23,6 +23,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:generalSettingsConsoles="using:Anvil.Controls.GeneralSettingsConsoles"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -31,8 +32,8 @@
         <generalSettingsConsoles:GeneralSettingsConsoleStartup x:Name="GeneralSettingsConsoleStartup" ViewModel="{x:Bind ViewModel}"/>
         <generalSettingsConsoles:GeneralSettingsConsoleUnits x:Name="GeneralSettingsConsoleUnits" ViewModel="{x:Bind ViewModel}"/>
         <generalSettingsConsoles:GeneralSettingsConsoleWindow x:Name="GeneralSettingsConsoleWindow" ViewModel="{x:Bind ViewModel}"/>
-        <Button x:Name="GeneralSettingsResetAllButton" Style="{StaticResource SettingsCautionButtonStyle}"
-                Content="Reset all General settings" Click="OnResetAll"
-                ToolTipService.ToolTip="Startup, Units and Window back to their DEFAULT columns (asks first)"/>
+        <prim:CautionResetButton x:Name="GeneralSettingsResetAllButton"
+                                 Text="Reset all General settings" Click="OnResetAll"
+                                 ToolTipService.ToolTip="Startup, Units and Window back to their DEFAULT columns (asks first)"/>
     </StackPanel>
 </UserControl>

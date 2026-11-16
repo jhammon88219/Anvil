@@ -103,6 +103,14 @@
             <SolidColorBrush x:Key="SettingsCautionForegroundBrush" Color="#FFFFC95C"/>
             <SolidColorBrush x:Key="SettingsCautionBackgroundBrush" Color="#FF3A2C10"/>
             <SolidColorBrush x:Key="SettingsCautionBorderBrush" Color="#FFC98F1C"/>
+            <!-- Primitives/CautionResetButton's states — the SAME amber family as the resting look: hover = a step brighter
+                 (face, edge, text), pressed = a step darker. -->
+            <SolidColorBrush x:Key="SettingsCautionBackgroundPointerOverBrush" Color="#FF4A3814"/>
+            <SolidColorBrush x:Key="SettingsCautionBorderPointerOverBrush" Color="#FFE0A52E"/>
+            <SolidColorBrush x:Key="SettingsCautionForegroundPointerOverBrush" Color="#FFFFD685"/>
+            <SolidColorBrush x:Key="SettingsCautionBackgroundPressedBrush" Color="#FF2B200B"/>
+            <SolidColorBrush x:Key="SettingsCautionBorderPressedBrush" Color="#FFA87516"/>
+            <SolidColorBrush x:Key="SettingsCautionForegroundPressedBrush" Color="#FFE0AE4A"/>
             <!-- A GREYED segmented picker's pick (locked, or not built yet): a slightly LIFTED grey, never the accent, so a
                  control you can't use doesn't read as available. -->
             <SolidColorBrush x:Key="SegmentLockedSelectedBrush" Color="#FF3C3C3C"/>
@@ -141,6 +149,12 @@
             <SolidColorBrush x:Key="SettingsCautionForegroundBrush" Color="#FF8A5600"/>
             <SolidColorBrush x:Key="SettingsCautionBackgroundBrush" Color="#FFFFF1D6"/>
             <SolidColorBrush x:Key="SettingsCautionBorderBrush" Color="#FFC98F1C"/>
+            <SolidColorBrush x:Key="SettingsCautionBackgroundPointerOverBrush" Color="#FFFFE6B8"/>
+            <SolidColorBrush x:Key="SettingsCautionBorderPointerOverBrush" Color="#FFB37A0E"/>
+            <SolidColorBrush x:Key="SettingsCautionForegroundPointerOverBrush" Color="#FF6E4400"/>
+            <SolidColorBrush x:Key="SettingsCautionBackgroundPressedBrush" Color="#FFFFDB99"/>
+            <SolidColorBrush x:Key="SettingsCautionBorderPressedBrush" Color="#FF9A6A0C"/>
+            <SolidColorBrush x:Key="SettingsCautionForegroundPressedBrush" Color="#FF5C3900"/>
             <SolidColorBrush x:Key="SegmentLockedSelectedBrush" Color="#FFD6D6D6"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
@@ -174,6 +188,12 @@
             <SolidColorBrush x:Key="SettingsCautionForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
             <SolidColorBrush x:Key="SettingsCautionBackgroundBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
             <SolidColorBrush x:Key="SettingsCautionBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            <SolidColorBrush x:Key="SettingsCautionBackgroundPointerOverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="SettingsCautionBorderPointerOverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="SettingsCautionForegroundPointerOverBrush" Color="{ThemeResource SystemColorHighlightTextColor}"/>
+            <SolidColorBrush x:Key="SettingsCautionBackgroundPressedBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="SettingsCautionBorderPressedBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            <SolidColorBrush x:Key="SettingsCautionForegroundPressedBrush" Color="{ThemeResource SystemColorHighlightTextColor}"/>
             <SolidColorBrush x:Key="SegmentLockedSelectedBrush" Color="{ThemeResource SystemColorGrayTextColor}"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
@@ -250,15 +270,75 @@
         <Setter Property="HorizontalAlignment" Value="Right"/>
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
     </Style>
-    <!-- "Reset all …" under a Settings page's cards: full width, the CAUTION amber. Only the resting look is re-coloured (a
-         Style can't reach the template's hover/pressed keys); it drops to the stock hover — fine for a rare, confirmed act. -->
-    <Style x:Key="SettingsCautionButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
-        <Setter Property="HorizontalAlignment" Value="Stretch"/>
-        <Setter Property="Height" Value="36"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
+    <!-- CAUTION RESET: the amber key of a reset (Primitives/CautionResetButton wears it; so does Dialogs/ConfirmResetDialog's
+         Reset). Its OWN template, so every state stays in the amber family — the stock template's hover/pressed fell back to
+         grey and white, which didn't go with the resting look:
+           rest     amber text · dark amber face · amber edge
+           hover    each a step BRIGHTER        (SettingsCaution*PointerOverBrush)
+           pressed  each a step DARKER          (SettingsCaution*PressedBrush)
+           disabled stock disabled text + edge on the plain control face
+         ⚠️ The Width/Height are the HOST's (a page's Reset all stretches; the dialog's key is the dialog's). -->
+    <Style x:Key="CautionResetButtonStyle" TargetType="Button">
         <Setter Property="Foreground" Value="{ThemeResource SettingsCautionForegroundBrush}"/>
         <Setter Property="Background" Value="{ThemeResource SettingsCautionBackgroundBrush}"/>
         <Setter Property="BorderBrush" Value="{ThemeResource SettingsCautionBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="12,5,12,6"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="FocusVisualMargin" Value="-3"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="CautionResetRoot">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="CautionResetFace.Background" Value="{ThemeResource SettingsCautionBackgroundPointerOverBrush}"/>
+                                        <Setter Target="CautionResetFace.BorderBrush" Value="{ThemeResource SettingsCautionBorderPointerOverBrush}"/>
+                                        <Setter Target="CautionResetContent.Foreground" Value="{ThemeResource SettingsCautionForegroundPointerOverBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="CautionResetFace.Background" Value="{ThemeResource SettingsCautionBackgroundPressedBrush}"/>
+                                        <Setter Target="CautionResetFace.BorderBrush" Value="{ThemeResource SettingsCautionBorderPressedBrush}"/>
+                                        <Setter Target="CautionResetContent.Foreground" Value="{ThemeResource SettingsCautionForegroundPressedBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="CautionResetFace.Background" Value="{ThemeResource ControlFillColorDisabledBrush}"/>
+                                        <Setter Target="CautionResetFace.BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}"/>
+                                        <Setter Target="CautionResetContent.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+
+                        <Border x:Name="CautionResetFace"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding CornerRadius}"/>
+                        <ContentPresenter x:Name="CautionResetContent"
+                                          Padding="{TemplateBinding Padding}"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          FontWeight="{TemplateBinding FontWeight}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          AutomationProperties.AccessibilityView="Raw"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- ══════════════════════════════ 2. SIZES ══════════════════════════════

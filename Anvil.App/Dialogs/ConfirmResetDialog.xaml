@@ -20,14 +20,11 @@
                CloseButtonText="Cancel"
                DefaultButton="Close">
 
-    <!-- The reset key wears the CAUTION amber (Styles.xaml SettingsCaution*), like the page's Reset all. Only the resting look
-         is re-coloured (a Style can't reach the template's hover/pressed keys). -->
+    <!-- The reset key wears CautionResetButtonStyle — the SAME look, every state, as Primitives/CautionResetButton (a
+         dialog key must be a Button, so it takes the style, not the control). Stretch fills the dialog's button cell. -->
     <ContentDialog.PrimaryButtonStyle>
-        <Style TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
-            <Setter Property="Foreground" Value="{ThemeResource SettingsCautionForegroundBrush}"/>
-            <Setter Property="Background" Value="{ThemeResource SettingsCautionBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{ThemeResource SettingsCautionBorderBrush}"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
+        <Style TargetType="Button" BasedOn="{StaticResource CautionResetButtonStyle}">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
         </Style>
     </ContentDialog.PrimaryButtonStyle>
 
