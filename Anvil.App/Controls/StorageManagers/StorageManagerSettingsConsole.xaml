@@ -2,7 +2,7 @@
 <!-- StorageManagerSettingsConsole — everything Settings → Storage manages, on ONE surface (no expander header).
 
        ┌──────────────────────────────────────────────────────────────────────────────────────┐
-       │ 6.1 GB         [📁 Open folder]   (square 50 key, 15 px from the total)                │ ← StorageManagerSettingsConsoleUsageBar
+       │ 6.1 GB         [📁 Open folder]   (wide key, 50 tall, 15 px from the total) │ ← StorageManagerSettingsConsoleUsageBar
        │ used by Anvil                                                                         │
        │ ██████████████████████████████████████████████▌▌▏▏   (hover = legend)                 │
        │                                                                                       │   14 gap

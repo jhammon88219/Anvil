@@ -3,12 +3,14 @@
      StorageManagerSettingsConsoleDataTable, in StorageKind order).
 
        ──────────────────────────────────────────────────────────────────────────────────────────────── ← hairline (top)
-       ■  Radar volumes — loops you've loaded        1.8 GB  [  Clear  ]  [📁]  [ 5 GB   ⌄]  [ 5 days ⌄]
-       16 *  name + grey hint (trims)                80 ←R   96          36    104          112
-                                                     ↑ Low = normal text · Medium = caution · High = critical (bold)
+       ■  Radar volumes        Loops you've loaded    1.8 GB  [  Clear  ]  [📁]  [ 5 GB   ⌄]  [ 5 days ⌄]
+       16 NAME (= widest name)  * grey hint (trims)   80 ←R   96          36    104          112
+                                                      ↑ Low = normal text · Medium = caution · High = critical (bold)
 
-     ⚠️ THE COLUMNS ARE THE TABLE'S — the same seven widths + ColumnSpacing 10 as the header row in
+     ⚠️ THE COLUMNS ARE THE TABLE'S — the same eight columns + ColumnSpacing 10 as the header row in
      StorageManagerSettingsConsoleDataTable. Change both, or the controls stop lining up down the table.
+     ⚠️ NAME is Auto until the table measures every row's name (NaturalNameWidth) and hands the WIDEST back
+     (SetNameColumnWidth) — so the grey hints all start on one edge. The names never change, so it runs once.
      ⚠️ Every value with a changing width sits in a FIXED slot (Size 80 right-aligned, tabular digits; the button 96;
      each dropdown fills its column), so a new size or choice never moves anything.
      ⚠️ The Size colour is a VisualState (FillStates ← Item.Fill) with {ThemeResource} brushes — never a brush picked in C#.
@@ -25,7 +27,8 @@
     <Grid Height="44" ColumnSpacing="10">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="16"/>  <!-- swatch -->
-            <ColumnDefinition Width="*"/>   <!-- Data -->
+            <ColumnDefinition x:Name="NameColumn" Width="Auto"/> <!-- name: the TABLE sets every row to the widest name -->
+            <ColumnDefinition Width="*"/>   <!-- grey description -->
             <ColumnDefinition Width="80"/>  <!-- Size -->
             <ColumnDefinition Width="96"/>  <!-- Clear -->
             <ColumnDefinition Width="36"/>  <!-- folder -->
@@ -51,26 +54,27 @@
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
 
-        <Rectangle x:Name="RowRule" Grid.ColumnSpan="7" Height="1" VerticalAlignment="Top"
+        <Rectangle x:Name="RowRule" Grid.ColumnSpan="8" Height="1" VerticalAlignment="Top"
                    Fill="{ThemeResource CardStrokeColorDefaultBrush}"/>
 
         <Rectangle x:Name="KindSwatch" Grid.Column="0" Width="10" Height="10" RadiusX="2" RadiusY="2"
                    HorizontalAlignment="Left" Fill="{x:Bind Swatch, Mode=OneWay}"/>
 
-        <TextBlock x:Name="KindName" Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
-            <Run Text="{x:Bind Item.Name, Mode=OneWay}"/><Run Text=" "/><Run Text="{x:Bind Item.Hint, Mode=OneWay}"
-                FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-        </TextBlock>
+        <TextBlock x:Name="KindName" Grid.Column="1" VerticalAlignment="Center"
+                   Text="{x:Bind Item.Name, Mode=OneWay}"/>
+        <TextBlock x:Name="KindHint" Grid.Column="2" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                   FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Text="{x:Bind Item.Hint, Mode=OneWay}"/>
 
-        <TextBlock x:Name="SizeText" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right"
+        <TextBlock x:Name="SizeText" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right"
                    Style="{StaticResource TabularNumberTextStyle}"
                    Text="{x:Bind Item.SizeText, Mode=OneWay}"/>
 
         <!-- Clear: at once, or (usage history) after a yes. Both declared; Item.ConfirmClear picks. -->
-        <Button x:Name="ClearButton" Grid.Column="3" Width="96" Content="Clear"
+        <Button x:Name="ClearButton" Grid.Column="4" Width="96" Content="Clear"
                 Visibility="{x:Bind Show(Item.ConfirmClear, x:False), Mode=OneWay}"
                 IsEnabled="{x:Bind Item.CanClear, Mode=OneWay}" Click="OnClearClick"/>
-        <Button x:Name="ClearConfirmButton" Grid.Column="3" Width="96" Content="Clear…"
+        <Button x:Name="ClearConfirmButton" Grid.Column="4" Width="96" Content="Clear…"
                 Visibility="{x:Bind Show(Item.ConfirmClear, x:True), Mode=OneWay}"
                 IsEnabled="{x:Bind Item.CanClear, Mode=OneWay}">
             <Button.Flyout>
@@ -86,7 +90,7 @@
         </Button>
 
         <!-- Open this kind's folder. The mark is a drawn Path (no unverified glyph). -->
-        <Button x:Name="OpenFolderButton" Grid.Column="4" Width="36" Height="30" Padding="0"
+        <Button x:Name="OpenFolderButton" Grid.Column="5" Width="36" Height="30" Padding="0"
                 ToolTipService.ToolTip="{x:Bind Item.FolderToolTip, Mode=OneWay}"
                 AutomationProperties.Name="{x:Bind Item.FolderToolTip, Mode=OneWay}"
                 Click="OnOpenFolderClick">
@@ -98,24 +102,24 @@
         <!-- Max size -->
         <!-- ⚠️ VerticalAlignment="Center" on BOTH dropdowns: WinUI's ComboBox style defaults to Top (buttons to Center),
              so without it the dropdowns sit higher than the Size text and the buttons. -->
-        <ComboBox x:Name="MaxSizeComboBox" Grid.Column="5" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+        <ComboBox x:Name="MaxSizeComboBox" Grid.Column="6" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                   Visibility="{x:Bind Show(Item.HasMax, x:True), Mode=OneWay}"
                   IsEnabled="{x:Bind Item.IsMaxEditable, Mode=OneWay}"
                   ItemsSource="{x:Bind Item.MaxChoices, Mode=OneWay}"
                   SelectedItem="{x:Bind Item.SelectedMax, Mode=TwoWay}"/>
         <!-- No Max size: a rule across the whole column (12 in from each side), not a lone dash. -->
-        <Rectangle x:Name="MaxSizeNoneRule" Grid.Column="5" Height="1" Margin="12,0" VerticalAlignment="Center"
+        <Rectangle x:Name="MaxSizeNoneRule" Grid.Column="6" Height="1" Margin="12,0" VerticalAlignment="Center"
                    HorizontalAlignment="Stretch" Fill="{ThemeResource TextFillColorTertiaryBrush}"
                    Visibility="{x:Bind Show(Item.HasMax, x:False), Mode=OneWay}"/>
 
         <!-- Keep for -->
-        <ComboBox x:Name="KeepForComboBox" Grid.Column="6" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+        <ComboBox x:Name="KeepForComboBox" Grid.Column="7" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                   Visibility="{x:Bind Show(Item.HasKeep, x:True), Mode=OneWay}"
                   IsEnabled="{x:Bind Item.IsKeepEditable, Mode=OneWay}"
                   ItemsSource="{x:Bind Item.KeepChoices, Mode=OneWay}"
                   SelectedItem="{x:Bind Item.SelectedKeep, Mode=TwoWay}"/>
         <!-- Lines up with the dropdown text above: the ComboBox's own padding (ComboBoxPadding) + its 1 px border. -->
-        <TextBlock x:Name="KeepForAlwaysText" Grid.Column="6" Text="Always kept" VerticalAlignment="Center"
+        <TextBlock x:Name="KeepForAlwaysText" Grid.Column="7" Text="Always kept" VerticalAlignment="Center"
                    Margin="1,0,0,0" Padding="{ThemeResource ComboBoxPadding}"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Visibility="{x:Bind Show(Item.HasKeep, x:False), Mode=OneWay}"/>

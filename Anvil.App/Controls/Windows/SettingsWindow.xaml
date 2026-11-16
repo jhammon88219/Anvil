@@ -7,8 +7,12 @@
        ┌──────────────────────────────────────────────────────────────────────────────────────┐
        │ [logo] Anvil Settings ←35→ VERSION │ BUILD   LICENSE   SOURCE    ░░░ lock pin ─ □ ✕ ░│ ← THE BAND (raised):
        │ (slot)                     1.0.0.0 │ Debug   AGPL-3.0  GitHub    ░ reserved 220 px ░ │   about-Anvil facts,
-       ├──────────────────┬───────────────────────────────────────────────────────────────────┤   label OVER value
-       │▌▓ ⛰  Map  ▓▓▓▓▓▓▓│  ┌──────────────────────────────┐ ┌──────────────────────────────┐ │
+       │░░░░░░░░░░░░░░░░░░╭───────────────────────────────────────────────────────────────────┤   label OVER value
+       │▌▓ ⛰  Map  ▓▓▓▓▓▓▓│  ┌──────────────────────────────┐ ┌──────────────────────────────┐ │   ← band + rail = ONE grey L;
+                                                                                                    the only line = the BODY's
+                                                                                                    outline (left + top, 10 px
+                                                                                                    inside curve) = PlateOutline
+                                                                                                    IsInsetCorner
        │   ◎  Radar       │  │ the selected page's body —   │ │  LIVE MAP PREVIEW            │ │ ← Composites/MapPreview,
        │   ⊙  Radar Range │  │ sections FULL WIDTH (one     │ │      ┌┄┄┄┄┄┄┐                │ │   only on Map + Radar
        │   ▤  Storage     │  │ UserControl per page,        │ │     ┆   ╳   ┆    ◉           │ │   Range Ring
@@ -16,7 +20,7 @@
        │ ──────────────── │  │            ½                 │ │             ½                │ │   body split HALF/HALF
        │   ⚒  Dev         │  └──────────────────────────────┘ └──────────────────────────────┘ │
        └──────────────────┴───────────────────────────────────────────────────────────────────┘
-        ↑ Primitives/TabStrip, 220 wide, raised, hairline on its right
+        ↑ Primitives/TabStrip, 220 wide, raised (its edge line is the body outline's, not its own)
           No preview → the sections column takes the WHOLE body (the preview column is 0 wide).
 
      The top bar's Settings menu lists the SAME pages (MainWindow.xaml's SETTINGS MENU, one declared item per
@@ -57,12 +61,11 @@
             <ColumnDefinition Width="*"/>   <!-- the body -->
         </Grid.ColumnDefinitions>
 
-        <!-- THE BAND — raised, full width, a hairline under it. The SAME grammar as the Atlas's band: logo slot,
-             name, then each fact as its LABEL over its VALUE, left-aligned. ⚠️ Its right 220 px are RESERVED for
-             the lock, pin and caption buttons that sit over that corner. -->
+        <!-- THE BAND — raised, full width, NO line of its own (the body's inset-corner outline below draws the only line).
+             The SAME grammar as the Atlas's band: logo slot, name, then each fact as its LABEL over its VALUE,
+             left-aligned. ⚠️ Its right 220 px are RESERVED for the lock, pin and caption buttons over that corner. -->
         <Border x:Name="SettingsBand" Grid.ColumnSpan="2"
-                Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}" BorderThickness="0,0,0,1">
+                Background="{ThemeResource OverlayBarSurfaceRaisedBrush}">
             <Grid Padding="16,12,0,12" ColumnSpacing="14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/> <!-- logo slot -->
@@ -109,16 +112,22 @@
             </Grid>
         </Border>
 
-        <!-- THE RAIL — raised, a hairline on its right edge. The entries are BuildTabs'. -->
+        <!-- THE RAIL — raised, NO line of its own (see the body outline). The entries are BuildTabs'. -->
         <Border x:Name="SettingsRail" Grid.Row="1"
-                Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}" BorderThickness="0,0,1,0">
+                Background="{ThemeResource OverlayBarSurfaceRaisedBrush}">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
                 <ctl:TabStrip x:Name="Strip" Margin="6,8,6,8"
                               ItemsSource="{x:Bind Tabs}"
                               SelectedIndex="{x:Bind ViewModel.SettingsTabIndex, Mode=TwoWay}"/>
             </ScrollViewer>
         </Border>
+
+        <!-- THE BODY OUTLINE — ONE Path (Primitives/PlateOutline, inset-corner mode): the hairline up the body's left edge,
+             round a 10 px curve, along its top; the raised wedge outside the curve, so the band's grey flows into the
+             rail's with no line between them. Behind the body, never hit-testable. Rounded chrome = one outline
+             (docs/bugs.md S30/S31) — never two Borders meeting at the corner. -->
+        <ctl:PlateOutline x:Name="SettingsBodyOutline" Grid.Row="1" Grid.Column="1"
+                          IsInsetCorner="True" IsRaised="True" ShowShadow="False" IsHitTestVisible="False"/>
 
         <!-- The body: the sections column FILLS it (every SettingsExpander stretches edge to edge — option A, the
              user's call 2026-11-11). A page with the live preview splits the body HALF AND HALF, column | preview;

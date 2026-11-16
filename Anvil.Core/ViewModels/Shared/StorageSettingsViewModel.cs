@@ -39,21 +39,21 @@ namespace Anvil.ViewModels
 			// this side only re-measures a moment later.
 			var radarMax = StorageLimits.Resolve(StorageLimits.RadarVolumeMax, (long)Math.Max(1, _settings.RadarCacheMaxGb) * StorageLimits.GB, days: false);
 			var radarKeep = StorageLimits.Resolve(StorageLimits.RadarVolumeKeep, Math.Max(1, _settings.RadarCacheKeepDays), days: true);
-			RadarVolumes = new StorageItemViewModel(StorageKind.RadarVolumes, "Radar volumes", "— loops you've loaded",
+			RadarVolumes = new StorageItemViewModel(StorageKind.RadarVolumes, "Radar volumes", "Loops you've loaded",
 				storage.FolderOf(StorageKind.RadarVolumes), ClearRadarVolumesAsync, confirmClear: false,
 				radarMax.List, radarMax.Pick, v => { _settings.RadarCacheMaxGb = (int)(v / StorageLimits.GB); _ = RefreshAfterEngineSweepAsync(); },
 				radarKeep.List, radarKeep.Pick, v => { _settings.RadarCacheKeepDays = (int)v; _ = RefreshAfterEngineSweepAsync(); });
 
 			var diagMax = StorageLimits.Resolve(StorageLimits.DiagnosticsMax, (long)Math.Max(1, _settings.RadarDiagnosticsMaxGb) * StorageLimits.GB, days: false);
 			var diagKeep = StorageLimits.Resolve(StorageLimits.DiagnosticsKeep, Math.Max(1, _settings.RadarDiagnosticsKeepDays), days: true);
-			RadarDiagnostics = new StorageItemViewModel(StorageKind.RadarDiagnostics, "Radar diagnostics", "— troubleshooting records",
+			RadarDiagnostics = new StorageItemViewModel(StorageKind.RadarDiagnostics, "Radar diagnostics", "Troubleshooting records",
 				storage.FolderOf(StorageKind.RadarDiagnostics), () => ClearKindAsync(StorageKind.RadarDiagnostics), confirmClear: false,
 				diagMax.List, diagMax.Pick, v => { _settings.RadarDiagnosticsMaxGb = (int)(v / StorageLimits.GB); _ = RefreshAfterEngineSweepAsync(); },
 				diagKeep.List, diagKeep.Pick, v => { _settings.RadarDiagnosticsKeepDays = (int)v; _ = RefreshAfterEngineSweepAsync(); });
 
 			var wMax = StorageLimits.Resolve(StorageLimits.WeatherDataMax, (long)_settings.WeatherDataMaxMb * StorageLimits.MB, days: false);
 			var wKeep = StorageLimits.Resolve(StorageLimits.WeatherDataKeep, _settings.WeatherDataKeepDays, days: true);
-			WeatherData = new StorageItemViewModel(StorageKind.WeatherData, "Weather data", "— outlooks, warnings, reports, cells",
+			WeatherData = new StorageItemViewModel(StorageKind.WeatherData, "Weather data", "Outlooks, warnings, reports, cells",
 				storage.FolderOf(StorageKind.WeatherData), () => ClearKindAsync(StorageKind.WeatherData), confirmClear: false,
 				wMax.List, wMax.Pick, v => { _settings.WeatherDataMaxMb = (int)(v / StorageLimits.MB); _ = SweepThenRefreshAsync(StorageKind.WeatherData); },
 				wKeep.List, wKeep.Pick, v => { _settings.WeatherDataKeepDays = (int)v; _ = SweepThenRefreshAsync(StorageKind.WeatherData); });
@@ -65,7 +65,7 @@ namespace Anvil.ViewModels
 				lMax.List, lMax.Pick, v => { _settings.LogsMaxMb = (int)(v / StorageLimits.MB); _ = SweepThenRefreshAsync(StorageKind.Logs); },
 				lKeep.List, lKeep.Pick, v => { _settings.LogsKeepDays = (int)v; _ = SweepThenRefreshAsync(StorageKind.Logs); });
 
-			UsageHistory = new StorageItemViewModel(StorageKind.UsageHistory, "Your usage history", "— Atlas “Your use”",
+			UsageHistory = new StorageItemViewModel(StorageKind.UsageHistory, "Your usage history", "Atlas “Your use”",
 				storage.FolderOf(StorageKind.UsageHistory), ClearUsageAsync, confirmClear: true,
 				null, null, null, null, null, null);
 

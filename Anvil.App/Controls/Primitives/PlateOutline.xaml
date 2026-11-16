@@ -23,6 +23,15 @@
      ShadowOffsetY (-2 = up, 2 = down). Its inner half is hidden under the face. Strength = OverlayBarShadowOpacity.
      Colours: face = OverlayBarSurfaceBrush / Raised (IsRaised), line = FloatingHairlineBrush. Radii: Corner + InsideCurve
      in the code-behind.
+     ⭐ INSET CORNER mode (IsInsetCorner, + IsRaised, ShowShadow False) — the Settings window's BODY, wrapped by a raised
+     band above and rail to the left: ONE hairline up the body's left edge, a 10 px curve, along its top; the raised
+     wedge outside the curve so band and rail read as one grey L. No right/bottom stroke, no shadow.
+
+         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░    ← band (raised)
+         ░░░░░╭──────────────────────    ← the line, from the curve to the right edge
+         ░░░░░│  body (ground)
+         rail │
+
      Host contract: stretch it over the plate's whole rect, BEHIND the content. TabLeft/TabWidth/TabHeight = the tab's
      box in this control's own coordinates (0 width = no tab).
      ============================================================================ -->
@@ -39,6 +48,16 @@
                 <VisualState x:Name="RaisedFace">
                     <VisualState.Setters>
                         <Setter Target="PlateOutlineFace.Fill" Value="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <!-- Which line: a floating plate's near-white hairline, or (inset corner) the window's own card stroke —
+                 the colour the band and rail hairlines always had. -->
+            <VisualStateGroup x:Name="LineStates">
+                <VisualState x:Name="FloatingLine"/>
+                <VisualState x:Name="InsetLine">
+                    <VisualState.Setters>
+                        <Setter Target="PlateOutlineFace.Stroke" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>

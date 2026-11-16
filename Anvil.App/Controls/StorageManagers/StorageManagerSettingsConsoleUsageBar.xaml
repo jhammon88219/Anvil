@@ -2,11 +2,10 @@
 <!-- StorageManagerSettingsConsoleUsageBar — the top of Settings → Storage: the total + the folder key, then ONE bar
      split by kind.
 
-       6.1 GB          ┌──────┐
-       used by Anvil   │  📁  │        ← total 28 SemiBold tabular (line 34) over the caption 12 (line 16) = 50 tall;
-                       │ Open │          15 px; "Open Anvil's folder" = a SQUARE 50 × 50 key, icon 18 over "Open / folder"
-                       │folder│          at 10 px (two lines: one line is wider than the key)
-                       └──────┘
+       6.1 GB          ┌──────────────────┐
+       used by Anvil   │ 📁   Open folder  │  ← total 28 SemiBold tabular (line 34) over the caption 12 (line 16) = 50 tall;
+                       └──────────────────┘    15 px; "Open Anvil's folder" = a WIDE key 50 tall, padding 12/16, the 26 px
+                                               icon then 10 px then "Open folder" (14, one line)
        ████████████████████████████▌▌▌▏▏  ← 14 tall, a segment per kind in StorageKind order, 2 px apart, rounded 3
 
        hover the bar ↓
@@ -28,7 +27,7 @@
              mc:Ignorable="d">
 
     <StackPanel Spacing="10">
-        <!-- The total over its caption (34 + 16 = 50 tall, exact line heights), then 15 px, then the square folder key of
+        <!-- The total over its caption (34 + 16 = 50 tall, exact line heights), then 15 px, then the wide folder key of
              the SAME 50 height. The total block fits its text, so the key shifts a few px when the total's length changes. -->
         <StackPanel x:Name="UsageTotalLine" Orientation="Horizontal" Spacing="15">
             <StackPanel x:Name="UsageTotalBlock" VerticalAlignment="Center">
@@ -41,23 +40,21 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </StackPanel>
 
-            <!-- Open Anvil's folder: icon over a two-line label ("Open folder" is wider than the key on one line). The
-                 mark is a drawn Path (no unverified glyph), scaled to 18 by the Viewbox. -->
-            <Button x:Name="OpenAnvilFolderButton" Width="50" Height="50" Padding="0" VerticalAlignment="Center"
+            <!-- Open Anvil's folder: a WIDE key, 50 tall — the 26 px icon with "Open folder" to its right on one line.
+                 The mark is a drawn Path (no unverified glyph), scaled to 26 by the Viewbox. -->
+            <Button x:Name="OpenAnvilFolderButton" Height="50" Padding="12,0,16,0" VerticalAlignment="Center"
                     ToolTipService.ToolTip="Open Anvil's folder"
                     AutomationProperties.Name="Open Anvil's folder"
                     Click="OnOpenAnvilFolderClick">
-                <StackPanel Spacing="2" HorizontalAlignment="Center">
-                    <Viewbox Width="18" Height="18" HorizontalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Viewbox Width="26" Height="26" VerticalAlignment="Center">
                         <Grid Width="16" Height="16">
-                            <Path StrokeThickness="1.1" StrokeLineJoin="Round"
+                            <Path StrokeThickness="0.9" StrokeLineJoin="Round"
                                   Stroke="{ThemeResource TextFillColorSecondaryBrush}"
                                   Data="M1.5,4.5 L1.5,12.5 A1,1 0 0 0 2.5,13.5 L13.5,13.5 A1,1 0 0 0 14.5,12.5 L14.5,6.5 A1,1 0 0 0 13.5,5.5 L8,5.5 L6.5,3.5 L2.5,3.5 A1,1 0 0 0 1.5,4.5 Z"/>
                         </Grid>
                     </Viewbox>
-                    <TextBlock FontSize="10" LineHeight="11" LineStackingStrategy="BlockLineHeight" TextAlignment="Center">
-                        <Run Text="Open"/><LineBreak/><Run Text="folder"/>
-                    </TextBlock>
+                    <TextBlock Text="Open folder" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
         </StackPanel>

@@ -81,6 +81,29 @@ namespace Anvil.Controls.Primitives
 		public static readonly DependencyProperty ShowShadowProperty =
 			DependencyProperty.Register(nameof(ShowShadow), typeof(bool), typeof(PlateOutline), new PropertyMetadata(true));
 
+		/// <summary>
+		/// INSET CORNER mode (the Settings window, 2026-11-16): instead of a floating plate, the outline of a BODY that a
+		/// raised band (above) and rail (left) wrap like an L — ONE hairline down its left edge, curving
+		/// <see cref="InsetCornerRadius"/> into its top edge, plus the raised fill outside that curve so the band's grey
+		/// flows round into the rail's. Right and bottom are not stroked. Set <see cref="IsRaised"/> (the wedge is the
+		/// band/rail grey) and <see cref="ShowShadow"/> False with it.
+		/// </summary>
+		public bool IsInsetCorner
+		{
+			get => (bool)GetValue(IsInsetCornerProperty);
+			set => SetValue(IsInsetCornerProperty, value);
+		}
+
+		public static readonly DependencyProperty IsInsetCornerProperty =
+			DependencyProperty.Register(nameof(IsInsetCorner), typeof(bool), typeof(PlateOutline), new PropertyMetadata(false, (d, e) =>
+			{
+				((PlateOutline)d).ApplyFace();
+				OnShapeChanged(d, e);
+			}));
+
+		/// <summary>The inset corner's radius.</summary>
+		private const double InsetCornerRadius = 10;
+
 		/// <summary>Raised face (the pane selectors, the radar console) rather than the ground face.</summary>
 		public bool IsRaised
 		{
@@ -98,8 +121,11 @@ namespace Anvil.Controls.Primitives
 		private static void OnShapeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
 			((PlateOutline)d).Rebuild();
 
-		private void ApplyFace() =>
+		private void ApplyFace()
+		{
 			VisualStateManager.GoToState(this, IsRaised ? "RaisedFace" : "GroundFace", false);
+			VisualStateManager.GoToState(this, IsInsetCorner ? "InsetLine" : "FloatingLine", false);
+		}
 
 		private void OnLoaded(object sender, RoutedEventArgs e)
 		{
@@ -110,6 +136,7 @@ namespace Anvil.Controls.Primitives
 			{
 				_root.Changed += OnRootChanged;
 			}
+			ApplyFace(); // a state set before the first layout can be lost — re-assert once loaded
 			Rebuild();
 		}
 
@@ -164,6 +191,11 @@ namespace Anvil.Controls.Primitives
 		// snapped to whole pixels, then half a pixel in), so the one-pixel stroke lights exactly one pixel row/column.
 		private PathGeometry BuildOutline(double width, double height, double scale)
 		{
+			if (IsInsetCorner)
+			{
+				return BuildInsetCorner(width, height, scale);
+			}
+
 			double half = 0.5 / scale;
 			double Snap(double value) => Math.Round(value * scale) / scale;
 
@@ -235,6 +267,46 @@ namespace Anvil.Controls.Primitives
 
 			var geometry = new PathGeometry();
 			geometry.Figures.Add(figure);
+			return geometry;
+		}
+
+		// INSET CORNER: two figures in ONE geometry, so one Path's Fill + Stroke draw both with no seam.
+		//   1. the WEDGE — the corner point to the curve, FILLED (raised grey); its edges lie exactly on the line below,
+		//      so stroking it adds nothing new;
+		//   2. the LINE — open, unfilled: up the left edge from the bottom, round the curve, along the top to the right.
+		// Every straight run sits on a pixel centre, like the plate's.
+		private static PathGeometry BuildInsetCorner(double width, double height, double scale)
+		{
+			double half = 0.5 / scale;
+			double Snap(double value) => Math.Round(value * scale) / scale;
+			double left = half;
+			double top = half;
+			double right = Snap(width);
+			double bottom = Snap(height);
+			double r = InsetCornerRadius;
+
+			var wedge = new PathFigure { StartPoint = new Point(left, top), IsClosed = true, IsFilled = true };
+			wedge.Segments.Add(new LineSegment { Point = new Point(left + r, top) });
+			wedge.Segments.Add(new ArcSegment
+			{
+				Point = new Point(left, top + r),
+				Size = new Size(r, r),
+				SweepDirection = SweepDirection.Counterclockwise,
+			});
+
+			var line = new PathFigure { StartPoint = new Point(left, bottom), IsClosed = false, IsFilled = false };
+			line.Segments.Add(new LineSegment { Point = new Point(left, top + r) });
+			line.Segments.Add(new ArcSegment
+			{
+				Point = new Point(left + r, top),
+				Size = new Size(r, r),
+				SweepDirection = SweepDirection.Clockwise,
+			});
+			line.Segments.Add(new LineSegment { Point = new Point(right, top) });
+
+			var geometry = new PathGeometry();
+			geometry.Figures.Add(wedge);
+			geometry.Figures.Add(line);
 			return geometry;
 		}
 	}

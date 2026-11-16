@@ -44,6 +44,12 @@ namespace Anvil.Controls.StorageManagers
 
 		public Visibility Show(bool value, bool when) => value == when ? Visibility.Visible : Visibility.Collapsed;
 
+		/// <summary>The name's own width while its column is still Auto (0 before the first layout).</summary>
+		internal double NaturalNameWidth => KindName.ActualWidth;
+
+		/// <summary>The table fixes every row's name column to the widest name, so the grey hints line up.</summary>
+		internal void SetNameColumnWidth(double width) => NameColumn.Width = new GridLength(width);
+
 		private static void OnItemChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
 		{
 			var row = (StorageManagerSettingsConsoleDataTableRow)d;

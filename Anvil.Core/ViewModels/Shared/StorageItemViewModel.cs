@@ -38,7 +38,7 @@ namespace Anvil.ViewModels
 
 		public StorageKind Kind { get; }
 		public string Name { get; }
-		/// <summary>The grey words after the name ("— loops you've loaded"); empty for none.</summary>
+		/// <summary>The grey words in the column after the name ("Loops you've loaded"); empty for none.</summary>
 		public string Hint { get; }
 		/// <summary>The folder the row's folder button opens.</summary>
 		public string Folder { get; }
