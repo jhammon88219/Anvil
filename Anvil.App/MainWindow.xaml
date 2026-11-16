@@ -512,11 +512,6 @@
                                                           Click="OnSettingsPageClick">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE81D;"/></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
-                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuRadarConsoleItem" Text="Radar Console" Tag="5"
-                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 5), Mode=OneWay}"
-                                                          Click="OnSettingsPageClick">
-                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE768;"/></ToggleMenuFlyoutItem.Icon>
-                                    </ToggleMenuFlyoutItem>
                                     <ToggleMenuFlyoutItem x:Name="SettingsMenuLiveDataItem" Text="Live Data" Tag="7"
                                                           IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 7), Mode=OneWay}"
                                                           Click="OnSettingsPageClick">

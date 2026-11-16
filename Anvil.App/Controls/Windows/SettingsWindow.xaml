@@ -158,8 +158,7 @@
 
                     <!-- Slot 4 (WindowMode) has NO body: retired into General. -->
 
-                    <cmp:RadarConsoleSettingsTab x:Name="ConsoleTab" ViewModel="{x:Bind ViewModel}"
-                                                 Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 5), Mode=OneWay}"/>
+                    <!-- Slot 5 (RadarConsole) has NO body: retired into Radar (2026-11-16). -->
 
                     <!-- Slot 6 (SettingsTab.Startup) = GENERAL: Startup + Units + Window (Units, WindowMode merged in). -->
                     <cmp:GeneralSettingsTab x:Name="GeneralTab" ViewModel="{x:Bind ViewModel}"

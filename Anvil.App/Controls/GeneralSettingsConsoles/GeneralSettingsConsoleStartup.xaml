@@ -8,9 +8,9 @@
                       [Map only|NowCast|ForeCast|Now + Fore|PastCast]   (394, under the radio's text)  NowCast
                                                   ↕ 24 px (the "Opens on" group ends)
        Home site  KTLX · Norman                                                                        None
-       ☐ Load home site on launch  Only when Anvil starts in NowCast                                    Off
+       ☐ Load home site on launch                          Only when Anvil starts in NowCast            Off
        ☐ Start in full screen                                                                           Off
-       96         420                                              (hint column, empty)        150, right
+       96         420                                              hint (one line)              150, right
 
      ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's — every General section uses the same, so labels, controls and
      defaults line up down the page. Change them together.
@@ -74,14 +74,12 @@
             <TextBlock Grid.Row="3" Grid.Column="3" Margin="0,14,0,0" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultHomeSiteText}"/>
 
-            <StackPanel Grid.Row="4" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="12">
-                <CheckBox x:Name="LoadHomeOnLaunchCheckBox" VerticalAlignment="Center" MinWidth="0"
-                          Content="Load home site on launch"
-                          IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Start the live radar loop for your home site when Anvil opens"/>
-                <!-- The rule is MapViewModel's SiteFavorites.HoldLaunchLoad (docs/bugs.md S33): a live loop arms NowCast. -->
-                <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Only when Anvil starts in NowCast"/>
-            </StackPanel>
+            <CheckBox x:Name="LoadHomeOnLaunchCheckBox" Grid.Row="4" Grid.ColumnSpan="2" VerticalAlignment="Center"
+                      Content="Load home site on launch"
+                      IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Start the live radar loop for your home site when Anvil opens"/>
+            <!-- In the HINT column like every hint. The rule is MapViewModel's SiteFavorites.HoldLaunchLoad (docs/bugs.md S33). -->
+            <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Only when Anvil starts in NowCast"/>
             <TextBlock Grid.Row="4" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultLoadHomeOnLaunchText}"/>
 

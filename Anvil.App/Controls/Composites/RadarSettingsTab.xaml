@@ -1,207 +1,48 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<!-- RadarSettingsTab — the Radar tab of the Settings window: what the map DRAWS over the basemap for radar.
+<!-- RadarSettingsTab — Settings → Radar (2026-11-16: the old Radar page + the whole Radar Console page, merged): how live
+     radar is polled, the RAM a PastCast loop may hold, the site keys, and the console's scrubber.
 
-       ┌──────────────────────────────────────────────────────┐   (Home site → Settings → General → Startup, 2026-11-16)
-       │  ⌄  NowCast live polling                            │
-       │    [ Regime-aware | Fixed time ]                     │  ← PERSISTED (RegimeAwarePolling), default
-       │    Checks for a new scan when the radar's own …     │     regime-aware; the explainer follows the mode
-       │    Check every [ 20 s | 30 s | 45 s | 60 s ]         │  ← PERSISTED (LivePollSeconds); GREYED (still
-       │                                                      │     visible) in regime-aware mode
-       │  ⌄  Radar memory                                     │
-       │    This PC        16 GB of RAM   (Use recommended)   │  ← RAM detected; button greys at the default
-       │    Radar may use  ────●──────────   4 GB            │  ← PERSISTED (RadarMemoryGb), 1 GB…75% of RAM,
-       │    1 pane: 58+ frames  2 panes: 46+  4 panes: 33+    │     default ¼; WORST-case frames per layout
-       │    The longest PastCast loop this allows, …          │
-       │    Recommended is a quarter of your RAM (4 GB here). │  ← caution colour when High (>½ RAM) / Low
-       │  ⌄  Radar site keys                                  │
-       │    [✓] Hide the other sites while one is loaded      │  ← PERSISTED, default ON (the `focus` rule)
-       │        Click the loaded site again to unload it…     │
-       │    [ ] Show only my home and favorite sites          │  ← PERSISTED, default off (the `favorites` rule);
-       │        Star sites in the Atlas. The loaded site …    │     the SITE PICKER's footer is the SAME switch;
-       │                                                      │     the line says so when there are none
-       │    [ ] Show only the sites near the cursor (exp.)    │  ← PERSISTED, default off (the `reveal` rule,
-       │        A 230 km ring follows the cursor; …           │     a SITE-REVEAL bolt-on); with favorites on too,
-       │                                                      │     favorites always show + the ring adds the rest
-       │    The NEXRAD / TDWR / research toggles … still apply│  ← each row = ONE rule in radar-sites.js
-       └──────────────────────────────────────────────────────┘
+       ┌ Live polling  [Restore defaults] ──────────────────────────── DEFAULT ┐  RadarSettingsConsoleLivePolling
+       │ Check · Every (greyed unless Fixed time)                               │
+       └────────────────────────────────────────────────────────────────────────┘
+          12 px of the body's darker ground
+       ┌ Memory  [Restore defaults] ───────────────────────────────── DEFAULT ┐  RadarSettingsConsoleMemory
+       │ This PC · Radar may use (+ frames per layout, caution line)           │
+       └────────────────────────────────────────────────────────────────────────┘
+       ┌ Site keys  [Restore defaults] ────────────────────────────── DEFAULT ┐  RadarSettingsConsoleSiteKeys
+       │ Hide the others · Only home + favorites · Only near the cursor         │
+       └────────────────────────────────────────────────────────────────────────┘
+       ┌ Scrubber  [Restore defaults] ─────────────────────────────── DEFAULT ┐  RadarSettingsConsoleScrubber
+       │ Style · Preview (the chosen style, live)                               │
+       └────────────────────────────────────────────────────────────────────────┘
+       ┌ Hatch scrubber  [Restore defaults] ───────────────────────── DEFAULT ┐  RadarSettingsConsoleHatchScrubber
+       │ Line colour · spacing · weight · opacity (greyed unless Style = Hatch) │
+       └────────────────────────────────────────────────────────────────────────┘
+       [                  Reset all Radar settings  (caution amber)              ]  Primitives/CautionResetButton
 
-     ⚠️ THE "RANGE RINGS & RULER" SECTION MOVED to its own tab, Radar Range Ring (RangeRingSettingsTab), when
-     the rings grew a per-part style editor (2026-09-24). The distance UNIT moved to the Units tab (2026-10-22).
-
-     WHY THIS IS NOT IN THE MAP TAB: these are radar CONTENT drawn over the basemap, and they are GLOBAL —
-     one copy for the whole map, not one per pane. The Map tab next door owns the basemap and the camera; a
-     control that would need a copy per pane belongs in RadarControls instead.
-
-     ⚠️ THE MILE GRID IS GONE, deleted rather than hidden (its VM, its JS module and its IMapService seam
-     with it). It drew a square grid anchored to the selected radar as a distance reference, and it did not
-     work: at any opacity that made the lines visible over radar returns they were lost in the basemap's own
-     lines, and at any opacity that kept them out of the way they were invisible over returns. A distance
-     reference wants a different form — range rings from the site, or a point-to-point measure tool — not a
-     grid competing with everything already drawn. Don't re-add this one.
-     → THAT DIFFERENT FORM NOW EXISTS: the RANGE RULER (Assets/Map/js/radar-ruler.js), armed from the tools
-     tier beside the site picker. It draws ONE cased line instead of a field of them, which is the part the
-     grid could not do at any opacity. The unit it speaks in is Settings → Units → Distance.
-
-     ⚠️ THE TOOLS SECTION IS GONE with the Inspect toggle — Inspect is a MODE you arm and disarm while
-     reading the map, not a setting, so it is a key in the OverlayBar now (MainWindow, InspectKey), on the
-     bar's left. It is still a MAP tool rather than a per-pane radar control: one armed cursor over a
-     shared camera, reading every pane at one point, with only its VALUE readout per-pane (the live tick on
-     each pane's product ramp). That reasoning put it in this tab; being a gesture rather than a preference
-     is what took it out again.
-
-     ⚠️ THE "RADAR SITES" SECTION IS GONE (2026-09-26). Its Show TDWRs / Show research radars checkboxes became
-     two of THREE per-network marker toggles on the tools tier (MapControlsStrip, NEXRAD · TDWR · research), which
-     also replaced the old master "show site markers" eye. That ends the old "why is my site gone" hunt across
-     two places (the master on the map, the two networks here): every site-marker control is in one place, on
-     the map chrome. ⚠️ They are MAP-MARKER toggles
-     now — they no longer remove a network from the Atlas or the site picker. Don't re-add a marker control
-     here. -->
-
+     ⚠️ Every reset ASKS first (Dialogs/ConfirmResetDialog). The resets live on MapViewModel (ResetLivePolling …), not on
+     RadarViewModel — its live-poll members are the sealed engine's; the page only calls their public setters.
+     ⚠️ Radar Console keeps its enum slot (a saved index) and opens this page (MapViewModel.SettingsTabIndex).
+     ⚠️ Gone from here, don't re-add: Home site (General → Startup), the distance unit (General → Units), rings + ruler (their
+     own page), the mile grid (deleted — the ruler replaced it), Inspect (a map-tools key), the per-network marker toggles
+     (map-tools rail), the PastCast "hold the map" opt-out (every load is held). -->
 <UserControl x:Class="Anvil.Controls.Composites.RadarSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:radarSettingsConsoles="using:Anvil.Controls.RadarSettingsConsoles"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:prim="using:Anvil.Controls.Primitives"
              mc:Ignorable="d">
 
-    <!-- Body: one Primitives/SettingsExpander per section, grid rows inside each. -->
-    <Grid RowSpacing="8" VerticalAlignment="Top">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- nowcast live polling -->
-            <RowDefinition Height="Auto"/> <!-- radar memory -->
-            <RowDefinition Height="Auto"/> <!-- radar site keys -->
-        </Grid.RowDefinitions>
-
-        <!-- ⚠️ THE HOME SITE row is on Settings → General → Startup ONLY (2026-11-16 — it was here AND on Startup).
-             Don't re-add it here. -->
-
-        <!-- ⚠️ READOUTS (the distance unit) MOVED to Settings → General → Units with every other unit (2026-10-22).
-             Don't re-add a unit picker here. -->
-
-        <!-- NOWCAST LIVE POLLING — when the live poll checks for a new scan (docs/regime-aware-polling.md). REGIME-AWARE
-             (default) times each check from the volume's own scan plan (LivePollPlanner); FIXED TIME uses the interval
-             row, which stays VISIBLE but greyed in regime-aware mode so you see what switching gives. Both PERSISTED
-             (AppSettings.RegimeAwarePolling / LivePollSeconds); a change applies from the next check. -->
-        <prim:SettingsExpander Grid.Row="0" Header="NowCast live polling" IsExpanded="True">
-            <StackPanel Spacing="6">
-                <prim:SegmentedPicker Margin="4,0,0,0" HorizontalAlignment="Left" Width="280"
-                                      ItemsSource="{x:Bind ViewModel.Radar.LivePollingModeLabels}"
-                                      SelectedIndex="{x:Bind ViewModel.Radar.LivePollingModeIndex, Mode=TwoWay}"/>
-                <TextBlock Margin="4,0,0,0" TextWrapping="Wrap" MaxWidth="420"
-                           HorizontalAlignment="Left" Opacity="0.75"
-                           Text="{x:Bind PollingExplainer(ViewModel.Radar.IsFixedTimePolling), Mode=OneWay}"/>
-                <Grid ColumnSpacing="12" Margin="4,2,0,0"
-                      IsHitTestVisible="{x:Bind ViewModel.Radar.IsFixedTimePolling, Mode=OneWay}"
-                      Opacity="{x:Bind FixedRowOpacity(ViewModel.Radar.IsFixedTimePolling), Mode=OneWay}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock VerticalAlignment="Center" Text="Check every"/>
-                    <prim:SegmentedPicker Grid.Column="1" Width="280"
-                                          ItemsSource="{x:Bind ViewModel.Radar.LivePollIntervalLabels}"
-                                          SelectedIndex="{x:Bind ViewModel.Radar.RefreshIntervalIndex, Mode=TwoWay}"/>
-                </Grid>
-            </StackPanel>
-        </prim:SettingsExpander>
-
-        <!-- ⚠️ THE "PASTCAST" SECTION IS GONE (2026-10-10): its one switch, "Hold the map while a loop loads", was the
-             loop holding gate's opt-out, and every PastCast load is now held — the user's call. Don't re-add it. -->
-
-        <!-- RADAR MEMORY — the RAM a PastCast loop may hold (Radar.Memory = RadarMemoryViewModel ← Models/RadarMemoryBudget),
-             a RAM-allocation slider. PERSISTED (AppSettings.RadarMemoryGb; null = a quarter of RAM). It sizes
-             the PastCast frame cap at each Load; NowCast is untouched. The note line swaps to the caution brush when the
-             budget is High (over half of RAM) or Low (4-pane loops on the frame floor) — two TextBlocks, never a brush in C#. -->
-        <prim:SettingsExpander Grid.Row="1" Header="Radar memory" IsExpanded="True">
-            <Grid RowSpacing="6" ColumnSpacing="12" Margin="4,0,0,0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- this PC -->
-                    <RowDefinition Height="Auto"/> <!-- slider -->
-                    <RowDefinition Height="Auto"/> <!-- frames per layout -->
-                    <RowDefinition Height="Auto"/> <!-- explainer -->
-                    <RowDefinition Height="Auto"/> <!-- note / warning -->
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="This PC"/>
-                <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center"
-                           Text="{x:Bind ViewModel.Radar.Memory.RamText}"/>
-                <Button Grid.Row="0" Grid.Column="2" Content="Use recommended" Click="OnUseRecommendedMemoryClick"
-                        IsEnabled="{x:Bind Not(ViewModel.Radar.Memory.IsRecommended), Mode=OneWay}"/>
-
-                <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="Radar may use"/>
-                <Slider Grid.Row="1" Grid.Column="1" Width="220" VerticalAlignment="Center"
-                        Minimum="{x:Bind ViewModel.Radar.Memory.MinGb}" Maximum="{x:Bind ViewModel.Radar.Memory.MaxGb}"
-                        StepFrequency="0.5" SmallChange="0.5" LargeChange="1"
-                        IsThumbToolTipEnabled="False"
-                        Value="{x:Bind ViewModel.Radar.Memory.BudgetGb, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="1" Grid.Column="2" VerticalAlignment="Center"
-                           Text="{x:Bind ViewModel.Radar.Memory.BudgetText, Mode=OneWay}"/>
-
-                <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="16" Opacity="0.85">
-                    <TextBlock Text="{x:Bind ViewModel.Radar.Memory.OnePaneText, Mode=OneWay}"/>
-                    <TextBlock Text="{x:Bind ViewModel.Radar.Memory.TwoPaneText, Mode=OneWay}"/>
-                    <TextBlock Text="{x:Bind ViewModel.Radar.Memory.FourPaneText, Mode=OneWay}"/>
-                </StackPanel>
-
-                <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" TextWrapping="Wrap" MaxWidth="420"
-                           HorizontalAlignment="Left" Opacity="0.75"
-                           Text="The longest PastCast loop this allows, counted with every pane showing a different dual-pol product; reflectivity, velocity and SRV panes cost less. NowCast loops always fit."/>
-
-                <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" TextWrapping="Wrap" MaxWidth="420"
-                           HorizontalAlignment="Left" Opacity="0.75"
-                           Visibility="{x:Bind Collapsed(ViewModel.Radar.Memory.IsWarning), Mode=OneWay}"
-                           Text="{x:Bind ViewModel.Radar.Memory.NoteText, Mode=OneWay}"/>
-                <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" TextWrapping="Wrap" MaxWidth="420"
-                           HorizontalAlignment="Left"
-                           Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                           Visibility="{x:Bind Shown(ViewModel.Radar.Memory.IsWarning), Mode=OneWay}"
-                           Text="{x:Bind ViewModel.Radar.Memory.NoteText, Mode=OneWay}"/>
-            </Grid>
-        </prim:SettingsExpander>
-
-        <!-- RADAR SITE KEYS — set-once PREFERENCES about how the keys on the map behave, so they pass the placement test for
-             Settings (the network toggles are gestures and live on the tools tier — see the ⚠️ above). Each switch is ONE
-             rule in radar-sites.js's VISIBILITY RULES table; a new way to hide keys = a rule there + a row here. -->
-        <prim:SettingsExpander Grid.Row="2" Header="Radar site keys" IsExpanded="True">
-            <StackPanel Spacing="4">
-                <!-- PERSISTED (AppSettings.HideOtherSitesWhileLoaded), default ON — the `focus` rule. -->
-                <CheckBox Margin="4,0,0,0"
-                          Content="Hide the other sites while one is loaded"
-                          IsChecked="{x:Bind ViewModel.Radar.HideOtherSitesWhileLoaded, Mode=TwoWay}"/>
-                <TextBlock Margin="32,0,0,8" TextWrapping="Wrap" MaxWidth="400"
-                           HorizontalAlignment="Left" Opacity="0.75"
-                           Text="Click the loaded site again to unload it and bring the others back."/>
-
-                <!-- PERSISTED (AppSettings.ShowOnlyFavoriteSites), default off — the `favorites` rule. ⚠️ The SITE PICKER's
-                     footer (MapControlsStrip) binds the SAME property: two switches, one value, never a copy. -->
-                <CheckBox Margin="4,0,0,0"
-                          Content="Show only my home and favorite sites"
-                          IsChecked="{x:Bind ViewModel.SiteFavorites.ShowOnlyFavoritesOnMap, Mode=TwoWay}"/>
-                <TextBlock Margin="32,0,0,8" TextWrapping="Wrap" MaxWidth="400"
-                           HorizontalAlignment="Left" Opacity="0.75"
-                           Text="{x:Bind ViewModel.SiteFavorites.FavoritesOnlyNote, Mode=OneWay}"/>
-
-                <!-- SITE-REVEAL (experimental bolt-on; grep SITE-REVEAL to excise). PERSISTED
-                     (AppSettings.RevealSitesNearCursor) — the `reveal` rule. -->
-                <CheckBox Margin="4,0,0,0"
-                          Content="Show only the sites near the cursor (experimental)"
-                          IsChecked="{x:Bind ViewModel.Radar.RevealSitesNearCursor, Mode=TwoWay}"/>
-                <TextBlock Margin="32,0,0,0" TextWrapping="Wrap" MaxWidth="400"
-                           HorizontalAlignment="Left" Opacity="0.75"
-                           Text="A 230 km ring follows the cursor; only the sites inside it show, plus the loaded site."/>
-                <!-- end SITE-REVEAL -->
-
-                <TextBlock Margin="4,8,0,0" TextWrapping="Wrap" MaxWidth="420"
-                           HorizontalAlignment="Left" Opacity="0.75"
-                           Text="The NEXRAD / TDWR / research toggles on the tools tier still apply."/>
-            </StackPanel>
-        </prim:SettingsExpander>
-
-    </Grid>
+    <StackPanel Spacing="12" VerticalAlignment="Top">
+        <radarSettingsConsoles:RadarSettingsConsoleLivePolling x:Name="RadarSettingsConsoleLivePolling" ViewModel="{x:Bind ViewModel}"/>
+        <radarSettingsConsoles:RadarSettingsConsoleMemory x:Name="RadarSettingsConsoleMemory" ViewModel="{x:Bind ViewModel}"/>
+        <radarSettingsConsoles:RadarSettingsConsoleSiteKeys x:Name="RadarSettingsConsoleSiteKeys" ViewModel="{x:Bind ViewModel}"/>
+        <radarSettingsConsoles:RadarSettingsConsoleScrubber x:Name="RadarSettingsConsoleScrubber" ViewModel="{x:Bind ViewModel}"/>
+        <radarSettingsConsoles:RadarSettingsConsoleHatchScrubber x:Name="RadarSettingsConsoleHatchScrubber" ViewModel="{x:Bind ViewModel}"/>
+        <prim:CautionResetButton x:Name="RadarSettingsResetAllButton"
+                                 Text="Reset all Radar settings" Click="OnResetAll"
+                                 ToolTipService.ToolTip="Every Radar section back to its DEFAULT column (asks first)"/>
+    </StackPanel>
 </UserControl>

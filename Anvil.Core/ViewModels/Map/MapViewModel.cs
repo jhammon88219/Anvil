@@ -1759,6 +1759,7 @@ namespace Anvil.ViewModels
 				// Units + Window Mode → General (= the Startup slot).
 				if (value == (int)SettingsTab.Edges) value = (int)SettingsTab.Map;
 				if (value is (int)SettingsTab.Units or (int)SettingsTab.WindowMode) value = (int)SettingsTab.Startup;
+			if (value == (int)SettingsTab.RadarConsole) value = (int)SettingsTab.Radar; // merged into Radar (2026-11-16)
 				var clamped = Math.Clamp(value, 0, SettingsTabCount - 1);
 				if (SetProperty(ref _settingsTabIndex, clamped))
 				{
@@ -1874,6 +1875,53 @@ namespace Anvil.ViewModels
 		public string DefaultHeightText => UnitChoices.Height.Labels[UnitChoices.Height.IndexOf(UnitSet.Default.Height)];
 		public string DefaultHailText => UnitChoices.Hail.Labels[UnitChoices.Hail.IndexOf(UnitSet.Default.Hail)];
 		public string DefaultMonitorModeText => MonitorModeLabels[0];
+
+		// ── Settings → Radar (Radar + Radar Console merged, 2026-11-16): each section's Restore defaults + the DEFAULT column.
+		//    ⚠️ Lives HERE, not on RadarViewModel: the live-polling members there are the sealed engine's live-poll code, so
+		//    this only CALLS their public setters. Defaults = a fresh AppSettings (the same values a first run gets). ──
+
+		/// <summary>Live polling's Restore defaults: regime-aware, 30 s fixed interval.</summary>
+		public void ResetLivePolling()
+		{
+			Radar.LivePollingModeIndex = FreshSettings.RegimeAwarePolling ? 0 : 1;
+			Radar.RefreshIntervalIndex = Array.IndexOf(Radar.LivePollIntervalLabels.ToArray(), $"{FreshSettings.LivePollSeconds} s");
+		}
+
+		/// <summary>Memory's Restore defaults: the recommended quarter of RAM (was "Use recommended").</summary>
+		public void ResetRadarMemory() => Radar.Memory.UseRecommended();
+
+		/// <summary>Site keys' Restore defaults.</summary>
+		public void ResetSiteKeys()
+		{
+			Radar.HideOtherSitesWhileLoaded = FreshSettings.HideOtherSitesWhileLoaded;
+			SiteFavorites.ShowOnlyFavoritesOnMap = FreshSettings.ShowOnlyFavoriteSites;
+			Radar.RevealSitesNearCursor = FreshSettings.RevealSitesNearCursor;
+		}
+
+		/// <summary>Scrubber's Restore defaults: the style a first run draws.</summary>
+		public void ResetScrubber() => Radar.ScrubberStyleIndex = ScrubberStyles.IndexOf(FreshSettings.ScrubberStyle);
+
+		/// <summary>"Reset all Radar settings": every Radar section's Restore defaults (asked first, by the page).</summary>
+		public void ResetRadarPage()
+		{
+			ResetLivePolling();
+			ResetRadarMemory();
+			ResetSiteKeys();
+			ResetScrubber();
+			Radar.HatchLook.RestoreDefaults();
+		}
+
+		public string DefaultLivePollingModeText => Radar.LivePollingModeLabels[FreshSettings.RegimeAwarePolling ? 0 : 1];
+		public string DefaultLivePollIntervalText => $"{FreshSettings.LivePollSeconds} s";
+		public string DefaultRadarMemoryText => $"{Radar.Memory.RecommendedGb:0.#} GB (¼ of RAM)";
+		public string DefaultHideOtherSitesText => FreshSettings.HideOtherSitesWhileLoaded ? "On" : "Off";
+		public string DefaultFavoritesOnlyText => FreshSettings.ShowOnlyFavoriteSites ? "On" : "Off";
+		public string DefaultRevealSitesText => FreshSettings.RevealSitesNearCursor ? "On" : "Off";
+		public string DefaultScrubberStyleText => ScrubberStyles.Labels[ScrubberStyles.IndexOf(FreshSettings.ScrubberStyle)];
+		public string DefaultHatchColorText => "Accent";
+		public string DefaultHatchSpacingText => $"{HatchScrubberLook.DefaultSpacing:0} px";
+		public string DefaultHatchWeightText => $"{HatchScrubberLook.DefaultWeight:0.0} px";
+		public string DefaultHatchOpacityText => $"{HatchScrubberLook.DefaultOpacity:0}%";
 
 		/// <summary>Refresh whatever the current tab shows live. Called when the window opens AND when the tab
 		/// changes, because either one can be the moment a live readout first becomes visible. ⚠️ Keep this

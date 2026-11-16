@@ -5,30 +5,28 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.Composites
+namespace Anvil.Controls.RadarSettingsConsoles
 {
 	/// <summary>
-	/// The Settings window's Radar Console tab (see the XAML header): which loop scrubber the bar's console draws,
-	/// each option previewed LIVE by the console's own scrubber control. The choice lives on
-	/// <see cref="RadarViewModel.ScrubberStyleIndex"/>.
+	/// Settings → Radar's Scrubber section (see the XAML header): which loop scrubber the console draws, previewed LIVE by the
+	/// console's own scrubber control. Moved from the retired Radar Console page (2026-11-16).
 	/// </summary>
-	public sealed partial class RadarConsoleSettingsTab : UserControl
+	public sealed partial class RadarSettingsConsoleScrubber : UserControl
 	{
-		// What a preview shows while no loop is loaded: a loop mid-load — a lit run, the frame on screen inside it,
-		// a few frames part-way, the rest empty.
+		// What the preview shows while no loop is loaded: a loop mid-load — a lit run, the frame on screen inside it, a few
+		// frames part-way, the rest empty.
 		private const double SampleIndex = 5;
 		private static readonly ObservableCollection<RadarFrameSegment> Sample = BuildSample();
 
 		private RadarViewModel? _radar;
 
-		public RadarConsoleSettingsTab()
+		public RadarSettingsConsoleScrubber()
 		{
 			InitializeComponent();
 			Loaded += (_, _) => Attach();
 			Unloaded += (_, _) => Detach(); // the VM outlives the Settings window — never leak into it
 		}
 
-		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel
 		{
 			get => (MapViewModel)GetValue(ViewModelProperty);
@@ -36,24 +34,21 @@ namespace Anvil.Controls.Composites
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(RadarConsoleSettingsTab),
-				new PropertyMetadata(null, (d, _) => ((RadarConsoleSettingsTab)d).Attach()));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(RadarSettingsConsoleScrubber),
+				new PropertyMetadata(null, (d, _) => ((RadarSettingsConsoleScrubber)d).Attach()));
 
-		/// <summary>One-way IsChecked for an option card.</summary>
-		public bool IsStyle(int selected, int mine) => selected == mine;
+		public Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
-		private void OnClassicClick(object sender, RoutedEventArgs e) => Pick(0);
-
-		private void OnDotMatrixClick(object sender, RoutedEventArgs e) => Pick(1);
-
-		private void OnHatchClick(object sender, RoutedEventArgs e) => Pick(2);
-
-		private void Pick(int index)
+		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
 		{
-			if (ViewModel?.Radar is { } radar) radar.ScrubberStyleIndex = index;
+			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Restore Scrubber default?",
+				"The radar console's scrubber goes back to the DEFAULT style."))
+			{
+				vm.ResetScrubber();
+			}
 		}
 
-		// ---- The previews' source: the loaded loop, else the sample ----
+		// ---- The preview's source: the loaded loop, else the sample ----
 
 		private void Attach()
 		{
@@ -95,9 +90,7 @@ namespace Anvil.Controls.Composites
 			DotMatrixPreview.CurrentIndex = index;
 			HatchPreview.Segments = segments;
 			HatchPreview.CurrentIndex = index;
-			PreviewNote.Text = live
-				? "Previews show the loop on the map."
-				: "Previews show a sample loop until one loads.";
+			PreviewNote.Text = live ? "The loop on the map" : "A sample loop until one loads";
 		}
 
 		private static ObservableCollection<RadarFrameSegment> BuildSample()

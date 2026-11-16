@@ -119,6 +119,33 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void The_retired_Radar_Console_page_opens_Radar()
+		{
+			var vm = New(new AppSettings { SettingsTabIndex = (int)SettingsTab.RadarConsole });
+			Assert.Equal((int)SettingsTab.Radar, vm.SettingsTabIndex);
+
+			vm.OpenSettings(SettingsTab.RadarConsole);
+			Assert.Equal((int)SettingsTab.Radar, vm.SettingsTabIndex);
+		}
+
+		[Fact]
+		public void Radar_page_defaults_match_a_first_run()
+		{
+			var fresh = new AppSettings();
+			var s = new AppSettings { RegimeAwarePolling = false, LivePollSeconds = 60, HideOtherSitesWhileLoaded = false,
+				RevealSitesNearCursor = true, ScrubberStyle = "Hatch" };
+			var vm = New(s);
+			vm.ResetLivePolling();
+			vm.ResetSiteKeys();
+			vm.ResetScrubber();
+
+			Assert.Equal((fresh.RegimeAwarePolling, fresh.LivePollSeconds, fresh.HideOtherSitesWhileLoaded, fresh.RevealSitesNearCursor, fresh.ScrubberStyle),
+				(s.RegimeAwarePolling, s.LivePollSeconds, s.HideOtherSitesWhileLoaded, s.RevealSitesNearCursor, s.ScrubberStyle));
+			Assert.Equal(vm.DefaultLivePollIntervalText, vm.Radar.LivePollIntervalLabels[vm.Radar.RefreshIntervalIndex]);
+			Assert.Equal(vm.DefaultScrubberStyleText, vm.Radar.ScrubberStyleLabels[vm.Radar.ScrubberStyleIndex]);
+		}
+
+		[Fact]
 		public void The_retired_Edges_page_opens_Appearance()
 		{
 			var vm = New(new AppSettings { SettingsTabIndex = (int)SettingsTab.Edges });
