@@ -253,7 +253,8 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>True = skip the launch's home-site load (set by MapViewModel: a forecast-model field is drawing).</summary>
+		/// <summary>True = skip the launch's home-site load (set by MapViewModel: the start has no NowCast, or a forecast-model
+		/// field is drawing).</summary>
 		public Func<bool>? HoldLaunchLoad { get; set; }
 
 		private void RebuildPinned()

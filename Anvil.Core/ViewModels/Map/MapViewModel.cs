@@ -155,8 +155,10 @@ namespace Anvil.ViewModels
 				if (mode == TemporalMode.Past) PastCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Past));
 			};
 			SiteFavorites = new RadarSiteFavoritesViewModel(Radar, settingsService, mapService);
-			// A restored model field owns the map at launch: the home site's live loop would arm NowCast and untick it.
-			SiteFavorites.HoldLaunchLoad = () => ShortRange.IsDrawing;
+			// The home site loads at launch ONLY into a NowCast start: its live loop ARMS NowCast (the HasRadarLoop rule below),
+			// so loading it into Map only / ForeCast only / a resumed session without NowCast brought NowCast + its pane up
+			// against the user's start (docs/bugs.md S33). And a restored model field owns the map: the loop would untick it.
+			SiteFavorites.HoldLaunchLoad = () => !_isNowCast || ShortRange.IsDrawing;
 			SiteUsage = new SiteUsageTracker(Radar, siteUsageStore);
 			Storage.AttachSiteUsage(SiteUsage.ClearAll);
 			// The PastCast load-time log (one line per load). Optional so tests that don't care can omit it.

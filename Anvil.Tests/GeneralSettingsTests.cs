@@ -124,6 +124,20 @@ namespace Anvil.Tests
 			Assert.Equal(vm.DefaultStartInFullScreenText, s.StartInFullScreen ? "On" : "Off");
 		}
 
+		// docs/bugs.md S33: Map only + Load home site on launch brought NowCast and its pane up — the home site's live loop
+		// arms NowCast. The launch load is held unless the start has NowCast.
+		[Theory]
+		[InlineData(StartupModes.MapOnly, true)]
+		[InlineData(StartupModes.Fore, true)]
+		[InlineData(StartupModes.Now, false)]
+		[InlineData(StartupModes.NowFore, false)]
+		public void The_home_site_loads_at_launch_only_into_a_NowCast_start(string mode, bool held)
+		{
+			var vm = New(new AppSettings { StartupResume = false, StartupMode = mode, LoadHomeOnLaunch = true, HomeSiteId = "KTLX" });
+			vm.RestoreTemporalSession();
+			Assert.Equal(held, vm.SiteFavorites.HoldLaunchLoad!());
+		}
+
 		[Fact]
 		public void ForeCast_only_is_a_fixed_start_of_its_own()
 		{
