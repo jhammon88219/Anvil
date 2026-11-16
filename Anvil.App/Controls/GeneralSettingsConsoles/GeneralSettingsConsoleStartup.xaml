@@ -8,7 +8,7 @@
                       [Map only|NowCast|ForeCast|Now + Fore|PastCast]   (394, under the radio's text)  NowCast
                                                   ↕ 24 px (the "Opens on" group ends)
        Home site  KTLX · Norman                                                                        None
-       ☐ Load home site on launch  Ignored in PastCast                                                  Off
+       ☐ Load home site on launch  Only when Anvil starts in NowCast                                    Off
        ☐ Start in full screen                                                                           Off
        96         420                                              (hint column, empty)        150, right
 
@@ -79,7 +79,8 @@
                           Content="Load home site on launch"
                           IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"
                           ToolTipService.ToolTip="Start the live radar loop for your home site when Anvil opens"/>
-                <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Ignored in PastCast"/>
+                <!-- The rule is MapViewModel's SiteFavorites.HoldLaunchLoad (docs/bugs.md S33): a live loop arms NowCast. -->
+                <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Only when Anvil starts in NowCast"/>
             </StackPanel>
             <TextBlock Grid.Row="4" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultLoadHomeOnLaunchText}"/>
