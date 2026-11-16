@@ -147,6 +147,17 @@ namespace Anvil.Services
 			set => SetProperty(ref _showResearchRadars, value);
 		}
 
+		private string _basemapStyleId = "";
+		/// <summary>
+		/// Settings → Appearance → Basemap: the bundled style drawn under everything when it is NOT the theme's own.
+		/// "" (default) = follow the theme. Picking a theme clears it. (Was session-only; persisted since 2026-11-16.)
+		/// </summary>
+		public string BasemapStyleId
+		{
+			get => _basemapStyleId;
+			set => SetProperty(ref _basemapStyleId, value ?? "");
+		}
+
 		private int _radarCacheMaxGb = 5;
 		/// <summary>
 		/// Ceiling (GB) for the on-disk NEXRAD volume cache, enforced by <see cref="SettingsService"/>'s

@@ -7,10 +7,10 @@
 
        styles/
          themes/      the palettes  (this file = the base; anvil-light.css overrides it)
-         pages/       one sheet per page shell (map.html, preview.html): layout only
+         pages/       the page shell (map.html): layout only
          components/  one sheet per on-map component (site keys, markers, popups, …)
 
-   Loaded by map.html (and preview.html) BEFORE every other sheet but MapLibre's, as a
+   Loaded by map.html BEFORE every other sheet but MapLibre's, as a
    render-blocking <link>, so the ground is right on the very first paint (no flash) and every
    component sheet can use these variables.
 
@@ -51,7 +51,7 @@
              whose shapes take their colours from CSS `fill`/`stroke`, which DO read var().)
 
    ADDING A THEME: a new file in this folder holding one  :root[data-theme="<id>"]  block that
-   overrides only what differs, linked from map.html + preview.html right after this one. The host
+   overrides only what differs, linked from map.html right after this one. The host
    sets that attribute — a `theme` URL param at launch (so the first paint is right, the same reason
    `conus` and `tiles` are params) and window.applyTheme for a live switch.
 

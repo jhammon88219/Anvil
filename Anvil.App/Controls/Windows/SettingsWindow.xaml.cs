@@ -18,8 +18,6 @@ namespace Anvil.Controls.Windows
 		{
 			Tabs = BuildTabs();
 			InitializeComponent();
-			// The Map tab is a plain child (not x:Load'd like the dev tab), so it exists now.
-			MapTab.BrowseMapDataFolderRequested += (_, _) => BrowseMapDataFolderRequested?.Invoke(this, EventArgs.Empty);
 		}
 
 		// ── THE BAND's about-Anvil facts ──────────────────────────────────────────────────────────────
@@ -46,14 +44,6 @@ namespace Anvil.Controls.Windows
 				return "—"; // run without package identity
 			}
 		}
-
-		/// <summary>
-		/// Raised when the Map tab's Browse… is clicked, relayed straight up. ⚠️ Neither this control nor the
-		/// tab can show the picker: a WinRT <c>FolderPicker</c> needs a window HWND and BOTH are UserControls
-		/// (this one is hosted in a window by <c>WindowManager</c>). MainWindow — a real Window — shows it,
-		/// exactly as it does for the dev tab's report dialogs.
-		/// </summary>
-		public event EventHandler? BrowseMapDataFolderRequested;
 
 		/// <summary>The strip's tabs, in <see cref="SettingsTab"/> order. Built once per window instance.</summary>
 		public ObservableCollection<TabEntry> Tabs { get; }
@@ -82,7 +72,7 @@ namespace Anvil.Controls.Windows
 		{
 			if (_sectionsPersisted || ViewModel is null) return;
 			_sectionsPersisted = true;
-			Persist(MapTab, "map");
+			// (map + edges: now Appearance — console sections that never collapse, so nothing to persist.)
 			Persist(RadarTab, "radar");
 			Persist(RangeRingTab, "rangering");
 			Persist(StorageTab, "storage");
@@ -91,7 +81,6 @@ namespace Anvil.Controls.Windows
 			Persist(StartupTab, "startup");
 			Persist(BasemapTab, "basemap");
 			Persist(UnitsTab, "units");
-			Persist(EdgesTab, "edges"); // EDGE-HATCH (bolt-on)
 		}
 
 		// A tab body is a UserControl whose root panel holds its sections.
@@ -159,7 +148,7 @@ namespace Anvil.Controls.Windows
 		{
 			var tabs = new ObservableCollection<TabEntry>
 			{
-				new() { Glyph = "", Label = "Map",     Tooltip = "Basemap, tile source, view extent and state isolation" },
+				new() { Glyph = "", Label = "Appearance", Tooltip = "The app's theme, the basemap's colours, and how the bars and panes meet the map (the edge hatch)" },
 				new() { Glyph = "", Label = "Radar",   Tooltip = "Which radar-site marker networks are shown" },
 				new() { Glyph = "", Label = "Radar Range Ring", Tooltip = "Which range rings are drawn, how each looks, the distance labels and the ruler's anchor" },
 				new() { Glyph = "", Label = "Storage", Tooltip = "The on-disk radar cache: size, clearing and its limit" },
@@ -169,8 +158,9 @@ namespace Anvil.Controls.Windows
 				new() { Glyph = "", Label = "Live Data", Tooltip = "Where live updates come from (IEM, NOAA Weather Wire or polling), the polling intervals and the connection" },
 				new() { Glyph = "", Label = "Basemap", Tooltip = "The map under the weather: your map files, downloading an offline map, the online map key, and map setup at launch" },
 				new() { Glyph = "", Label = "Units", Tooltip = "Clock, time zone, distance, speed, height and hail size, for every readout in the app" },
-				// EDGE-HATCH (experimental bolt-on). ⚠️ Glyph E790 (Color) is NOT verified — check it renders.
-				new() { Glyph = "", Label = "Edges", Tooltip = "How the bars and panes meet the map: the cross-hatch edge (or the black shadow) and its look" },
+				// RETIRED into Appearance (2026-11-16): a HIDDEN slot so every later index (Dev) stays put; a saved Edges
+				// index opens Appearance (MapViewModel.SettingsTabIndex).
+				new() { Glyph = "", Label = "Edges", IsHidden = true },
 			};
 
 #if DEBUG
@@ -185,14 +175,6 @@ namespace Anvil.Controls.Windows
 		/// <summary>Which tab body shows: visible when the strip is on <paramref name="mine"/>.</summary>
 		public Visibility TabVisibility(int selected, int mine) =>
 			selected == mine ? Visibility.Visible : Visibility.Collapsed;
-
-		/// <summary>
-		/// The preview's column: an equal share (half the body) on a page with the live preview, else 0 so the
-		/// sections column takes the whole body. A star column keeps its share even with its child Collapsed,
-		/// hence a bound width rather than Visibility alone.
-		/// </summary>
-		public GridLength PreviewColumnWidth(bool hasPreview) =>
-			hasPreview ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
 
 		/// <summary>
 		/// Whether to CONSTRUCT the dev tab's body at all. Hard false in Release — the tab is not in the strip

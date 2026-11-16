@@ -540,8 +540,7 @@ namespace Anvil
 
 		// LIVE MAP FILE SWITCH: the map in use (ISettingsService.MapDataFolder + MapDataFileName) changed — re-point the
 		// mapdata host at its folder, then have the page swap the archive behind the styles' name (map.js setMapFile).
-		// The Settings preview follows through WebViewEnvironment.MapDataChanged. A folder that doesn't exist is left
-		// unmapped (the map draws blank, exactly as a missing file at launch would).
+		// A folder that doesn't exist is left unmapped (the map draws blank, exactly as a missing file at launch would).
 		private void OnMapFileSettingChanged(object? sender, PropertyChangedEventArgs e)
 		{
 			if (e.PropertyName is not (nameof(AppSettings.BasemapFilePath) or nameof(AppSettings.MapDataFolder))) return;
@@ -564,7 +563,6 @@ namespace Anvil
 				WebViewEnvironment.LaunchMapDataFolder = folder;
 				WebViewEnvironment.LaunchMapDataFile = file;
 				_ = _mapService.SetMapFileAsync(file);
-				WebViewEnvironment.RaiseMapDataChanged();
 				_logger.LogInformation("Map file switched live to {File} in {Folder}", file, folder);
 			}
 			catch (Exception ex)
@@ -573,29 +571,8 @@ namespace Anvil
 			}
 		}
 
-		// Picks the folder holding the offline basemap archive, for the Settings window's Map tab. Lives
-		// here because a WinRT FolderPicker must be initialized with a window HWND, and the settings panel is
-		// a UserControl hosted in a window rather than a window itself — the same reason the report dialogs
-		// below are raised up to here. The new folder is drawn at once (OnMapFileSettingChanged).
-		private async void OnBrowseMapDataFolderRequested(object? sender, EventArgs e)
-		{
-			var picker = new FolderPicker
-			{
-				SuggestedStartLocation = PickerLocationId.ComputerFolder,
-			};
-			picker.FileTypeFilter.Add("*"); // required: the picker throws on show with an empty filter list
-			WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
-
-			try
-			{
-				var folder = await picker.PickSingleFolderAsync();
-				ViewModel.SetMapDataFolder(folder?.Path); // null (cancelled) is ignored by the setter
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Basemap folder picker failed");
-			}
-		}
+		// (The Map tab's offline-folder Browse… — and its FolderPicker here — went with that tab, 2026-11-16: the same
+		// choice lives on Settings → Basemap, whose own pickers are BasemapPickers.)
 
 		// Opens the site-sweep results pop-up (Save / Close). Raised by the dev window on run completion
 		// or its Report button.
@@ -832,7 +809,6 @@ namespace Anvil
 					// dev run still pops its results dialog.
 					settings.SweepReportRequested += OnSweepReportRequested;
 					settings.ValidationReportRequested += OnValidationReportRequested;
-					settings.BrowseMapDataFolderRequested += OnBrowseMapDataFolderRequested;
 					return settings;
 				},
 				title: "Settings", anchor: WindowAnchor.Center,

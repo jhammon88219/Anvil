@@ -26,6 +26,10 @@ namespace Anvil.Controls.Primitives
 		/// <summary>A rule is drawn ABOVE this row (Settings' Dev entry, which sits apart from the rest).</summary>
 		public bool IsSeparated { get; set; }
 
+		/// <summary>The row is NOT drawn but keeps its index — a page merged into another keeps its slot, because the
+		/// strip's index IS the persisted page number (Settings' retired Edges).</summary>
+		public bool IsHidden { get; set; }
+
 		private string _tooltip = "";
 		/// <summary>Hover text. Say what the page holds — and when the row is DISABLED, say why and how to get it
 		/// back. Notifying, because that text changes with availability.</summary>

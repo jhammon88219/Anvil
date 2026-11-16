@@ -8,8 +8,8 @@ using Microsoft.Web.WebView2.Core;
 namespace Anvil
 {
 	/// <summary>
-	/// The ONE WebView2 environment every map page runs in: the main map (MainWindow) and the Settings
-	/// window's preview (Controls/Composites/MapPreview).
+	/// The ONE WebView2 environment every map page runs in (today only the main map, MainWindow — the Settings window's
+	/// map preview was removed 2026-11-16). Kept shared so a future second page gets the same options.
 	/// </summary>
 	/// <remarks>
 	/// ⚠️ COLOUR IDENTITY: Chromium colour-manages the page to the monitor's profile while WinUI draws values
@@ -30,18 +30,13 @@ namespace Anvil
 
 		/// <summary>
 		/// The basemap folder the MAIN map's <c>mapdata</c> host is mapped to NOW (set at launch, moved by MainWindow's
-		/// live map switch). A preview maps THIS one, not the setting's value, so it never shows a map the main one isn't.
+		/// live map switch, which compares against it to skip a no-op switch).
 		/// </summary>
 		public static string? LaunchMapDataFolder { get; set; }
 
 		/// <summary>The offline map FILE the main map reads in <see cref="LaunchMapDataFolder"/> (map setup's in-use file or
-		/// <c>usa_full.pmtiles</c>) — the preview passes it on as its <c>mapfile</c> too.</summary>
+		/// <c>usa_full.pmtiles</c>).</summary>
 		public static string? LaunchMapDataFile { get; set; }
-
-		/// <summary>The main map switched files live (MainWindow); an open preview re-points itself to match.</summary>
-		public static event Action? MapDataChanged;
-
-		public static void RaiseMapDataChanged() => MapDataChanged?.Invoke();
 
 		private static Task? _freshAssets;
 
@@ -54,7 +49,7 @@ namespace Anvil
 		/// files with no cache headers — so Chromium may keep reusing a cached map.js / radar-sites.js / stylesheet
 		/// after the file on disk changed. A stale module is worse than a stale style: an old radar-sites.js still
 		/// injects its old key CSS over the new stylesheet, and the change looks like it never happened.
-		/// So: stamp the page's own files (the newest write time under map.html, preview.html, js/ and styles/), and
+		/// So: stamp the page's own files (the newest write time under map.html, js/ and styles/), and
 		/// when the stamp differs from the last launch's, clear the disk cache once before anything loads. Basemap
 		/// tiles, fonts and the data caches are local folders too, so clearing costs a re-read, never a download
 		/// (online tiles excepted, once per changed build).
@@ -66,7 +61,7 @@ namespace Anvil
 			try
 			{
 				var root = Path.Combine(AppContext.BaseDirectory, "Assets", "Map");
-				var files = new[] { Path.Combine(root, "map.html"), Path.Combine(root, "preview.html") }
+				var files = new[] { Path.Combine(root, "map.html") }
 					.Where(File.Exists)
 					.Concat(new[] { "js", "styles" }
 						.Select(d => Path.Combine(root, d))

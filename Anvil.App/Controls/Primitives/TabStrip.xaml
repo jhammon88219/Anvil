@@ -41,6 +41,7 @@
              falls through to this parent (hence Background="Transparent": a null background catches nothing). -->
         <DataTemplate x:Key="TabItemTemplate" x:DataType="prim:TabEntry">
             <Grid Background="Transparent"
+                  Visibility="{x:Bind prim:TabStrip.Hide(IsHidden)}"
                   ToolTipService.ToolTip="{x:Bind Tooltip, Mode=OneWay}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>

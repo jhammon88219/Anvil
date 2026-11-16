@@ -24,7 +24,7 @@ language bar reflects the JS we actually wrote (in `js/`), not the ~1.2 MB of li
 ## Where the UI is defined — before runtime, never during
 
 Every UI component the page draws is **defined before runtime**: its markup is a `<template>` in
-`map.html` (or `preview.html`), and its look is a sheet in `styles/`. A module only **instantiates**
+`map.html`, and its look is a sheet in `styles/`. A module only **instantiates**
 it — `Templates.clone('tpl-…')` from `js/templates.js` — then fills in text, data attributes and
 per-instance geometry, and toggles classes. The app's XAML/C# side follows the same rule: a
 control's elements and looks are declared in XAML, not built in code-behind.
@@ -42,7 +42,7 @@ or set a static look inline (`style.cssText`).
 ```
 styles/
   themes/      anvil-dark.css (the base :root), anvil-light.css — VARIABLES ONLY, no selectors on elements
-  pages/       map.css, preview.css — each page's own shell (layout; colours via var())
+  pages/       map.css — the page's own shell (layout; colours via var())
   components/  radar-site-keys.css, markers.css, radar-tools.css, map-popups.css, outlook.css
 ```
 
@@ -53,7 +53,6 @@ styles/
 - **Chrome vs data:** chrome colours (surfaces, edges, the site key's gray face) are theme variables;
   data colours (status inks, product ramps, report types) are literal in the component sheet or the
   module, and never themed. See the header of `styles/themes/anvil-dark.css`.
-- ⚠️ `preview.html` carries a copy of `tpl-ring-knob` (the only component it draws) — change both.
 
 ## Our authored JS (`js/`) — why each file must be JS
 

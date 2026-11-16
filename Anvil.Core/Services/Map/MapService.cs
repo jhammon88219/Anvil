@@ -28,17 +28,17 @@ namespace Anvil.Services
 		// ⚠️ style.Url, never an interpolated host — the model is the single place that decides where a
 		// style lives (MapStyle.Url), and this was one of three call sites that used to interpolate one.
 		public Task ApplyStyleAsync(MapStyle style) =>
-			RunMirrored("applyStyle", style.Url);
+			RunLook("applyStyle", style.Url);
 
 		// One command, because the page has to set the palette BEFORE re-adding the style's layers —
 		// see the interface remarks.
 		public Task ApplyThemeAsync(AppTheme theme, MapStyle style) =>
-			RunMirrored("applyTheme", theme.Id, style.Url);
+			RunLook("applyTheme", theme.Id, style.Url);
 
 		// The group ids are ours (BasemapGroups, normalized here), never user text — so the JSON is quote-safe
 		// inside Call's single-quoted string, and the shim JSON.parses it.
 		public Task SetBasemapAsync(bool hidden, IReadOnlyList<string> offGroups) =>
-			RunMirrored("setBasemap", hidden,
+			RunLook("setBasemap", hidden,
 				System.Text.Json.JsonSerializer.Serialize(BasemapGroups.Normalize(offGroups)));
 
 		// Tile source: the style file is unchanged either way — the page patches its ONE basemap source.
@@ -46,7 +46,7 @@ namespace Anvil.Services
 		// escaping, so a stray quote/backslash would break the whole script line. Neither is legal in a URL,
 		// so escaping them here (rather than widening FormatArg for every other call site) is enough.
 		public Task SetTileSourceAsync(bool online, string tilesUrl) =>
-			RunMirrored("setTileSource", online ? "online" : "offline",
+			RunLook("setTileSource", online ? "online" : "offline",
 				(tilesUrl ?? "").Replace("\\", "\\\\").Replace("'", "\\'"));
 
 		// A file NAME from disk — escaped like the tile URL (a name may hold an apostrophe).
@@ -291,7 +291,7 @@ namespace Anvil.Services
 			_mapView.RunScriptAsync(Call("setRangeRuler", enabled));
 
 		public Task SetDistanceUnitsAsync(string unit) =>
-			RunMirrored("setDistanceUnits", Models.DistanceUnits.Normalize(unit));
+			RunLook("setDistanceUnits", Models.DistanceUnits.Normalize(unit));
 
 		// Tokens only (normalized again here — the JSON is built by interpolation and goes into the page).
 		public Task SetDisplayUnitsAsync(Models.UnitSet units) =>
@@ -304,16 +304,16 @@ namespace Anvil.Services
 		// ⚠️ Normalized HERE too, not only in AppSettings: the value is interpolated into page CSS, so this seam
 		// refuses anything that is not a bare #RRGGBB whoever calls it.
 		public Task SetScopeColorAsync(string hex) =>
-			RunMirrored("setScopeColor", Models.ScopeColors.Normalize(hex));
+			RunLook("setScopeColor", Models.ScopeColors.Normalize(hex));
 
 		public Task SetRangeRingsAsync(bool visible, bool reflectivity, bool velocity, bool distance, int distanceSpacing, bool siteRing) =>
-			RunMirrored("setRangeRings", visible, reflectivity, velocity, distance,
+			RunLook("setRangeRings", visible, reflectivity, velocity, distance,
 				Models.RangeRingSpacings.Normalize(distanceSpacing), siteRing);
 
 		// Single-quoted + JSON.parsed in the shim (the radarValidate pattern). The JSON is built from normalized
 		// values only (hex colours, numbers, pattern tokens), so it never carries an apostrophe.
 		public Task SetRangeRingStyleAsync(string styleJson) =>
-			RunMirrored("setRangeRingStyle", styleJson);
+			RunLook("setRangeRingStyle", styleJson);
 
 		public Task ShowRadarSitesAsync(string sitesJson) =>
 			_mapView.RunScriptAsync(Call("showRadarSites", sitesJson));
@@ -416,53 +416,9 @@ namespace Anvil.Services
 		// Builds a "window.fn(a,b,c);" call string, formatting each argument for JS:
 		// doubles in invariant culture, bools lowercased, strings single-quoted. This
 		// centralizes the JS string-building (and culture handling) for every command.
-		// ---- PREVIEW MIRROR (see IMapService.AddMirror) ----
-		// The LOOK commands go through RunMirrored: the main map runs the script as before, every mirror gets
-		// the same string, and the latest script per command is kept (with when it was sent) for a replay.
-		// ⚠️ A command added to the preview page's shims must route through RunMirrored here too, or the
-		// preview silently ignores it.
-		private readonly List<IMapView> _mirrors = new();
-		private readonly Dictionary<string, (long Seq, string Script)> _mirrorLatest = new();
-		private long _mirrorSeq;
-
-		public void AddMirror(IMapView view)
-		{
-			if (!_mirrors.Contains(view)) _mirrors.Add(view);
-		}
-
-		public void RemoveMirror(IMapView view) => _mirrors.Remove(view);
-
-		// In SEND order, not a fixed one: applyTheme carries a style and applyStyle replaces it, so whichever
-		// came last has to land last.
-		public async Task ReplayToMirrorAsync(IMapView view)
-		{
-			foreach (var latest in _mirrorLatest.Values.OrderBy(v => v.Seq).ToList())
-			{
-				await view.RunScriptAsync(latest.Script);
-			}
-		}
-
-		public Task MirrorRangeRingStyleAsync(string styleJson)
-		{
-			SendToMirrors(Call("setRangeRingStyle", styleJson), "setRangeRingStyle");
-			return Task.CompletedTask;
-		}
-
-		private Task RunMirrored(string function, params object[] args)
-		{
-			var script = Call(function, args);
-			SendToMirrors(script, function);
-			return _mapView.RunScriptAsync(script);
-		}
-
-		private void SendToMirrors(string script, string function)
-		{
-			_mirrorLatest[function] = (++_mirrorSeq, script);
-			foreach (var mirror in _mirrors.ToArray())
-			{
-				_ = mirror.RunScriptAsync(script); // the mirror swallows its own failures
-			}
-		}
+		// (The look commands used to go through RunMirrored, which also copied them to the Settings map preview.
+		// The preview is gone (2026-11-16); RunLook is that call without the copy.)
+		private Task RunLook(string function, params object[] args) => _mapView.RunScriptAsync(Call(function, args));
 
 		private static string Call(string function, params object[] args)
 		{

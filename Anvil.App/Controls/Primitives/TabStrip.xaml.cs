@@ -53,6 +53,9 @@ namespace Anvil.Controls.Primitives
 		/// inside a template resolves against the ENTRY, so an instance method here is out of reach).</summary>
 		public static Visibility Show(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 
+		/// <summary>A hidden entry (<see cref="TabEntry.IsHidden"/>) keeps its index but draws nothing.</summary>
+		public static Visibility Hide(bool hidden) => hidden ? Visibility.Collapsed : Visibility.Visible;
+
 		private IEnumerable<TabEntry> Entries =>
 			ItemsSource?.OfType<TabEntry>() ?? Enumerable.Empty<TabEntry>();
 

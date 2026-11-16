@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AppearanceSettingsConsoleEdges — Settings → Appearance's "Edges" section (EDGE-HATCH, experimental bolt-on — grep
+     EDGE-HATCH), on a Primitives/SettingsConsolePlate. Was the whole Settings → Edges page (retired 2026-11-16).
+
+       Edges  [Restore defaults]                                                                  DEFAULT
+       Pattern       [Hatch|Dots]                                                                   Hatch
+       Style         [Thinning | Fading | Both | Black shadow]       ← the WIDEST control: 420          Both
+       Line colour   (A)● ● ● ● ● (+)                                                     (A) Bar surface
+       Band width    ─────●──────────────────────────────  35 px     ← slider + value = 420           35 px
+       Line spacing  ──●─────────────────────────────────   5 px       (value: a fixed 48, right)      5 px
+       Line weight   ────────────────────────────────────● 2.0 px                                    2.0 px
+       Line opacity  ────────────────────────────────────●  100%                                       100%
+       ☑ Hatch the panes' map-side edges                                                                 On
+       96            ≤ 420                                                                       150, right
+
+     Every control writes ONE AppSettings value through EdgeHatchViewModel; the bands follow live.
+     ⚠️ THE LABEL COLUMN (96) and DEFAULT COLUMN (150) are the page's — AppearanceSettingsConsoleTheme uses the same.
+     ⚠️ THE DEFAULT COLUMN reads EdgeHatchViewModel's Default* texts — the SAME constants Restore defaults writes, so it
+     always says what the button will do. Spacing/weight labels follow the pattern ("Dot pitch"/"Dot size" with Dots). -->
+<UserControl x:Class="Anvil.Controls.AppearanceSettingsConsoles.AppearanceSettingsConsoleEdges"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <Style x:Key="EdgesDefaultTextStyle" TargetType="TextBlock" BasedOn="{StaticResource TabularNumberTextStyle}">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Style>
+        <Style x:Key="EdgesValueTextStyle" TargetType="TextBlock" BasedOn="{StaticResource TabularNumberTextStyle}">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+        </Style>
+    </UserControl.Resources>
+
+    <prim:SettingsConsolePlate x:Name="AppearanceSettingsConsoleEdgesPlate" Title="Edges" ShowDefaultHeader="True">
+        <prim:SettingsConsolePlate.HeaderContent>
+            <Button x:Name="EdgeHatchRestoreDefaultsButton" Content="Restore defaults"
+                    Click="{x:Bind ViewModel.RestoreDefaults}"
+                    ToolTipService.ToolTip="Put every edge setting back to the DEFAULT column"/>
+        </prim:SettingsConsolePlate.HeaderContent>
+
+        <Grid ColumnSpacing="12" RowSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="96"/>  <!-- label -->
+                <ColumnDefinition Width="*"/>   <!-- control, ≤ 420 -->
+                <ColumnDefinition Width="150"/> <!-- default -->
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Pattern: Hatch = crossing lines; Dots = the dot matrix. Every other row applies to both. -->
+            <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="Pattern"/>
+            <prim:SegmentedPicker x:Name="EdgeHatchPatternPicker" Grid.Row="0" Grid.Column="1"
+                                  HorizontalAlignment="Left" Width="180"
+                                  IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
+                                  ItemsSource="{x:Bind ViewModel.PatternLabels}"
+                                  SelectedIndex="{x:Bind ViewModel.PatternIndex, Mode=TwoWay}"/>
+            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource EdgesDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultPatternText}"/>
+
+            <!-- Style: the WIDEST control on the page — 420 sets the right edge every slider row ends on. -->
+            <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Style"/>
+            <prim:SegmentedPicker x:Name="EdgeHatchStylePicker" Grid.Row="1" Grid.Column="1"
+                                  HorizontalAlignment="Left" Width="420"
+                                  ItemsSource="{x:Bind ViewModel.StyleLabels}"
+                                  SelectedIndex="{x:Bind ViewModel.StyleIndex, Mode=TwoWay}"/>
+            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource EdgesDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultStyleText}"/>
+
+            <!-- Swatches + "+" for any colour; "A" = the bar surface, which follows the theme. -->
+            <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="Line colour"/>
+            <prim:ColorSwatchPicker x:Name="EdgeHatchColorPicker" Grid.Row="2" Grid.Column="1"
+                                    HorizontalAlignment="Left"
+                                    AllowCustom="True"
+                                    IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
+                                    ItemsSource="{x:Bind ViewModel.ColorSwatches}"
+                                    ToolTips="{x:Bind ViewModel.ColorNames}"
+                                    SelectedIndex="{x:Bind ViewModel.ColorIndex, Mode=TwoWay}"
+                                    CustomHex="{x:Bind ViewModel.ColorHex, Mode=TwoWay}"/>
+            <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <!-- the "A" chip, as the picker draws it: the bar surface -->
+                <Border Width="16" Height="16" CornerRadius="8" BorderThickness="1"
+                        Background="{ThemeResource OverlayBarSurfaceBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                    <TextBlock Text="A" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Style="{StaticResource EdgesDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultColorText}"/>
+            </StackPanel>
+
+            <!-- The four sliders: slider + value = 420 (the Style picker's width), the value in a fixed 48 beside it. -->
+            <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="Band width"/>
+            <Grid Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Width="420" ColumnSpacing="12">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="48"/></Grid.ColumnDefinitions>
+                <Slider x:Name="EdgeHatchWidthSlider" Minimum="16" Maximum="72" StepFrequency="1" VerticalAlignment="Center"
+                        IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
+                        Value="{x:Bind ViewModel.Width, Mode=TwoWay}"/>
+                <TextBlock Grid.Column="1" Style="{StaticResource EdgesValueTextStyle}" Text="{x:Bind ViewModel.WidthText, Mode=OneWay}"/>
+            </Grid>
+            <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource EdgesDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultWidthText}"/>
+
+            <TextBlock Grid.Row="4" VerticalAlignment="Center" Text="{x:Bind ViewModel.SpacingLabel, Mode=OneWay}"/>
+            <Grid Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" Width="420" ColumnSpacing="12">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="48"/></Grid.ColumnDefinitions>
+                <Slider x:Name="EdgeHatchSpacingSlider" Minimum="3" Maximum="12" StepFrequency="1" VerticalAlignment="Center"
+                        IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
+                        Value="{x:Bind ViewModel.Spacing, Mode=TwoWay}"/>
+                <TextBlock Grid.Column="1" Style="{StaticResource EdgesValueTextStyle}" Text="{x:Bind ViewModel.SpacingText, Mode=OneWay}"/>
+            </Grid>
+            <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource EdgesDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultSpacingText}"/>
+
+            <TextBlock Grid.Row="5" VerticalAlignment="Center" Text="{x:Bind ViewModel.WeightLabel, Mode=OneWay}"/>
+            <Grid Grid.Row="5" Grid.Column="1" HorizontalAlignment="Left" Width="420" ColumnSpacing="12">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="48"/></Grid.ColumnDefinitions>
+                <Slider x:Name="EdgeHatchWeightSlider" Minimum="0.5" Maximum="2" StepFrequency="0.5" VerticalAlignment="Center"
+                        IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
+                        Value="{x:Bind ViewModel.Weight, Mode=TwoWay}"/>
+                <TextBlock Grid.Column="1" Style="{StaticResource EdgesValueTextStyle}" Text="{x:Bind ViewModel.WeightText, Mode=OneWay}"/>
+            </Grid>
+            <TextBlock Grid.Row="5" Grid.Column="2" Style="{StaticResource EdgesDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultWeightText}"/>
+
+            <TextBlock Grid.Row="6" VerticalAlignment="Center" Text="Line opacity"/>
+            <Grid Grid.Row="6" Grid.Column="1" HorizontalAlignment="Left" Width="420" ColumnSpacing="12">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="48"/></Grid.ColumnDefinitions>
+                <Slider x:Name="EdgeHatchOpacitySlider" Minimum="10" Maximum="100" StepFrequency="1" SmallChange="1" LargeChange="10"
+                        VerticalAlignment="Center"
+                        IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
+                        Value="{x:Bind ViewModel.Opacity, Mode=TwoWay}"/>
+                <TextBlock Grid.Column="1" Style="{StaticResource EdgesValueTextStyle}" Text="{x:Bind ViewModel.OpacityText, Mode=OneWay}"/>
+            </Grid>
+            <TextBlock Grid.Row="6" Grid.Column="2" Style="{StaticResource EdgesDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultOpacityText}"/>
+
+            <CheckBox x:Name="EdgeHatchOnPanesCheckBox" Grid.Row="7" Grid.ColumnSpan="2"
+                      Content="Hatch the panes' map-side edges"
+                      IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
+                      IsChecked="{x:Bind ViewModel.OnPanes, Mode=TwoWay}"/>
+            <TextBlock Grid.Row="7" Grid.Column="2" Style="{StaticResource EdgesDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultOnPanesText}"/>
+        </Grid>
+    </prim:SettingsConsolePlate>
+</UserControl>

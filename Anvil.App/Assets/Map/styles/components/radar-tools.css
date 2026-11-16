@@ -3,7 +3,7 @@
    chip (js/radar-ruler.js), the range rings' distance-label handle (js/radar-scope.js), the Inspect
    readout + mirrored crosshair (js/radar-inspect.js), and the site-reveal ring (js/site-reveal.js).
    Markup: the tpl-ring-knob / tpl-ruler-bead / tpl-ruler-chip / tpl-inspect-* / tpl-reveal-ring
-   templates in map.html (preview.html carries its own copy of tpl-ring-knob).
+   templates in map.html.
 
    ⚠️ --anvil-ruler-ink and --anvil-scope-ring can be OVERRIDDEN by the user (Settings → Radar → Range
    ring & ruler): map.js setScopeColor writes them inline on :root. Everything here reads them through

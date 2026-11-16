@@ -68,7 +68,7 @@ let tileUrl = params.get('tilesUrl') || '';
 // protocol looks archives up by URL key, and the key is all a style ever sees. No style edits, no style fetch.
 // Always a FRESH archive object, usa_full included: a live switch (setMapFile) must drop the old file's cached
 // header + directories, which live on the archive object the protocol holds.
-// ⚠️ MIRRORED in preview.js (the Settings map preview) — change both.
+// (Was mirrored in preview.js, the Settings map preview — removed 2026-11-16.)
 function serveMapFile(protocol, mapFile) {
     const real = new pmtiles.FetchSource('https://mapdata/' + encodeURIComponent(mapFile || 'usa_full.pmtiles'));
     protocol.add(new pmtiles.PMTiles({
@@ -305,8 +305,7 @@ try {
     // MapLibre's own limit keeps BOTH screen edges inside ±180°, so Alaska sat pinned to the screen's left edge — under
     // a temporal pane — and could only be reached by zooming. Here the CENTRE may go anywhere in -180…180 instead;
     // north/south and zoom stay MapLibre's (its default runs first). An isolation lock (states.js setMaxBounds) is
-    // left entirely to MapLibre — it has its own longitude range to keep. ⚠️ MIRRORED in preview.js — change both.
-    function looseWorldEdge(m) {
+    // left entirely to MapLibre — it has its own longitude range to keep.    function looseWorldEdge(m) {
         return function (lngLat, z) {
             const d = m.transform.defaultConstrain(lngLat, z);
             if (m.getMaxBounds()) return d;

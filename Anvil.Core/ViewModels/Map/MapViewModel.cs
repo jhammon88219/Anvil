@@ -25,7 +25,10 @@ namespace Anvil.ViewModels
 	/// Debug session shrugs off (it reopens on the tab before it, once).
 	/// ⚠️ ONE deliberate exception: <c>RangeRing</c> was inserted after <c>Radar</c> (2026-09-24) because the user
 	/// asked for it to sit there. The cost was a one-time shift — a Settings window last closed on Storage or
-	/// Window Mode reopened one tab to the left, once. Don't take that as licence to reorder.</summary>
+	/// Window Mode reopened one tab to the left, once. Don't take that as licence to reorder.
+	/// ⚠️ A MERGED page keeps its member (its ordinal is still someone's saved index) and is HIDDEN in the rail
+	/// (<c>TabEntry.IsHidden</c>); <see cref="MapViewModel.SettingsTabIndex"/> sends it to the page that absorbed it.
+	/// <c>Map</c> is shown as "Appearance"; <c>Edges</c> is retired into it (2026-11-16).</summary>
 	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Startup, LiveData, Basemap, Units, Edges, Dev }
 
 	/// <summary>
@@ -293,16 +296,16 @@ namespace Anvil.ViewModels
 			// empty (never chosen) or unrecognized (written by another build) id.
 			AvailableThemes = themeProvider.GetThemes();
 			_selectedTheme = themeProvider.Resolve(settingsService.Settings.ThemeId);
+			DefaultThemeName = themeProvider.Default?.DisplayName ?? ""; // (a test double may have no default)
 
 			// Assign the backing field directly (not the setter) so the default selection does NOT trigger a
 			// map command during construction. The page loads this style via its URL, so there is nothing to
 			// re-apply.
-			// ⚠️ The basemap is the THEME's choice — it used to be a hardcoded "dataVizBlack" right here.
-			// ⚠️ The Basemap picker below is a SESSION-ONLY override of it, deliberately: a theme and its
-			// basemap are a named pair, so a divergence that outlived the session would mean launching on a
-			// look no identity actually describes. (A persisted MapStyleId existed for as long as styles
-			// could be imported; it went with that feature.)
-			_selectedStyle = AvailableStyles.FirstOrDefault(s => s.Id == _selectedTheme.MapStyleId)
+			// ⚠️ The basemap is the THEME's choice unless you picked another one (Settings → Appearance → Basemap) —
+			// that pick is PERSISTED (AppSettings.BasemapStyleId, the user's call 2026-11-16; it used to be session-only).
+			// "" or an id no bundled style has = follow the theme. Picking a theme resets it to that theme's basemap.
+			_selectedStyle = AvailableStyles.FirstOrDefault(s => s.Id == settingsService.Settings.BasemapStyleId)
+				?? AvailableStyles.FirstOrDefault(s => s.Id == _selectedTheme.MapStyleId)
 				?? AvailableStyles.FirstOrDefault();
 
 			// The Map flyout greys the rows the loaded basemap has nothing for. Every style change raises
@@ -1684,11 +1687,13 @@ namespace Anvil.ViewModels
 			get => _settingsTabIndex;
 			set
 			{
+				// RETIRED PAGES keep their enum slot (the ordinal is the saved index) but are hidden in the rail; a saved or
+				// targeted one opens the page that absorbed it. Edges → Appearance (= the Map slot), 2026-11-16.
+				if (value == (int)SettingsTab.Edges) value = (int)SettingsTab.Map;
 				var clamped = Math.Clamp(value, 0, SettingsTabCount - 1);
 				if (SetProperty(ref _settingsTabIndex, clamped))
 				{
 					_settingsService.Settings.SettingsTabIndex = clamped;
-					OnPropertyChanged(nameof(HasSettingsPreview));
 					RefreshForSettingsTab();
 				}
 			}
@@ -1702,29 +1707,8 @@ namespace Anvil.ViewModels
 			IsSettingsWindowOpen = true;
 		}
 
-		// ----- The Settings MAP PREVIEW (Composites/MapPreview) -----
-		// A second, small map page beside the tabs whose effect you can SEE (Map: theme + basemap; Radar Range
-		// Ring: the rings). It is the REAL page code (radar-scope.js, the same styles), fed by IMapService's
-		// mirror — a copy of every look command the main map gets — so it can never draw a look the map wouldn't.
-
-		/// <summary>Whether the current tab shows the preview pane (Map, Radar Range Ring).</summary>
-		public bool HasSettingsPreview =>
-			_settingsTabIndex is (int)SettingsTab.Map or (int)SettingsTab.RangeRing;
-
-		/// <summary>The site the preview draws its rings around: the loaded site, else home, else null (the
-		/// page falls back to KTLX).</summary>
-		public RadarSite? PreviewSite => SiteFavorites.LoadedSite?.Site ?? SiteFavorites.HomeSite?.Site;
-
-		public void AttachMapPreview(IMapView view) => _mapService.AddMirror(view);
-
-		public void DetachMapPreview(IMapView view) => _mapService.RemoveMirror(view);
-
-		/// <summary>The preview page is up: bring it to the main map's current look.</summary>
-		public Task ReplayToMapPreviewAsync(IMapView view) => _mapService.ReplayToMirrorAsync(view);
-
-		/// <summary>The preview's label handle was dragged. Unlike the main map's own handle this DOES push —
-		/// the main map has not drawn it yet (the preview hears its own bearing back as a no-op).</summary>
-		public void OnPreviewLabelBearingDragged(double degrees) => Radar.RangeRings.LabelBearing = degrees;
+		// (The Settings MAP PREVIEW — a second small map page beside the Map and Range Ring tabs — was REMOVED 2026-11-16,
+		// the user's call: changes are shown on the main map instead. Its IMapService mirror went with it.)
 
 		// ----- Settings → Startup: what Anvil opens on (read once, by RestoreTemporalSession at map-ready) -----
 
@@ -1782,6 +1766,12 @@ namespace Anvil.ViewModels
 		/// <summary>Every visual identity the app can wear, in picker order.</summary>
 		public IReadOnlyList<AppTheme> AvailableThemes { get; }
 
+		/// <summary>Settings → Appearance's DEFAULT column: the theme a fresh install wears (the provider's default).</summary>
+		public string DefaultThemeName { get; }
+
+		/// <summary>Settings → Appearance's DEFAULT column for Basemap: no fixed map — it follows the theme.</summary>
+		public string DefaultBasemapText => "The theme's";
+
 		/// <summary>
 		/// The app's active visual identity — the chrome palette and the basemap under it. The view watches
 		/// this to set the WinUI palette everything else derives from (see MainWindow).
@@ -1808,6 +1798,7 @@ namespace Anvil.ViewModels
 
 				_selectedTheme = value;
 				_settingsService.Settings.ThemeId = value.Id;   // auto-saves, debounced
+				_settingsService.Settings.BasemapStyleId = "";  // a new theme brings its OWN basemap (any override ends)
 
 				// The theme's basemap, resolved the same way the constructor does. A theme naming a style
 				// that isn't in the list keeps the current one rather than blanking the map.
@@ -1857,6 +1848,12 @@ namespace Anvil.ViewModels
 
 				_selectedStyle = value;
 				OnPropertyChanged();
+
+				// PERSISTED: the theme's own basemap is stored as "" (= follow the theme), any other as its id.
+				if (value is not null)
+				{
+					_settingsService.Settings.BasemapStyleId = value.Id == _selectedTheme.MapStyleId ? "" : value.Id;
+				}
 
 				// Only push a style change once the map can receive it. Pre-ready
 				// selections are stored and applied later by OnMapsReadyAsync.

@@ -341,7 +341,7 @@ function handleLngLat() {
     const s = host.getSite();
     return Geo.siteToLngLat(s.lat, s.lon, reflMeters, style.bearing * Geo.D2R);
 }
-// The handle is the SAME <template> as the ruler's knob (tpl-ring-knob, in map.html AND preview.html) and the
+// The handle is the SAME <template> as the ruler's knob (tpl-ring-knob, in map.html) and the
 // same CSS (styles/components/radar-tools.css) — so the two "swing me round the ring" handles read as one kind
 // of control — at the SAME SIZE (style.knob; radar.js hands it to the ruler too). Its colours are CSS fill/
 // stroke on the theme variables, so a theme or Settings colour change restyles it with no rebuild.

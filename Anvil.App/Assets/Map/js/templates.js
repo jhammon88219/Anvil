@@ -1,5 +1,5 @@
 // ============================================================================================
-// templates.js — clones the page's UI components out of the <template>s in map.html / preview.html.
+// templates.js — clones the page's UI components out of the <template>s in map.html.
 //
 //     map.html   <template id="tpl-site-key"> …markup… </template>      ← DEFINED before runtime
 //                          │

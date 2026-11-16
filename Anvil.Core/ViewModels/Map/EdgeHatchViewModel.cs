@@ -155,17 +155,33 @@ namespace Anvil.ViewModels
 		public string SpacingText => $"{Spacing:0} px";
 		public string WeightText => $"{Weight:0.0} px";
 
-		/// <summary>The tab's Restore defaults: the user's picks from the mock-up.</summary>
+		// ── THE DEFAULTS — one place, read by RestoreDefaults AND the DEFAULT column (Settings → Appearance → Edges), so
+		//    the column always says exactly what the button will do. ──
+		private const string DefaultStyle = EdgeHatchStyles.Both;
+		private const string DefaultPattern = EdgeHatchPatterns.Hatch;
+		private const string DefaultColor = EdgeHatchColors.Surface;
+		private const bool DefaultOnPanes = true;
+
+		public string DefaultPatternText => EdgeHatchPatterns.Labels[EdgeHatchPatterns.IndexOf(DefaultPattern)];
+		public string DefaultStyleText => EdgeHatchStyles.Labels[EdgeHatchStyles.IndexOf(DefaultStyle)];
+		public string DefaultColorText => EdgeHatchColors.Presets[EdgeHatchColors.IndexOf(DefaultColor)].Name;
+		public string DefaultWidthText => $"{EdgeHatchSizes.DefaultWidth:0} px";
+		public string DefaultSpacingText => $"{EdgeHatchSizes.DefaultSpacing:0} px";
+		public string DefaultWeightText => $"{EdgeHatchSizes.DefaultWeight:0.0} px";
+		public string DefaultOpacityText => $"{EdgeHatchSizes.DefaultOpacity:0}%";
+		public string DefaultOnPanesText => DefaultOnPanes ? "On" : "Off";
+
+		/// <summary>The section's Restore defaults: the user's picks from the mock-up (the DEFAULT column shows them).</summary>
 		public void RestoreDefaults()
 		{
-			StyleIndex = EdgeHatchStyles.IndexOf(EdgeHatchStyles.Both);
-			PatternIndex = EdgeHatchPatterns.IndexOf(EdgeHatchPatterns.Hatch);
-			ColorHex = EdgeHatchColors.Surface;
+			StyleIndex = EdgeHatchStyles.IndexOf(DefaultStyle);
+			PatternIndex = EdgeHatchPatterns.IndexOf(DefaultPattern);
+			ColorHex = DefaultColor;
 			Opacity = EdgeHatchSizes.DefaultOpacity;
 			Width = EdgeHatchSizes.DefaultWidth;
 			Spacing = EdgeHatchSizes.DefaultSpacing;
 			Weight = EdgeHatchSizes.DefaultWeight;
-			OnPanes = true;
+			OnPanes = DefaultOnPanes;
 		}
 
 		private void RaiseStyle()

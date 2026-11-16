@@ -415,10 +415,11 @@
                         <!-- ===== ATLAS + SETTINGS MENUS (the user's call, 2026-11-11) =====
 
                                ┌ Settings ─────────────────┐   the title ONLY opens the list; each item opens the
-                               │ ✓ ⛰  Map                  │   window ON THAT PAGE (or switches the open one to it).
+                               │ ✓ ⛰  Appearance           │   window ON THAT PAGE (or switches the open one to it).
                                │   ◎  Radar                │   ✓ = the page the OPEN window is on.
                                │      …                    │   Items = the window's rail, same marks + names, Tag =
-                               │ ───────────────────────── │   the page index — ⚠️ a new page adds its item here too.
+                               │ ───────────────────────── │   the page index — ⚠️ a new page adds its item here too;
+                               │                           │   a page MERGED into another loses its item (Edges, 10).
                                │   ⚒  Dev      Debug only  │   Dev: Debug builds only (DevOnly).
                                └───────────────────────────┘
                              ⚠️ IsChecked is ONE-WAY and RE-ASSERTED in the click handlers: picking the page already
@@ -489,7 +490,7 @@
                         <Button x:Name="SettingsMenuButton" Content="Settings" Style="{StaticResource MenuBarTitleButtonStyle}">
                             <Button.Flyout>
                                 <MenuFlyout Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False">
-                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuMapItem" Text="Map" Tag="0"
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuAppearanceItem" Text="Appearance" Tag="0"
                                                           IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 0), Mode=OneWay}"
                                                           Click="OnSettingsPageClick">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE774;"/></ToggleMenuFlyoutItem.Icon>
@@ -539,12 +540,7 @@
                                                           Click="OnSettingsPageClick">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE8EF;"/></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
-                                    <!-- EDGE-HATCH (experimental bolt-on): the Edges page. -->
-                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuEdgesItem" Text="Edges" Tag="10"
-                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 10), Mode=OneWay}"
-                                                          Click="OnSettingsPageClick">
-                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE790;"/></ToggleMenuFlyoutItem.Icon>
-                                    </ToggleMenuFlyoutItem>
+                                    <!-- (Tag 10 = Edges: retired into Appearance 2026-11-16 — no item.) -->
                                     <MenuFlyoutSeparator Visibility="{x:Bind DevOnly}"/>
                                     <ToggleMenuFlyoutItem x:Name="SettingsMenuDevItem" Text="Dev" Tag="11"
                                                           KeyboardAcceleratorTextOverride="Debug only"
