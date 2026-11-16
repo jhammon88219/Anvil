@@ -2,20 +2,19 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.Composites
+namespace Anvil.Controls.GeneralSettingsConsoles
 {
 	/// <summary>
-	/// The Settings window's Units tab (see the XAML header): clock, time zone, distance, speed, height and hail
+	/// Settings → General's Units section (see the XAML header): clock, time zone, distance, speed, height and hail
 	/// pickers over <see cref="MapViewModel"/>'s unit properties, plus three presets.
 	/// </summary>
-	public sealed partial class UnitsSettingsTab : UserControl
+	public sealed partial class GeneralSettingsConsoleUnits : UserControl
 	{
-		public UnitsSettingsTab()
+		public GeneralSettingsConsoleUnits()
 		{
 			InitializeComponent();
 		}
 
-		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel
 		{
 			get => (MapViewModel)GetValue(ViewModelProperty);
@@ -23,7 +22,8 @@ namespace Anvil.Controls.Composites
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(UnitsSettingsTab), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(GeneralSettingsConsoleUnits),
+				new PropertyMetadata(null));
 
 		private void OnPresetUs(object sender, RoutedEventArgs e) => ViewModel?.ApplyUnitPreset("us");
 

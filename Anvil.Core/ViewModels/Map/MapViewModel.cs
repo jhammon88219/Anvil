@@ -28,7 +28,8 @@ namespace Anvil.ViewModels
 	/// Window Mode reopened one tab to the left, once. Don't take that as licence to reorder.
 	/// ⚠️ A MERGED page keeps its member (its ordinal is still someone's saved index) and is HIDDEN in the rail
 	/// (<c>TabEntry.IsHidden</c>); <see cref="MapViewModel.SettingsTabIndex"/> sends it to the page that absorbed it.
-	/// <c>Map</c> is shown as "Appearance"; <c>Edges</c> is retired into it (2026-11-16).</summary>
+	/// <c>Map</c> is shown as "Appearance" (<c>Edges</c> retired into it); <c>Startup</c> is shown as "General" (<c>Units</c> and
+	/// <c>WindowMode</c> retired into it) — 2026-11-16. The rail's DISPLAY order is its own (<c>TabEntry.PageIndex</c>).</summary>
 	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Startup, LiveData, Basemap, Units, Edges, Dev }
 
 	/// <summary>
@@ -1688,8 +1689,10 @@ namespace Anvil.ViewModels
 			set
 			{
 				// RETIRED PAGES keep their enum slot (the ordinal is the saved index) but are hidden in the rail; a saved or
-				// targeted one opens the page that absorbed it. Edges → Appearance (= the Map slot), 2026-11-16.
+				// targeted one opens the page that absorbed it (all 2026-11-16): Edges → Appearance (= the Map slot);
+				// Units + Window Mode → General (= the Startup slot).
 				if (value == (int)SettingsTab.Edges) value = (int)SettingsTab.Map;
+				if (value is (int)SettingsTab.Units or (int)SettingsTab.WindowMode) value = (int)SettingsTab.Startup;
 				var clamped = Math.Clamp(value, 0, SettingsTabCount - 1);
 				if (SetProperty(ref _settingsTabIndex, clamped))
 				{
@@ -1747,6 +1750,22 @@ namespace Anvil.ViewModels
 				OnPropertyChanged();
 			}
 		}
+
+		// ── Settings → General's DEFAULT column. Read from the SAME defaults a fresh AppSettings starts with (and that
+		//    ResetUnits writes), so the column can't drift from what a reset — or a first run — actually gives you. ──
+		private static readonly AppSettings FreshSettings = new();
+
+		public string DefaultStartupResumeText => FreshSettings.StartupResume ? "Where I left off" : "A fixed start";
+		public string DefaultStartupModeText => StartupModes.Labels[StartupModes.IndexOf(FreshSettings.StartupMode)];
+		public string DefaultHomeSiteText => "None";
+		public string DefaultLoadHomeOnLaunchText => FreshSettings.LoadHomeOnLaunch ? "On" : "Off";
+		public string DefaultClockText => UnitChoices.Clock.Labels[UnitChoices.Clock.IndexOf(UnitSet.Default.Clock)];
+		public string DefaultTimeZoneText => UnitChoices.Zone.Labels[UnitChoices.Zone.IndexOf(UnitSet.Default.Zone)];
+		public string DefaultDistanceText => Models.DistanceUnits.Labels[0]; // ResetUnits' DistanceUnitIndex = 0
+		public string DefaultSpeedText => UnitChoices.Speed.Labels[UnitChoices.Speed.IndexOf(UnitSet.Default.Speed)];
+		public string DefaultHeightText => UnitChoices.Height.Labels[UnitChoices.Height.IndexOf(UnitSet.Default.Height)];
+		public string DefaultHailText => UnitChoices.Hail.Labels[UnitChoices.Hail.IndexOf(UnitSet.Default.Hail)];
+		public string DefaultMonitorModeText => MonitorModeLabels[0];
 
 		/// <summary>Refresh whatever the current tab shows live. Called when the window opens AND when the tab
 		/// changes, because either one can be the moment a live readout first becomes visible. ⚠️ Keep this

@@ -117,6 +117,9 @@ namespace Anvil.ViewModels
 			? $"Home site: {home.Id} · {home.Name}"
 			: "No home site yet — set one from the Radar Atlas.";
 
+		/// <summary>Settings → General's Home site row: the site alone ("KTLX · Norman"), the row's label says the rest.</summary>
+		public string HomeSiteName => HomeSite is { } home ? $"{home.Id} · {home.Name}" : "None set";
+
 		/// <summary>Load the home site when the app opens. PERSISTED; default off.</summary>
 		public bool LoadHomeOnLaunch
 		{
@@ -197,6 +200,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(HomeSite));
 			OnPropertyChanged(nameof(HasHome));
 			OnPropertyChanged(nameof(HomeSiteSummary));
+			OnPropertyChanged(nameof(HomeSiteName));
 			RebuildPinned();
 			PinnedChanged?.Invoke(this, EventArgs.Empty);
 			_ = PushFavoritesOnlyAsync();

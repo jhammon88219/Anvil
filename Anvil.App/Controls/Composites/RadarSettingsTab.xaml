@@ -1,10 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <!-- RadarSettingsTab — the Radar tab of the Settings window: what the map DRAWS over the basemap for radar.
 
-       ┌──────────────────────────────────────────────────────┐
-       │  ⌄  Home site                                        │
-       │    Home site: KTLX · Norman                          │  ← set in the Radar Atlas, not here
-       │                                                      │     (load-on-launch → the Startup tab)
+       ┌──────────────────────────────────────────────────────┐   (Home site → Settings → General → Startup, 2026-11-16)
        │  ⌄  NowCast live polling                            │
        │    [ Regime-aware | Fixed time ]                     │  ← PERSISTED (RegimeAwarePolling), default
        │    Checks for a new scan when the radar's own …     │     regime-aware; the explainer follows the mode
@@ -71,30 +68,22 @@
     <!-- Body: one Primitives/SettingsExpander per section, grid rows inside each. -->
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- home site -->
             <RowDefinition Height="Auto"/> <!-- nowcast live polling -->
             <RowDefinition Height="Auto"/> <!-- radar memory -->
             <RowDefinition Height="Auto"/> <!-- radar site keys -->
         </Grid.RowDefinitions>
 
-        <!-- The home site is PICKED in the Radar Atlas (where you can see what you're choosing); this only
-             shows it and holds the one launch preference. -->
-        <prim:SettingsExpander Grid.Row="0" Header="Home site" IsExpanded="True">
-            <!-- ⚠️ "Load home site on launch" MOVED to the Startup tab (2026-10-07) — every launch preference
-                 lives there. Don't re-add it here. -->
-            <TextBlock Margin="4,0,0,0"
-                       Text="{x:Bind ViewModel.SiteFavorites.HomeSiteSummary, Mode=OneWay}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-        </prim:SettingsExpander>
+        <!-- ⚠️ THE HOME SITE row is on Settings → General → Startup ONLY (2026-11-16 — it was here AND on Startup).
+             Don't re-add it here. -->
 
-        <!-- ⚠️ READOUTS (the distance unit) MOVED to the Units tab (UnitsSettingsTab, 2026-10-22) with every other
-             unit. Don't re-add a unit picker here. -->
+        <!-- ⚠️ READOUTS (the distance unit) MOVED to Settings → General → Units with every other unit (2026-10-22).
+             Don't re-add a unit picker here. -->
 
         <!-- NOWCAST LIVE POLLING — when the live poll checks for a new scan (docs/regime-aware-polling.md). REGIME-AWARE
              (default) times each check from the volume's own scan plan (LivePollPlanner); FIXED TIME uses the interval
              row, which stays VISIBLE but greyed in regime-aware mode so you see what switching gives. Both PERSISTED
              (AppSettings.RegimeAwarePolling / LivePollSeconds); a change applies from the next check. -->
-        <prim:SettingsExpander Grid.Row="1" Header="NowCast live polling" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="0" Header="NowCast live polling" IsExpanded="True">
             <StackPanel Spacing="6">
                 <prim:SegmentedPicker Margin="4,0,0,0" HorizontalAlignment="Left" Width="280"
                                       ItemsSource="{x:Bind ViewModel.Radar.LivePollingModeLabels}"
@@ -124,7 +113,7 @@
              a RAM-allocation slider. PERSISTED (AppSettings.RadarMemoryGb; null = a quarter of RAM). It sizes
              the PastCast frame cap at each Load; NowCast is untouched. The note line swaps to the caution brush when the
              budget is High (over half of RAM) or Low (4-pane loops on the frame floor) — two TextBlocks, never a brush in C#. -->
-        <prim:SettingsExpander Grid.Row="2" Header="Radar memory" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="1" Header="Radar memory" IsExpanded="True">
             <Grid RowSpacing="6" ColumnSpacing="12" Margin="4,0,0,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- this PC -->
@@ -179,7 +168,7 @@
         <!-- RADAR SITE KEYS — set-once PREFERENCES about how the keys on the map behave, so they pass the placement test for
              Settings (the network toggles are gestures and live on the tools tier — see the ⚠️ above). Each switch is ONE
              rule in radar-sites.js's VISIBILITY RULES table; a new way to hide keys = a rule there + a row here. -->
-        <prim:SettingsExpander Grid.Row="3" Header="Radar site keys" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="2" Header="Radar site keys" IsExpanded="True">
             <StackPanel Spacing="4">
                 <!-- PERSISTED (AppSettings.HideOtherSitesWhileLoaded), default ON — the `focus` rule. -->
                 <CheckBox Margin="4,0,0,0"

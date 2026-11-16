@@ -8,6 +8,7 @@
        │ [logo] Anvil Settings ←35→ VERSION │ BUILD   LICENSE   SOURCE    ░░░ lock pin ─ □ ✕ ░│ ← THE BAND (raised):
        │ (slot)                     1.0.0.0 │ Debug   AGPL-3.0  GitHub    ░ reserved 220 px ░ │   about-Anvil facts,
        │░░░░░░░░░░░░░░░░░░╭───────────────────────────────────────────────────────────────────┤   label OVER value
+       │   ⏻  General     │  (first in the rail — page 6, the old Startup slot)
        │▌▓ ◐ Appearance ▓▓│  ┌ Theme ───────────────────────────────────────────────────────┐ │   ← band + rail = ONE grey L;
        │   ◎  Radar       │  │ …                                                    DEFAULT │ │     the only line = the BODY's
        │   ⊙  Radar Range │  └──────────────────────────────────────────────────────────────┘ │     outline (left + top, 10 px
@@ -19,7 +20,8 @@
         ↑ Primitives/TabStrip, 220 wide, raised (its edge line is the body outline's, not its own)
      ⭐ SECTIONS (2026-11-16, page by page): each section is its OWN named control on a Primitives/SettingsConsolePlate
         (titled card, never collapses), 12 apart — Appearance + Storage so far; the rest still use SettingsExpander until
-        redone (Dev keeps its expanders). A MERGED page keeps its enum slot, HIDDEN (TabEntry.IsHidden): Edges → Appearance.
+        redone (Dev keeps its expanders). The rail's DISPLAY order is free (each TabEntry names its page by PageIndex);
+        a MERGED page keeps its enum slot but has no rail entry: Edges → Appearance; Units + Window Mode → General.
         (The live map preview beside Map + Range Ring was removed 2026-11-16.)
 
      The top bar's Settings menu lists the SAME pages (MainWindow.xaml's SETTINGS MENU, one declared item per
@@ -150,13 +152,13 @@
                     <cmp:StorageSettingsTab x:Name="StorageTab" ViewModel="{x:Bind ViewModel}"
                                             Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 3), Mode=OneWay}"/>
 
-                    <cmp:WindowModeSettingsTab x:Name="WindowModeTab" ViewModel="{x:Bind ViewModel}"
-                                               Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 4), Mode=OneWay}"/>
+                    <!-- Slot 4 (WindowMode) has NO body: retired into General. -->
 
                     <cmp:RadarConsoleSettingsTab x:Name="ConsoleTab" ViewModel="{x:Bind ViewModel}"
                                                  Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 5), Mode=OneWay}"/>
 
-                    <cmp:StartupSettingsTab x:Name="StartupTab" ViewModel="{x:Bind ViewModel}"
+                    <!-- Slot 6 (SettingsTab.Startup) = GENERAL: Startup + Units + Window (Units, WindowMode merged in). -->
+                    <cmp:GeneralSettingsTab x:Name="GeneralTab" ViewModel="{x:Bind ViewModel}"
                                             Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 6), Mode=OneWay}"/>
 
                     <cmp:LiveDataSettingsTab x:Name="LiveDataTab" ViewModel="{x:Bind ViewModel.LiveData}"
@@ -165,8 +167,7 @@
                     <basemaps:BasemapSettingsTab x:Name="BasemapTab" ViewModel="{x:Bind ViewModel.BasemapSetup}"
                                                  Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 8), Mode=OneWay}"/>
 
-                    <cmp:UnitsSettingsTab x:Name="UnitsTab" ViewModel="{x:Bind ViewModel}"
-                                          Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 9), Mode=OneWay}"/>
+                    <!-- Slot 9 (Units) has NO body: retired into General. -->
 
                     <!-- Slot 10 (Edges) has NO body: retired into Appearance; SettingsTabIndex never lands on it. -->
 

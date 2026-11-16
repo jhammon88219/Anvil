@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GeneralSettingsTab — Settings → General (SettingsTab.Startup's slot, renamed 2026-11-16; FIRST in the rail): how Anvil
+     starts, the units it speaks, and its windows. Merged the Startup, Units and Window Mode pages.
+
+       ┌ Startup ──────────────────────────────────────────────────── DEFAULT ┐  GeneralSettingsConsoleStartup
+       │ Opens on · Start in · Home site · Load home site on launch           │
+       └──────────────────────────────────────────────────────────────────────┘
+          12 px of the body's darker ground
+       ┌ Units  [Restore defaults] ───────────────────────────────── DEFAULT ┐  GeneralSettingsConsoleUnits
+       │ Start from · Clock · Time zone · Distance · Speed · Height · Hail    │
+       └──────────────────────────────────────────────────────────────────────┘
+       ┌ Window ───────────────────────────────────────────────────── DEFAULT ┐  GeneralSettingsConsoleWindow
+       │ Monitors                                                             │
+       └──────────────────────────────────────────────────────────────────────┘
+
+     ⚠️ Every launch preference lives in Startup — a new one is a row there, not a new page. The HOME SITE shows here ONLY
+     (the Radar page's copy went with this merge); it is PICKED in the Radar Atlas.
+     ⚠️ Units + Window Mode keep their enum slots (saved indexes) and open this page (MapViewModel.SettingsTabIndex). -->
+<UserControl x:Class="Anvil.Controls.Composites.GeneralSettingsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:generalSettingsConsoles="using:Anvil.Controls.GeneralSettingsConsoles"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <StackPanel Spacing="12" VerticalAlignment="Top">
+        <generalSettingsConsoles:GeneralSettingsConsoleStartup x:Name="GeneralSettingsConsoleStartup" ViewModel="{x:Bind ViewModel}"/>
+        <generalSettingsConsoles:GeneralSettingsConsoleUnits x:Name="GeneralSettingsConsoleUnits" ViewModel="{x:Bind ViewModel}"/>
+        <generalSettingsConsoles:GeneralSettingsConsoleWindow x:Name="GeneralSettingsConsoleWindow" ViewModel="{x:Bind ViewModel}"/>
+    </StackPanel>
+</UserControl>

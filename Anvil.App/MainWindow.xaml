@@ -415,7 +415,8 @@
                         <!-- ===== ATLAS + SETTINGS MENUS (the user's call, 2026-11-11) =====
 
                                ┌ Settings ─────────────────┐   the title ONLY opens the list; each item opens the
-                               │ ✓ ⛰  Appearance           │   window ON THAT PAGE (or switches the open one to it).
+                               │ ✓ ⏻  General              │   window ON THAT PAGE (or switches the open one to it).
+                               │   ⛰  Appearance           │
                                │   ◎  Radar                │   ✓ = the page the OPEN window is on.
                                │      …                    │   Items = the window's rail, same marks + names, Tag =
                                │ ───────────────────────── │   the page index — ⚠️ a new page adds its item here too;
@@ -490,6 +491,12 @@
                         <Button x:Name="SettingsMenuButton" Content="Settings" Style="{StaticResource MenuBarTitleButtonStyle}">
                             <Button.Flyout>
                                 <MenuFlyout Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False">
+                                    <!-- Same ORDER as the window's rail (BuildTabs), not page-number order; Tag = the page. -->
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuGeneralItem" Text="General" Tag="6"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 6), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE7E8;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
                                     <ToggleMenuFlyoutItem x:Name="SettingsMenuAppearanceItem" Text="Appearance" Tag="0"
                                                           IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 0), Mode=OneWay}"
                                                           Click="OnSettingsPageClick">
@@ -505,25 +512,10 @@
                                                           Click="OnSettingsPageClick">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE81D;"/></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
-                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuStorageItem" Text="Storage" Tag="3"
-                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 3), Mode=OneWay}"
-                                                          Click="OnSettingsPageClick">
-                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xEDA2;"/></ToggleMenuFlyoutItem.Icon>
-                                    </ToggleMenuFlyoutItem>
-                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuWindowModeItem" Text="Window Mode" Tag="4"
-                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 4), Mode=OneWay}"
-                                                          Click="OnSettingsPageClick">
-                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE7F4;"/></ToggleMenuFlyoutItem.Icon>
-                                    </ToggleMenuFlyoutItem>
                                     <ToggleMenuFlyoutItem x:Name="SettingsMenuRadarConsoleItem" Text="Radar Console" Tag="5"
                                                           IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 5), Mode=OneWay}"
                                                           Click="OnSettingsPageClick">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE768;"/></ToggleMenuFlyoutItem.Icon>
-                                    </ToggleMenuFlyoutItem>
-                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuStartupItem" Text="Startup" Tag="6"
-                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 6), Mode=OneWay}"
-                                                          Click="OnSettingsPageClick">
-                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE7E8;"/></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
                                     <ToggleMenuFlyoutItem x:Name="SettingsMenuLiveDataItem" Text="Live Data" Tag="7"
                                                           IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 7), Mode=OneWay}"
@@ -535,12 +527,12 @@
                                                           Click="OnSettingsPageClick">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE826;"/></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
-                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuUnitsItem" Text="Units" Tag="9"
-                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 9), Mode=OneWay}"
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuStorageItem" Text="Storage" Tag="3"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 3), Mode=OneWay}"
                                                           Click="OnSettingsPageClick">
-                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE8EF;"/></ToggleMenuFlyoutItem.Icon>
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xEDA2;"/></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
-                                    <!-- (Tag 10 = Edges: retired into Appearance 2026-11-16 — no item.) -->
+                                    <!-- (Retired 2026-11-16, no items: Tag 10 Edges → Appearance; Tags 4 Window Mode + 9 Units → General.) -->
                                     <MenuFlyoutSeparator Visibility="{x:Bind DevOnly}"/>
                                     <ToggleMenuFlyoutItem x:Name="SettingsMenuDevItem" Text="Dev" Tag="11"
                                                           KeyboardAcceleratorTextOverride="Debug only"

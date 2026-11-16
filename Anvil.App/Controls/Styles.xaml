@@ -217,6 +217,21 @@
         <Setter Property="Typography.NumeralAlignment" Value="Tabular"/>
     </Style>
 
+    <!-- SETTINGS CONSOLES (rows on a Primitives/SettingsConsolePlate): the grey one-line HINT after a control, and the
+         right-hand DEFAULT column's text. Shared by every <Page>SettingsConsole<Section>. -->
+    <Style x:Key="SettingsConsoleHintTextStyle" TargetType="TextBlock" BasedOn="{StaticResource TabularNumberTextStyle}">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+    </Style>
+    <Style x:Key="SettingsConsoleDefaultTextStyle" TargetType="TextBlock" BasedOn="{StaticResource TabularNumberTextStyle}">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="HorizontalAlignment" Value="Right"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+    </Style>
+
     <!-- ══════════════════════════════ 2. SIZES ══════════════════════════════
          How big a key in the bottom bar is. THREE numbers, and they are here for exactly one reason:
          TWO clusters have to agree on them. The temporal keys sit at the bar's left edge and the

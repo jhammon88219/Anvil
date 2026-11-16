@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GeneralSettingsConsoleWindow — Settings → General's "Window" section (was the Window Mode page), on a
+     Primitives/SettingsConsolePlate.
+
+       Window                                                                                       DEFAULT
+       Monitors   [▓Single monitor▓| Multi-monitor ]   Multi-monitor is coming — it needs…     Single monitor
+       96         420                                  hint                                      150, right
+                              ↑ Multi greyed (DisabledIndex 1)
+
+     ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's — every General section uses the same.
+     ⚠️ THE BONES, NOT THE FEATURE: MapViewModel.MonitorMode is what WindowManager reads at each point where the two modes
+     would differ (grep "MONITOR MODE"); every one runs the single-monitor rule today. Enabling Multi is the LAST step of
+     building multi-monitor, not the first. -->
+<UserControl x:Class="Anvil.Controls.GeneralSettingsConsoles.GeneralSettingsConsoleWindow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <prim:SettingsConsolePlate x:Name="GeneralSettingsConsoleWindowPlate" Title="Window" ShowDefaultHeader="True">
+        <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="96"/>
+                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="150"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock VerticalAlignment="Center" Text="Monitors"/>
+            <prim:SegmentedPicker x:Name="MonitorModePicker" Grid.Column="1" HorizontalAlignment="Left" Width="280"
+                                  ItemsSource="{x:Bind ViewModel.MonitorModeLabels}"
+                                  SelectedIndex="{x:Bind ViewModel.MonitorModeIndex, Mode=TwoWay}"
+                                  DisabledIndex="1"/>
+            <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
+                       Text="Multi-monitor is coming — it needs a second screen to build and test"/>
+            <TextBlock Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
+                       Text="{x:Bind ViewModel.DefaultMonitorModeText}"/>
+        </Grid>
+    </prim:SettingsConsolePlate>
+</UserControl>

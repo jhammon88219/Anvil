@@ -53,11 +53,11 @@ namespace Anvil.Controls.Primitives
 		/// inside a template resolves against the ENTRY, so an instance method here is out of reach).</summary>
 		public static Visibility Show(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 
-		/// <summary>A hidden entry (<see cref="TabEntry.IsHidden"/>) keeps its index but draws nothing.</summary>
-		public static Visibility Hide(bool hidden) => hidden ? Visibility.Collapsed : Visibility.Visible;
-
 		private IEnumerable<TabEntry> Entries =>
 			ItemsSource?.OfType<TabEntry>() ?? Enumerable.Empty<TabEntry>();
+
+		// The page a row selects: its own PageIndex, else its position (TabEntry.PageIndex).
+		private static int PageOf(TabEntry entry, int position) => entry.PageIndex >= 0 ? entry.PageIndex : position;
 
 		// Push the current index onto the entries; the item template lights itself from IsSelected.
 		private void ApplySelection()
@@ -65,7 +65,7 @@ namespace Anvil.Controls.Primitives
 			int i = 0;
 			foreach (var entry in Entries)
 			{
-				entry.IsSelected = i == SelectedIndex;
+				entry.IsSelected = PageOf(entry, i) == SelectedIndex;
 				i++;
 			}
 		}
@@ -74,8 +74,8 @@ namespace Anvil.Controls.Primitives
 		{
 			if (sender is not ToggleButton button || button.DataContext is not TabEntry entry) return;
 
-			int index = Entries.ToList().IndexOf(entry);
-			if (index >= 0) SelectedIndex = index;
+			int position = Entries.ToList().IndexOf(entry);
+			if (position >= 0) SelectedIndex = PageOf(entry, position);
 
 			// ⚠️ RE-ASSERT, do not delete. The click already flipped IsChecked locally, and a OneWay binding
 			// only pushes when the SOURCE changes — so clicking the row you are already on would leave it

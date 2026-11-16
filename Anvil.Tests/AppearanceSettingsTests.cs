@@ -82,6 +82,41 @@ namespace Anvil.Tests
 			Assert.Same(Black, New(settings).SelectedStyle);
 		}
 
+		[Theory]
+		[InlineData(SettingsTab.Units)]
+		[InlineData(SettingsTab.WindowMode)]
+		public void The_retired_Units_and_Window_Mode_pages_open_General(SettingsTab retired)
+		{
+			var vm = New(new AppSettings { SettingsTabIndex = (int)retired });
+			Assert.Equal((int)SettingsTab.Startup, vm.SettingsTabIndex);
+
+			vm.OpenSettings(retired);
+			Assert.Equal((int)SettingsTab.Startup, vm.SettingsTabIndex);
+		}
+
+		[Fact]
+		public void The_Units_default_column_says_what_Restore_defaults_sets()
+		{
+			var vm = New(new AppSettings { ClockFormat = "24h", TimeZoneChoice = "utc", SpeedUnits = "kt", HeightUnits = "km", HailUnits = "cm" });
+			vm.ResetUnits();
+
+			Assert.Equal(vm.DefaultClockText, vm.ClockFormatLabels[vm.ClockFormatIndex]);
+			Assert.Equal(vm.DefaultTimeZoneText, vm.TimeZoneLabels[vm.TimeZoneIndex]);
+			Assert.Equal(vm.DefaultDistanceText, vm.DistanceUnitLabels[vm.DistanceUnitIndex]);
+			Assert.Equal(vm.DefaultSpeedText, vm.SpeedUnitLabels[vm.SpeedUnitIndex]);
+			Assert.Equal(vm.DefaultHeightText, vm.HeightUnitLabels[vm.HeightUnitIndex]);
+			Assert.Equal(vm.DefaultHailText, vm.HailUnitLabels[vm.HailUnitIndex]);
+		}
+
+		[Fact]
+		public void The_Startup_default_column_says_what_a_first_run_gets()
+		{
+			var fresh = new AppSettings();
+			var vm = New(fresh);
+			Assert.Equal(vm.DefaultStartupModeText, vm.StartupModeLabels[vm.StartupModeIndex]);
+			Assert.Equal(fresh.StartupResume ? "Where I left off" : "A fixed start", vm.DefaultStartupResumeText);
+		}
+
 		[Fact]
 		public void The_retired_Edges_page_opens_Appearance()
 		{

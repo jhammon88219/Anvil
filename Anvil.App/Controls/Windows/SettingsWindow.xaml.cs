@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -76,11 +76,9 @@ namespace Anvil.Controls.Windows
 			Persist(RadarTab, "radar");
 			Persist(RangeRingTab, "rangering");
 			Persist(StorageTab, "storage");
-			Persist(WindowModeTab, "windowmode");
+			// (windowmode + startup + units: now General — console sections, nothing to persist.)
 			Persist(ConsoleTab, "console");
-			Persist(StartupTab, "startup");
 			Persist(BasemapTab, "basemap");
-			Persist(UnitsTab, "units");
 		}
 
 		// A tab body is a UserControl whose root panel holds its sections.
@@ -143,30 +141,28 @@ namespace Anvil.Controls.Windows
 		//   E826 map     — Basemap: the map under the weather. NOT verified. Eyeball it on first run.
 		//   E8EF calculator — Units: how numbers are spoken. NOT verified. Eyeball it on first run.
 		//   E912 toolbox — was the Dev bar key's glyph (a second GEAR until that collided with Settings).
-		// ⚠️ Order = the SettingsTab enum. New tabs go BEFORE the #if DEBUG block — Dev must stay last.
+		// ⚠️ The LIST order is the rail's display order; PageIndex is the page (the SettingsTab ordinal = the saved index).
+		// New pages go BEFORE the #if DEBUG block — Dev stays last in the rail and last in the enum.
 		private static ObservableCollection<TabEntry> BuildTabs()
 		{
 			var tabs = new ObservableCollection<TabEntry>
 			{
-				new() { Glyph = "", Label = "Appearance", Tooltip = "The app's theme, the basemap's colours, and how the bars and panes meet the map (the edge hatch)" },
-				new() { Glyph = "", Label = "Radar",   Tooltip = "Which radar-site marker networks are shown" },
-				new() { Glyph = "", Label = "Radar Range Ring", Tooltip = "Which range rings are drawn, how each looks, the distance labels and the ruler's anchor" },
-				new() { Glyph = "", Label = "Storage", Tooltip = "The on-disk radar cache: size, clearing and its limit" },
-				new() { Glyph = "", Label = "Window Mode", Tooltip = "Single- or multi-monitor window layout" },
-				new() { Glyph = "", Label = "Radar Console", Tooltip = "How the bar's radar console looks: the loop scrubber" },
-				new() { Glyph = "", Label = "Startup", Tooltip = "What Anvil opens on: your last session or a fixed start, and the home site" },
-				new() { Glyph = "", Label = "Live Data", Tooltip = "Where live updates come from (IEM, NOAA Weather Wire or polling), the polling intervals and the connection" },
-				new() { Glyph = "", Label = "Basemap", Tooltip = "The map under the weather: your map files, downloading an offline map, the online map key, and map setup at launch" },
-				new() { Glyph = "", Label = "Units", Tooltip = "Clock, time zone, distance, speed, height and hail size, for every readout in the app" },
-				// RETIRED into Appearance (2026-11-16): a HIDDEN slot so every later index (Dev) stays put; a saved Edges
-				// index opens Appearance (MapViewModel.SettingsTabIndex).
-				new() { Glyph = "", Label = "Edges", IsHidden = true },
+				// DISPLAY order (the user's six-page plan, 2026-11-16); each entry names its page by PageIndex, so the order is
+				// free. Retired pages (Edges, Units, WindowMode) have NO entry — SettingsTabIndex sends their saved index on.
+				new() { PageIndex = (int)SettingsTab.Startup, Glyph = "\uE7E8", Label = "General", Tooltip = "How Anvil starts and your home site, the units every readout speaks in, and the window layout" },
+				new() { PageIndex = (int)SettingsTab.Map, Glyph = "\uE774", Label = "Appearance", Tooltip = "The app's theme, the basemap's colours, and how the bars and panes meet the map (the edge hatch)" },
+				new() { PageIndex = (int)SettingsTab.Radar, Glyph = "\uEC05", Label = "Radar", Tooltip = "Live polling, radar memory and which radar-site keys show" },
+				new() { PageIndex = (int)SettingsTab.RangeRing, Glyph = "\uE81D", Label = "Radar Range Ring", Tooltip = "Which range rings are drawn, how each looks, the distance labels and the ruler's anchor" },
+				new() { PageIndex = (int)SettingsTab.RadarConsole, Glyph = "\uE768", Label = "Radar Console", Tooltip = "How the bar's radar console looks: the loop scrubber" },
+				new() { PageIndex = (int)SettingsTab.LiveData, Glyph = "\uE701", Label = "Live Data", Tooltip = "Where live updates come from (IEM, NOAA Weather Wire or polling), the polling intervals and the connection" },
+				new() { PageIndex = (int)SettingsTab.Basemap, Glyph = "\uE826", Label = "Basemap", Tooltip = "The map under the weather: your map files, downloading an offline map, the online map key, and map setup at launch" },
+				new() { PageIndex = (int)SettingsTab.Storage, Glyph = "\uEDA2", Label = "Storage", Tooltip = "What Anvil keeps on disk: sizes, clearing, and how much and how long each kind is kept" },
 			};
 
 #if DEBUG
 			// DEV-ONLY. Appended here rather than declared in XAML because XAML has no preprocessor — this is
 			// the one place the tab count differs between builds, and MapViewModel.SettingsTabCount mirrors it.
-			tabs.Add(new TabEntry { Glyph = "", Label = "Dev", IsSeparated = true, Tooltip = "Site sweep, dealias validation and the pipeline console" });
+			tabs.Add(new TabEntry { Glyph = "", PageIndex = (int)SettingsTab.Dev, Label = "Dev", IsSeparated = true, Tooltip = "Site sweep, dealias validation and the pipeline console" });
 #endif
 
 			return tabs;

@@ -26,9 +26,12 @@ namespace Anvil.Controls.Primitives
 		/// <summary>A rule is drawn ABOVE this row (Settings' Dev entry, which sits apart from the rest).</summary>
 		public bool IsSeparated { get; set; }
 
-		/// <summary>The row is NOT drawn but keeps its index — a page merged into another keeps its slot, because the
-		/// strip's index IS the persisted page number (Settings' retired Edges).</summary>
-		public bool IsHidden { get; set; }
+		/// <summary>
+		/// Which page this row selects (the strip's <see cref="TabStrip.SelectedIndex"/>). -1 (default) = its POSITION in the
+		/// list. Set it when the rail's display order differs from the page numbers — Settings lists General first though it
+		/// is page 6, and leaves retired pages out (the page number is the persisted index, so it can't be renumbered).
+		/// </summary>
+		public int PageIndex { get; set; } = -1;
 
 		private string _tooltip = "";
 		/// <summary>Hover text. Say what the page holds — and when the row is DISABLED, say why and how to get it
