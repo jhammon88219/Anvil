@@ -55,7 +55,7 @@ namespace Anvil.ViewModels
 				// loop is obviously today, so it stays time-only.
 				if (t is { } x)
 					return IsPastEventMode
-						? $"{UnitFormat.Clock(x)} · {UnitFormat.Date(x, "MMM d, yyyy")}"
+						? $"{UnitFormat.Clock(x)} · {UnitFormat.DateFull(x)}"
 						: UnitFormat.Clock(x);
 				return string.Empty; // no "loading" text; the segmented scrubber shows load progress
 			}
@@ -247,7 +247,7 @@ namespace Anvil.ViewModels
 				var newest = (_archiveCount - 1 < _frameTimes.Length) ? _frameTimes[_archiveCount - 1] : null;
 				static string L(DateTimeOffset? x) => x is { } v ? UnitFormat.Clock(v) : "—"; // Settings → Units
 				// Suffix the event date in replay so the time-only span isn't ambiguous on a past event.
-				var date = IsPastEventMode && newest is { } n ? $" · {UnitFormat.Date(n, "MMM d, yyyy")}" : string.Empty;
+				var date = IsPastEventMode && newest is { } n ? $" · {UnitFormat.DateFull(n)}" : string.Empty;
 				return $"{L(oldest)} – {L(newest)} · {_frameCount} frames{date}";
 			}
 		}

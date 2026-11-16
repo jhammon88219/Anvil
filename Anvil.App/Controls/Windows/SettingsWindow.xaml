@@ -116,11 +116,13 @@
         <!-- THE RAIL — raised, NO line of its own (see the body outline). The entries are BuildTabs'. -->
         <Border x:Name="SettingsRail" Grid.Row="1"
                 Background="{ThemeResource OverlayBarSurfaceRaisedBrush}">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
-                <ctl:TabStrip x:Name="Strip" Margin="6,8,6,8"
+            <!-- ⚠️ NEVER WinUI's overlay bar (the user's hard rule): our PanelScroller, its 16 px gutter ALWAYS claimed on the
+                 right — it is the rows' right margin (was 6), so the rows never slide under a bar. -->
+            <ctl:PanelScroller x:Name="SettingsRailScroller">
+                <ctl:TabStrip x:Name="Strip" Margin="6,8,0,8"
                               ItemsSource="{x:Bind Tabs}"
                               SelectedIndex="{x:Bind ViewModel.SettingsTabIndex, Mode=TwoWay}"/>
-            </ScrollViewer>
+            </ctl:PanelScroller>
         </Border>
 
         <!-- THE BODY OUTLINE — ONE Path (Primitives/PlateOutline, inset-corner mode): the hairline up the body's left edge,
@@ -134,9 +136,11 @@
              2026-11-11). The rows INSIDE a section keep their own widths. (The live map preview that split some pages
              half-and-half was removed 2026-11-16.) -->
         <Grid x:Name="BodyHost" Grid.Row="1" Grid.Column="1" Margin="24,18,16,14">
-            <!-- Bodies. Exactly one is visible; the rest keep their state because they stay loaded. -->
-            <ScrollViewer x:Name="Body"
-                          VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
+            <!-- Bodies. Exactly one is visible; the rest keep their state because they stay loaded.
+                 ⚠️ NEVER WinUI's overlay bar (the user's hard rule): Primitives/PanelScroller, its 16 px gutter ALWAYS claimed
+                 (a lane of its own, never over the cards). Margin right -12 bleeds it into BodyHost's 16 px right margin, so
+                 the cards keep their width and the thumb sits 4 px from the cards AND 4 px from the window edge. -->
+            <ctl:PanelScroller x:Name="Body" Margin="0,0,-12,0">
                 <Grid>
                     <!-- Slot 0 (SettingsTab.Map) = APPEARANCE: theme + basemap + the edge hatch (Edges merged in). -->
                     <cmp:AppearanceSettingsTab x:Name="AppearanceTab" ViewModel="{x:Bind ViewModel}"
@@ -181,7 +185,7 @@
                                         SeedVm="{x:Bind SeedVm}"
                                         Loaded="OnDevTabLoaded"/>
                 </Grid>
-            </ScrollViewer>
+            </ctl:PanelScroller>
         </Grid>
 
         <!-- Lock (no move/resize) + pin (keep on top), over the band's reserved corner. -->
