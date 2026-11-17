@@ -3,14 +3,14 @@
      Primitives/SettingsConsolePlate. The page SIZES the reach rings from the frame on screen; these only choose.
 
        Rings  [Restore defaults]                                                                   DEFAULT
-       ☑ Site ring                                 Shown even with the Rings key off                     On
-       ☑ Reflectivity reach                        Where reflectivity data ends                          On
-       ☑ Velocity reach                            Where velocity data ends                              On
-       ☐ Distance rings                            Evenly spaced, in your distance unit                 Off
+                ☑ Site ring                        Shown even with the Rings key off                     On
+                ☑ Reflectivity reach               Where reflectivity data ends                          On
+                ☑ Velocity reach                   Where velocity data ends                              On
+                ☐ Distance rings                   Evenly spaced, in your distance unit                 Off
        Spacing  [ Auto | 25 | 50 | 100 ]  ← greyed unless Distance rings                                Auto
        96       420                                hint (one line)                               150, right
 
-     ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's. ⚠️ The SITE RING is OUTSIDE the map-tools Rings key (the plain ring
+     ⚠️ THE ROW GRID is Styles.xaml's (SettingsConsoleRowsStyle + Settings*ColumnWidth); checkboxes sit in the Control column. ⚠️ The SITE RING is OUTSIDE the map-tools Rings key (the plain ring
      that stays when that key is off, and gives way to the styled reflectivity ring while that draws). Spacing is in your
      distance unit (General → Units → Distance). -->
 <UserControl x:Class="Anvil.Controls.RingsSettingsConsoles.RingsSettingsConsoleRings"
@@ -27,12 +27,12 @@
                     ToolTipService.ToolTip="Put which rings are drawn back to the DEFAULT column (asks first)"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid ColumnSpacing="12" RowSpacing="10">
+        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="96"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -42,28 +42,28 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <CheckBox x:Name="SiteRingCheckBox" Grid.ColumnSpan="2" VerticalAlignment="Center" Content="Site ring"
+            <CheckBox x:Name="SiteRingCheckBox" Grid.Column="1" VerticalAlignment="Center" Content="Site ring"
                       IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowSiteRing, Mode=TwoWay}"
                       ToolTipService.ToolTip="A plain ring at the edge of the radar's data, around every site. The styled Reflectivity reach ring replaces it while that one is on"/>
             <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Shown even with the Rings key off"/>
             <TextBlock Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.Radar.RangeRings.DefaultSiteRingText}"/>
 
-            <CheckBox x:Name="ReflectivityRingCheckBox" Grid.Row="1" Grid.ColumnSpan="2" VerticalAlignment="Center" Content="Reflectivity reach"
+            <CheckBox x:Name="ReflectivityRingCheckBox" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Content="Reflectivity reach"
                       IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowReflectivityRing, Mode=TwoWay}"/>
             <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Where reflectivity data ends"/>
             <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.Radar.RangeRings.DefaultReflectivityRingText}"/>
 
-            <CheckBox x:Name="VelocityRingCheckBox" Grid.Row="2" Grid.ColumnSpan="2" VerticalAlignment="Center" Content="Velocity reach"
+            <CheckBox x:Name="VelocityRingCheckBox" Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" Content="Velocity reach"
                       IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowVelocityRing, Mode=TwoWay}"/>
             <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Where velocity data ends"/>
             <TextBlock Grid.Row="2" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.Radar.RangeRings.DefaultVelocityRingText}"/>
 
-            <CheckBox x:Name="DistanceRingsCheckBox" Grid.Row="3" Grid.ColumnSpan="2" VerticalAlignment="Center" Content="Distance rings"
+            <CheckBox x:Name="DistanceRingsCheckBox" Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" Content="Distance rings"
                       IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=TwoWay}"/>
             <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Evenly spaced, in your distance unit"/>
             <TextBlock Grid.Row="3" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.Radar.RangeRings.DefaultDistanceRingsText}"/>
 
-            <TextBlock Grid.Row="4" VerticalAlignment="Center" Text="Spacing"/>
+            <TextBlock Grid.Row="4" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Spacing"/>
             <prim:SegmentedPicker x:Name="DistanceRingSpacingPicker" Grid.Row="4" Grid.Column="1"
                                   IsEnabled="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}"
                                   ItemsSource="{x:Bind ViewModel.Radar.RangeRings.DistanceRingSpacingLabels}"

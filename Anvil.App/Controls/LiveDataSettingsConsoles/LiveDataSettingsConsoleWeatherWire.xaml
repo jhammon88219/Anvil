@@ -22,12 +22,12 @@
 
     <prim:SettingsConsolePlate x:Name="LiveDataSettingsConsoleWeatherWirePlate" Title="Weather Wire account">
         <ContentControl HorizontalContentAlignment="Stretch" IsTabStop="False" IsEnabled="{x:Bind ViewModel.IsNwws, Mode=OneWay}">
-            <Grid ColumnSpacing="12" RowSpacing="10">
+            <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="96"/>
-                    <ColumnDefinition Width="420"/>
+                    <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+                    <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -35,12 +35,12 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock VerticalAlignment="Center" Text="User name"/>
+                <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="User name"/>
                 <TextBox x:Name="NwwsUsernameTextBox" Grid.Column="1" PlaceholderText="firstname.lastname"
                          Text="{x:Bind ViewModel.NwwsUsername, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                 <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="From the NWS · one computer only"/>
 
-                <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Password"/>
+                <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Password"/>
                 <PasswordBox x:Name="NwwsPasswordBox" Grid.Row="1" Grid.Column="1"
                              PlaceholderText="{x:Bind ViewModel.PasswordPlaceholder, Mode=OneWay}"
                              PasswordChanged="OnPasswordChanged"/>

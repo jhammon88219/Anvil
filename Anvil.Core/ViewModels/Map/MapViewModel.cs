@@ -301,6 +301,7 @@ namespace Anvil.ViewModels
 			AvailableThemes = themeProvider.GetThemes();
 			_selectedTheme = themeProvider.Resolve(settingsService.Settings.ThemeId);
 			DefaultThemeName = themeProvider.Default?.DisplayName ?? ""; // (a test double may have no default)
+			_defaultThemeId = themeProvider.Default?.Id;
 
 			// Assign the backing field directly (not the setter) so the default selection does NOT trigger a
 			// map command during construction. The page loads this style via its URL, so there is nothing to
@@ -1976,6 +1977,30 @@ namespace Anvil.ViewModels
 
 		/// <summary>Settings → Appearance's DEFAULT column for Basemap: no fixed map — it follows the theme.</summary>
 		public string DefaultBasemapText => "The theme's";
+
+		// The theme a fresh install wears (null only for a test double with no default).
+		private readonly string? _defaultThemeId;
+
+		/// <summary>Theme's Restore defaults: the default theme, and the basemap back to following it (no override).</summary>
+		public void ResetTheme()
+		{
+			var theme = AvailableThemes.FirstOrDefault(t => t.Id == _defaultThemeId);
+			if (theme is null) { return; }
+			if (_selectedTheme.Id != theme.Id)
+			{
+				SelectedTheme = theme;   // a theme brings its OWN basemap and ends any override
+				return;
+			}
+			// Already the default theme: only a Basemap override can differ — put it back to the theme's own.
+			SelectedStyle = AvailableStyles.FirstOrDefault(s => s.Id == theme.MapStyleId) ?? _selectedStyle;
+		}
+
+		/// <summary>"Reset all Appearance settings": every Appearance section's Restore defaults (asked first, by the page).</summary>
+		public void ResetAppearance()
+		{
+			ResetTheme();
+			EdgeHatch.RestoreDefaults();
+		}
 
 		/// <summary>
 		/// The app's active visual identity — the chrome palette and the basemap under it. The view watches

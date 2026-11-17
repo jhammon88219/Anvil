@@ -18,19 +18,20 @@
              mc:Ignorable="d">
 
     <prim:SettingsConsolePlate x:Name="StorageSettingsConsoleOnlineMapPlate" Title="Online map">
-        <Grid ColumnSpacing="12" RowSpacing="6">
+        <!-- RowSpacing 6, not the shared 10: row 1 is the key's MESSAGE line, which belongs to the row above. -->
+        <Grid Style="{StaticResource SettingsConsoleRowsStyle}" RowSpacing="6">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="96"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock VerticalAlignment="Center" Text="Map key"/>
+            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Map key"/>
             <Grid Grid.Column="1" ColumnSpacing="8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>

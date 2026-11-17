@@ -26,12 +26,12 @@
                     ToolTipService.ToolTip="Back to the recommended quarter of your RAM (asks first)"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid ColumnSpacing="12" RowSpacing="10">
+        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="96"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -39,11 +39,11 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock VerticalAlignment="Center" Text="This PC"/>
+            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="This PC"/>
             <TextBlock Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
                        Text="{x:Bind ViewModel.Radar.Memory.RamText}"/>
 
-            <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Radar may use"/>
+            <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Radar may use"/>
             <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="12">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
                 <Slider x:Name="RadarMemorySlider" VerticalAlignment="Center"

@@ -33,12 +33,12 @@
                     ToolTipService.ToolTip="The area, detail and folder back to the DEFAULT column (asks first). Your map files are kept"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid ColumnSpacing="12" RowSpacing="10">
+        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="96"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- area -->
@@ -56,14 +56,14 @@
             <TextBlock Grid.Column="3" Margin="0,6,0,0" VerticalAlignment="Top" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultAreaText}"/>
 
-            <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Detail"/>
+            <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Detail"/>
             <prim:SegmentedPicker x:Name="OfflineMapDetailPicker" Grid.Row="1" Grid.Column="1"
                                   ItemsSource="{x:Bind ViewModel.DetailLabels}"
                                   SelectedIndex="{x:Bind ViewModel.DetailIndex, Mode=TwoWay}"/>
             <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.SizeSummaryText, Mode=OneWay}"/>
             <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultDetailText}"/>
 
-            <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="Save to"/>
+            <TextBlock Grid.Row="2" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Save to"/>
             <Grid Grid.Row="2" Grid.Column="1" ColumnSpacing="8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -77,7 +77,7 @@
             <TextBlock Grid.Row="2" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultSaveFolderText}"/>
 
             <!-- The exact name the download gets (BasemapFileNames): the options, plus -2, -3… beside a same-options map. -->
-            <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="File"/>
+            <TextBlock Grid.Row="3" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="File"/>
             <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" FontFamily="Consolas" FontSize="12"
                        TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="True"
                        Text="{x:Bind ViewModel.PlannedFileName, Mode=OneWay}"/>

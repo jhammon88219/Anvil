@@ -35,12 +35,12 @@
                     ToolTipService.ToolTip="Put every unit back to the DEFAULT column (asks first)"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid ColumnSpacing="12" RowSpacing="10">
+        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="96"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -54,14 +54,14 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="Unit set"/>
+            <TextBlock Grid.Row="0" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Unit set"/>
             <prim:SegmentedPicker x:Name="UnitsSetPicker" Grid.Row="0" Grid.Column="1"
                                   ItemsSource="{x:Bind ViewModel.UnitSetLabels}"
                                   SelectedIndex="{x:Bind ViewModel.UnitSetIndex, Mode=TwoWay}"
                                   ToolTipService.ToolTip="US · Metric · Forecaster fix every unit below; Custom lets you pick each one"/>
             <TextBlock Grid.Row="0" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultUnitSetText}"/>
 
-            <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Clock"/>
+            <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Clock"/>
             <prim:SegmentedPicker x:Name="UnitsClockPicker" Grid.Row="1" Grid.Column="1"
                                   IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
                                   ItemsSource="{x:Bind ViewModel.ClockFormatLabels}"
@@ -70,7 +70,7 @@
             <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.ClockSample, Mode=OneWay}"/>
             <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultClockText}"/>
 
-            <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="Time zone"/>
+            <TextBlock Grid.Row="2" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Time zone"/>
             <prim:SegmentedPicker x:Name="UnitsTimeZonePicker" Grid.Row="2" Grid.Column="1"
                                   IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
                                   ItemsSource="{x:Bind ViewModel.TimeZoneLabels}"
@@ -78,7 +78,7 @@
             <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.TimeZoneSample, Mode=OneWay}"/>
             <TextBlock Grid.Row="2" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultTimeZoneText}"/>
 
-            <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="Date"/>
+            <TextBlock Grid.Row="3" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Date"/>
             <prim:SegmentedPicker x:Name="UnitsDatePicker" Grid.Row="3" Grid.Column="1"
                                   IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
                                   ItemsSource="{x:Bind ViewModel.DateFormatLabels}"
@@ -86,7 +86,7 @@
             <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.DateSample, Mode=OneWay}"/>
             <TextBlock Grid.Row="3" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultDateText}"/>
 
-            <TextBlock Grid.Row="4" VerticalAlignment="Center" Text="Distance"/>
+            <TextBlock Grid.Row="4" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Distance"/>
             <prim:SegmentedPicker x:Name="UnitsDistancePicker" Grid.Row="4" Grid.Column="1"
                                   IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
                                   ItemsSource="{x:Bind ViewModel.DistanceUnitLabels}"
@@ -94,7 +94,7 @@
             <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.DistanceSample, Mode=OneWay}"/>
             <TextBlock Grid.Row="4" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultDistanceText}"/>
 
-            <TextBlock Grid.Row="5" VerticalAlignment="Center" Text="Speed"/>
+            <TextBlock Grid.Row="5" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Speed"/>
             <prim:SegmentedPicker x:Name="UnitsSpeedPicker" Grid.Row="5" Grid.Column="1"
                                   IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
                                   ItemsSource="{x:Bind ViewModel.SpeedUnitLabels}"
@@ -102,7 +102,7 @@
             <TextBlock Grid.Row="5" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.SpeedSample, Mode=OneWay}"/>
             <TextBlock Grid.Row="5" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultSpeedText}"/>
 
-            <TextBlock Grid.Row="6" VerticalAlignment="Center" Text="Height"/>
+            <TextBlock Grid.Row="6" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Height"/>
             <prim:SegmentedPicker x:Name="UnitsHeightPicker" Grid.Row="6" Grid.Column="1"
                                   IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
                                   ItemsSource="{x:Bind ViewModel.HeightUnitLabels}"
@@ -110,7 +110,7 @@
             <TextBlock Grid.Row="6" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.HeightSample, Mode=OneWay}"/>
             <TextBlock Grid.Row="6" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultHeightText}"/>
 
-            <TextBlock Grid.Row="7" VerticalAlignment="Center" Text="Hail size"/>
+            <TextBlock Grid.Row="7" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Hail size"/>
             <prim:SegmentedPicker x:Name="UnitsHailPicker" Grid.Row="7" Grid.Column="1"
                                   IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
                                   ItemsSource="{x:Bind ViewModel.HailUnitLabels}"
@@ -118,7 +118,7 @@
             <TextBlock Grid.Row="7" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.HailSample, Mode=OneWay}"/>
             <TextBlock Grid.Row="7" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultHailText}"/>
 
-            <TextBlock Grid.Row="8" VerticalAlignment="Center" Text="Coordinates"/>
+            <TextBlock Grid.Row="8" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Coordinates"/>
             <prim:SegmentedPicker x:Name="UnitsCoordinatesPicker" Grid.Row="8" Grid.Column="1"
                                   IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
                                   ItemsSource="{x:Bind ViewModel.CoordinateFormatLabels}"

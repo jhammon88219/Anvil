@@ -6,15 +6,15 @@
        Opens on   (•) Pick up where I left off                                              Where I left off
                   ( ) Start in
                       [Map only|NowCast|ForeCast|Now + Fore|PastCast]   (394, under the radio's text)  NowCast
-                                                  ↕ 24 px (the "Opens on" group ends)
+                                                  ↕ 24 px (a group-break row: the "Opens on" group ends)
        Home site  KTLX · Norman                                                                        None
-       ☐ Load home site on launch                          Only when Anvil starts in NowCast            Off
-       ☐ Start in full screen                                                                           Off
-       ☑ Show map setup at launch                          Only while Anvil has no map                   On
+                  ☐ Load home site on launch               Only when Anvil starts in NowCast            Off
+                  ☐ Start in full screen                                                                Off
+                  ☑ Show map setup at launch               Only while Anvil has no map                   On
        96         420                                              hint (one line)              150, right
 
-     ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's — every General section uses the same, so labels, controls and
-     defaults line up down the page. Change them together.
+     ⚠️ THE ROW GRID is Styles.xaml's (SettingsConsoleRowsStyle + Settings*ColumnWidth) — every console shares it; a checkbox sits
+     in the Control column with an empty Label cell (docs/ui-patterns.md).
      ⚠️ Read ONCE at launch (MapViewModel.RestoreTemporalSession at map-ready; full screen by MainWindow) — a change applies
      next launch; a fixed start is never saved over the last session. The home site is PICKED in the Radar Atlas; this shows
      it. Restore defaults asks first and CLEARS the home site (the user's call). -->
@@ -32,24 +32,25 @@
                     ToolTipService.ToolTip="Put Startup back to the DEFAULT column (asks first)"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid ColumnSpacing="12" RowSpacing="10">
+        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="96"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="{StaticResource SettingsGroupBreakHeight}"/> <!-- group break: "Opens on" ends -->
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="Opens on"/>
+            <TextBlock Grid.Row="0" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Opens on"/>
             <RadioButton x:Name="StartupResumeRadioButton" Grid.Row="0" Grid.Column="1" GroupName="StartupChoice" VerticalAlignment="Center"
                          Content="Pick up where I left off"
                          IsChecked="{x:Bind ViewModel.StartupResume, Mode=TwoWay}"/>
@@ -69,36 +70,36 @@
             <TextBlock Grid.Row="2" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultStartupModeText}"/>
 
-            <!-- 24 px above (10 row spacing + 14): the "Opens on" group ends here. -->
-            <TextBlock Grid.Row="3" Margin="0,14,0,0" VerticalAlignment="Center" Text="Home site"/>
-            <TextBlock x:Name="HomeSiteNameText" Grid.Row="3" Grid.Column="1" Margin="0,14,0,0" VerticalAlignment="Center"
+            <!-- Row 3 = the group break (SettingsGroupBreakHeight): the "Opens on" group ends there. -->
+            <TextBlock Grid.Row="4" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Home site"/>
+            <TextBlock x:Name="HomeSiteNameText" Grid.Row="4" Grid.Column="1" VerticalAlignment="Center"
                        Text="{x:Bind ViewModel.SiteFavorites.HomeSiteName, Mode=OneWay}"/>
-            <TextBlock Grid.Row="3" Grid.Column="3" Margin="0,14,0,0" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
+            <TextBlock Grid.Row="4" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultHomeSiteText}"/>
 
-            <CheckBox x:Name="LoadHomeOnLaunchCheckBox" Grid.Row="4" Grid.ColumnSpan="2" VerticalAlignment="Center"
+            <CheckBox x:Name="LoadHomeOnLaunchCheckBox" Grid.Row="5" Grid.Column="1" VerticalAlignment="Center"
                       Content="Load home site on launch"
                       IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"
                       ToolTipService.ToolTip="Start the live radar loop for your home site when Anvil opens"/>
             <!-- In the HINT column like every hint. The rule is MapViewModel's SiteFavorites.HoldLaunchLoad (docs/bugs.md S33). -->
-            <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Only when Anvil starts in NowCast"/>
-            <TextBlock Grid.Row="4" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
+            <TextBlock Grid.Row="5" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Only when Anvil starts in NowCast"/>
+            <TextBlock Grid.Row="5" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultLoadHomeOnLaunchText}"/>
 
-            <CheckBox x:Name="StartInFullScreenCheckBox" Grid.Row="5" Grid.ColumnSpan="2" VerticalAlignment="Center"
+            <CheckBox x:Name="StartInFullScreenCheckBox" Grid.Row="6" Grid.Column="1" VerticalAlignment="Center"
                       Content="Start in full screen"
                       IsChecked="{x:Bind ViewModel.StartInFullScreen, Mode=TwoWay}"
                       ToolTipService.ToolTip="Open Anvil full screen (F11 or Esc leaves it)"/>
-            <TextBlock Grid.Row="5" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
+            <TextBlock Grid.Row="6" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultStartInFullScreenText}"/>
 
             <!-- Moved from the Basemap page (2026-11-16): a launch preference. The setup window's "Stop showing this at launch"
                  is the SAME setting, inverted (BasemapSetupViewModel.ShowAtLaunch). -->
-            <CheckBox x:Name="ShowMapSetupAtLaunchCheckBox" Grid.Row="6" Grid.ColumnSpan="2" VerticalAlignment="Center"
+            <CheckBox x:Name="ShowMapSetupAtLaunchCheckBox" Grid.Row="7" Grid.Column="1" VerticalAlignment="Center"
                       Content="Show map setup at launch"
                       IsChecked="{x:Bind ViewModel.BasemapSetup.ShowAtLaunch, Mode=TwoWay}"/>
-            <TextBlock Grid.Row="6" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Only while Anvil has no map"/>
-            <TextBlock Grid.Row="6" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
+            <TextBlock Grid.Row="7" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Only while Anvil has no map"/>
+            <TextBlock Grid.Row="7" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultShowMapSetupText}"/>
         </Grid>
     </prim:SettingsConsolePlate>

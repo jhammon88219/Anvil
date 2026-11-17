@@ -24,15 +24,15 @@
                     IsEnabled="{x:Bind ViewModel.CanResetWindow}"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid ColumnSpacing="12">
+        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="96"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
             </Grid.ColumnDefinitions>
 
-            <TextBlock VerticalAlignment="Center" Text="Monitors"
+            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Monitors"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             <prim:SegmentedPicker x:Name="MonitorModePicker" Grid.Column="1" IsEnabled="False"
                                   ItemsSource="{x:Bind ViewModel.MonitorModeLabels}"

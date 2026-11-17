@@ -22,15 +22,15 @@
                     ToolTipService.ToolTip="Back to the IEM live feed (asks first). Your Weather Wire account is kept"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid ColumnSpacing="12">
+        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="96"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
             </Grid.ColumnDefinitions>
 
-            <TextBlock VerticalAlignment="Center" Text="Updates from"/>
+            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Updates from"/>
             <prim:SegmentedPicker x:Name="LiveSourcePicker" Grid.Column="1"
                                   ItemsSource="{x:Bind ViewModel.SourceLabels}"
                                   SelectedIndex="{x:Bind ViewModel.SourceIndex, Mode=TwoWay}"/>

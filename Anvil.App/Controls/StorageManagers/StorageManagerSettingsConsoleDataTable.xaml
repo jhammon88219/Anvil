@@ -50,7 +50,7 @@
                 <ColumnDefinition Width="36"/>
                 <ColumnDefinition Width="104"/>
                 <ColumnDefinition Width="112"/>
-                <ColumnDefinition Width="150"/> <!-- DEFAULT: titled by the card (SettingsConsolePlate) -->
+                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/> <!-- DEFAULT: titled by the card (SettingsConsolePlate) -->
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="DataColumnTitle" Grid.Column="1" Grid.ColumnSpan="2" Text="DATA" Style="{StaticResource StorageColumnTitleStyle}"/>
             <StackPanel x:Name="SizeColumnTitle" Grid.Column="3" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right">

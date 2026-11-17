@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- AppearanceSettingsTab — Settings → Appearance (SettingsTab.Map's slot, renamed 2026-11-16): how Anvil LOOKS.
 
-       ┌ Theme ──────────────────────────────────────────────────────────────── DEFAULT ┐
+       ┌ Theme  [Restore defaults] ────────────────────────────────────────── DEFAULT ┐
        │ Theme    [Anvil Dark      ⌄]  The app's chrome and basemap theme      Anvil Dark │  AppearanceSettingsConsoleTheme
        │ Basemap  [Data Viz Black  ⌄]  Overrides the theme aware map colors  The theme's │
        └─────────────────────────────────────────────────────────────────────────────────┘
@@ -9,6 +9,10 @@
        ┌ Edges  [Restore defaults] ────────────────────────────────────────── DEFAULT ┐
        │ Pattern · Style · Line colour · 4 sliders · panes' edges                  …   │  AppearanceSettingsConsoleEdges
        └─────────────────────────────────────────────────────────────────────────────────┘
+       [                 Reset all Appearance settings  (caution amber)                  ]  Primitives/CautionResetButton
+
+     ⚠️ Every reset ASKS first (Dialogs/ConfirmResetDialog) — Reset all here (MapViewModel.ResetAppearance), and each section's
+     Restore defaults.
 
      WHAT BELONGS HERE: the app's LOOK. The old Map page's offline folder + online tiles rows are GONE — the same
      choices live on Settings → Basemap (one control in one place). The old Edges page is the Edges section
@@ -18,6 +22,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:appearanceSettingsConsoles="using:Anvil.Controls.AppearanceSettingsConsoles"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -27,5 +32,8 @@
                                                                    ViewModel="{x:Bind ViewModel}"/>
         <appearanceSettingsConsoles:AppearanceSettingsConsoleEdges x:Name="AppearanceSettingsConsoleEdges"
                                                                    ViewModel="{x:Bind ViewModel.EdgeHatch}"/>
+        <prim:CautionResetButton x:Name="AppearanceSettingsResetAllButton"
+                                 Text="Reset all Appearance settings" Click="OnResetAll"
+                                 ToolTipService.ToolTip="Theme and Edges back to their DEFAULT columns (asks first)"/>
     </StackPanel>
 </UserControl>

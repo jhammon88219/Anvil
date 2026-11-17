@@ -82,12 +82,12 @@
     </UserControl.Resources>
 
     <prim:SettingsConsolePlate x:Name="StorageSettingsConsoleMapPlate" Title="Map">
-        <Grid ColumnSpacing="12" RowSpacing="10">
+        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="96"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- in use -->
@@ -96,7 +96,7 @@
                 <RowDefinition Height="Auto"/> <!-- message -->
             </Grid.RowDefinitions>
 
-            <TextBlock VerticalAlignment="Center" Text="In use"/>
+            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="In use"/>
             <TextBlock Grid.Column="1" Grid.ColumnSpan="2" VerticalAlignment="Center" TextWrapping="Wrap"
                        Text="{x:Bind ViewModel.InUseText, Mode=OneWay}"/>
 

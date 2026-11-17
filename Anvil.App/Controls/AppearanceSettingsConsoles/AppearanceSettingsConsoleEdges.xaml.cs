@@ -24,5 +24,15 @@ namespace Anvil.Controls.AppearanceSettingsConsoles
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(EdgeHatchViewModel), typeof(AppearanceSettingsConsoleEdges),
 				new PropertyMetadata(null));
+
+		// Every reset asks first (docs/ui-patterns.md "Resets") — this one used to reset straight from the click.
+		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Restore Edges defaults?",
+				"Pattern, style, colour, the four sliders and the panes' edges go back to the DEFAULT column."))
+			{
+				vm.RestoreDefaults();
+			}
+		}
 	}
 }

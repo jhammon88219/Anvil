@@ -21,5 +21,14 @@ namespace Anvil.Controls.AppearanceSettingsConsoles
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(AppearanceSettingsConsoleTheme),
 				new PropertyMetadata(null));
+
+		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Restore Theme defaults?",
+				"The theme and basemap go back to the DEFAULT column — the basemap follows the theme again."))
+			{
+				vm.ResetTheme();
+			}
+		}
 	}
 }

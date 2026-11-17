@@ -272,6 +272,26 @@
         <Setter Property="HorizontalAlignment" Value="Right"/>
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
     </Style>
+    <!-- THE ROW GRID every console's rows sit on (docs/ui-patterns.md "The row"): Label · Control · Hint (*) · Default.
+           <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
+             <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>     96
+             <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>   420 (the widest control on a page)
+             <ColumnDefinition Width="*"/>                                             hint
+             <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>   150
+         A GROUP BREAK inside a console = an empty row of SettingsGroupBreakHeight (4 + the two 10 px row gaps = 24 px).
+         A CHECKBOX sits in the Control column with its Label cell empty (Option A, the user's call 2026-11-17). -->
+    <GridLength x:Key="SettingsLabelColumnWidth">96</GridLength>
+    <GridLength x:Key="SettingsControlColumnWidth">420</GridLength>
+    <GridLength x:Key="SettingsDefaultColumnWidth">150</GridLength>
+    <GridLength x:Key="SettingsGroupBreakHeight">4</GridLength>
+    <Style x:Key="SettingsConsoleRowsStyle" TargetType="Grid">
+        <Setter Property="ColumnSpacing" Value="12"/>
+        <Setter Property="RowSpacing" Value="10"/>
+    </Style>
+    <!-- A row's NAME (the Label column). -->
+    <Style x:Key="SettingsConsoleLabelTextStyle" TargetType="TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
     <!-- CAUTION RESET: the amber key of a reset (Primitives/CautionResetButton wears it; so does Dialogs/ConfirmResetDialog's
          Reset). Its OWN template, so every state stays in the amber family — the stock template's hover/pressed fell back to
          grey and white, which didn't go with the resting look:

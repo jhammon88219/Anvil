@@ -18,9 +18,9 @@
              mc:Ignorable="d">
 
     <prim:SettingsConsolePlate x:Name="LiveDataSettingsConsoleConnectionPlate" Title="Connection">
-        <Grid ColumnSpacing="12" RowSpacing="10">
+        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="96"/>
+                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
@@ -29,17 +29,17 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Text="Status"/>
+            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Status"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                 <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{x:Bind StateBrush(ViewModel.LinkState), Mode=OneWay}"/>
                 <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" TextWrapping="Wrap" Style="{StaticResource TabularNumberTextStyle}"/>
             </StackPanel>
 
-            <TextBlock Grid.Row="1" Text="Last product"/>
+            <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Last product"/>
             <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.LastProductText, Mode=OneWay}" TextWrapping="Wrap"
                        Style="{StaticResource TabularNumberTextStyle}"/>
 
-            <TextBlock Grid.Row="2" Text="Missed"/>
+            <TextBlock Grid.Row="2" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Missed"/>
             <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.MissedText, Mode=OneWay}" TextWrapping="Wrap"/>
         </Grid>
     </prim:SettingsConsolePlate>

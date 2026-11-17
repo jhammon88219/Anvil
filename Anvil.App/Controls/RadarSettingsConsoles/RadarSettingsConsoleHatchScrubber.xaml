@@ -26,12 +26,12 @@
                     ToolTipService.ToolTip="Put the hatch scrubber's look back to the DEFAULT column (asks first)"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid ColumnSpacing="12" RowSpacing="10">
+        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="96"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -41,7 +41,7 @@
             </Grid.RowDefinitions>
 
             <!-- "A" = the accent (follows Windows); "+" = any colour. -->
-            <TextBlock VerticalAlignment="Center" Text="Line colour"/>
+            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Line colour"/>
             <prim:ColorSwatchPicker x:Name="HatchScrubberColorPicker" Grid.Column="1" HorizontalAlignment="Left"
                                     IsEnabled="{x:Bind ViewModel.Radar.IsHatchScrubber, Mode=OneWay}"
                                     AllowCustom="True"
@@ -54,7 +54,7 @@
                        Text="Only with the Hatch style"/>
             <TextBlock Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultHatchColorText}"/>
 
-            <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Line spacing"/>
+            <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Line spacing"/>
             <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="12">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
                 <Slider x:Name="HatchScrubberSpacingSlider" VerticalAlignment="Center" Minimum="3" Maximum="12" StepFrequency="1"
@@ -65,7 +65,7 @@
             </Grid>
             <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultHatchSpacingText}"/>
 
-            <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="Line weight"/>
+            <TextBlock Grid.Row="2" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Line weight"/>
             <Grid Grid.Row="2" Grid.Column="1" ColumnSpacing="12">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
                 <Slider x:Name="HatchScrubberWeightSlider" VerticalAlignment="Center" Minimum="0.5" Maximum="2" StepFrequency="0.5"
@@ -76,7 +76,7 @@
             </Grid>
             <TextBlock Grid.Row="2" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultHatchWeightText}"/>
 
-            <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="Line opacity"/>
+            <TextBlock Grid.Row="3" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Line opacity"/>
             <Grid Grid.Row="3" Grid.Column="1" ColumnSpacing="12">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
                 <Slider x:Name="HatchScrubberOpacitySlider" VerticalAlignment="Center" Minimum="10" Maximum="100" StepFrequency="1"

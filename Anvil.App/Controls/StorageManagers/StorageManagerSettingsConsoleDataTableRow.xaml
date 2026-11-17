@@ -36,7 +36,7 @@
             <ColumnDefinition Width="36"/>  <!-- folder -->
             <ColumnDefinition Width="104"/> <!-- Max size -->
             <ColumnDefinition Width="112"/> <!-- Keep for -->
-            <ColumnDefinition Width="150"/> <!-- DEFAULT (the card's column, right-aligned) -->
+            <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/> <!-- DEFAULT (the card's column, right-aligned) -->
         </Grid.ColumnDefinitions>
 
         <VisualStateManager.VisualStateGroups>
