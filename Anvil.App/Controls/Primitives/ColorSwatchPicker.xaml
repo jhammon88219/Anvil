@@ -127,7 +127,7 @@
              ⚠️ Windowed flyout (ShouldConstrainToRootBounds false): the Settings window can be narrower than the
              picker, and a constrained flyout would be clipped. -->
         <ToggleButton x:Name="CustomChip" Style="{StaticResource SwatchStyle}" Content="+" Visibility="Collapsed"
-                      ToolTipService.ToolTip="Custom colour…" AutomationProperties.Name="Custom colour"
+                      ToolTipService.ToolTip="Custom color…" AutomationProperties.Name="Custom color"
                       Click="OnCustomChipClick">
             <FlyoutBase.AttachedFlyout>
                 <Flyout x:Name="CustomFlyout" ShouldConstrainToRootBounds="False" Placement="Bottom"

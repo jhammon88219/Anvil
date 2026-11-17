@@ -25,10 +25,13 @@ namespace Anvil.Controls.RadarSettingsConsoles
 		/// <summary>Shown while the value is FALSE (the "only with the Hatch style" hint).</summary>
 		public Visibility Hidden(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
 
+		/// <summary>Line color's hint — what "A" is, or (greyed) what turns the row on.</summary>
+		public string ColorHint(bool isHatch) => isHatch ? "A = your Windows accent color" : "Only with the Hatch style";
+
 		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
 		{
 			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Restore Hatch scrubber defaults?",
-				"Its line colour, spacing, weight and opacity go back to the DEFAULT column."))
+				"Its line color, spacing, weight and opacity go back to the DEFAULT column."))
 			{
 				vm.Radar.HatchLook.RestoreDefaults();
 			}

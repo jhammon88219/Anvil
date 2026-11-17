@@ -49,6 +49,8 @@
                                   IsEnabled="{x:Bind ViewModel.Radar.IsFixedTimePolling, Mode=OneWay}"
                                   ItemsSource="{x:Bind ViewModel.Radar.LivePollIntervalLabels}"
                                   SelectedIndex="{x:Bind ViewModel.Radar.RefreshIntervalIndex, Mode=TwoWay}"/>
+            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
+                       Text="{x:Bind EveryHint(ViewModel.Radar.IsFixedTimePolling), Mode=OneWay}"/>
             <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultLivePollIntervalText}"/>
         </Grid>
     </prim:SettingsConsolePlate>

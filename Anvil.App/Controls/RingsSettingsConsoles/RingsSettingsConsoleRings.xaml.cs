@@ -22,6 +22,9 @@ namespace Anvil.Controls.RingsSettingsConsoles
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(RingsSettingsConsoleRings),
 				new PropertyMetadata(null));
 
+		/// <summary>Spacing's hint — what Auto does, or (greyed) what turns the row on.</summary>
+		public string SpacingHint(bool distanceRingsOn) => distanceRingsOn ? "Auto suits the radar's reach" : "Turn on Distance rings first";
+
 		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
 		{
 			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Restore Rings defaults?",

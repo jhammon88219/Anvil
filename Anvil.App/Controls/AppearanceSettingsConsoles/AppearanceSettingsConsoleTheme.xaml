@@ -2,8 +2,8 @@
 <!-- AppearanceSettingsConsoleTheme — Settings → Appearance's "Theme" section, on a Primitives/SettingsConsolePlate.
 
        Theme    [Restore defaults]                                                              DEFAULT
-       Theme    [Anvil Dark      ⌄]  The app's chrome and basemap theme                   Anvil Dark
-       Basemap  [Data Viz Black  ⌄]  Overrides the theme aware map colors                The theme's
+       Theme    [Anvil Dark      ⌄]  Sets the app theme and map colors together           Anvil Dark
+       Basemap  [Data Viz Black  ⌄]  Overrides the theme-aware map colors                The theme's
        96       420 (each picker 220, left)  hint (one line, trims)                       150, right
 
      ⚠️ THE ROW GRID is Styles.xaml's (SettingsConsoleRowsStyle + Settings*ColumnWidth) — the same as every console, so the hint
@@ -58,7 +58,7 @@
                                     ItemTemplate="{StaticResource ThemeRowTemplate}"
                                     FaceTemplate="{StaticResource ThemeRowTemplate}"/>
             <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                       Text="The app's chrome and basemap theme"/>
+                       Text="Sets the app theme and map colors together"/>
             <TextBlock Grid.Row="0" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultThemeName}"/>
 
@@ -70,7 +70,7 @@
                                     ItemTemplate="{StaticResource StyleRowTemplate}"
                                     FaceTemplate="{StaticResource StyleRowTemplate}"/>
             <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                       Text="Overrides the theme aware map colors"/>
+                       Text="Overrides the theme-aware map colors"/>
             <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultBasemapText}"/>
         </Grid>

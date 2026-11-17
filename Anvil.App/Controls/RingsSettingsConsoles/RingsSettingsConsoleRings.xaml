@@ -69,7 +69,7 @@
                                   ItemsSource="{x:Bind ViewModel.Radar.RangeRings.DistanceRingSpacingLabels}"
                                   SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.DistanceRingSpacingIndex, Mode=TwoWay}"
                                   ToolTipService.ToolTip="How far apart the distance rings are, in your distance unit. Auto picks a step to suit the radar's reach"/>
-            <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Auto suits the radar's reach"/>
+            <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind SpacingHint(ViewModel.Radar.RangeRings.ShowDistanceRings), Mode=OneWay}"/>
             <TextBlock Grid.Row="4" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.Radar.RangeRings.DefaultSpacingText}"/>
         </Grid>
     </prim:SettingsConsolePlate>

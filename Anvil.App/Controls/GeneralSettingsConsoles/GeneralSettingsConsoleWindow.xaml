@@ -38,6 +38,7 @@
                                   ItemsSource="{x:Bind ViewModel.MonitorModeLabels}"
                                   SelectedIndex="{x:Bind ViewModel.MonitorModeIndex, Mode=TwoWay}"
                                   ToolTipService.ToolTip="Multi-monitor is coming — it needs a second screen to build and test"/>
+            <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Not implemented yet"/>
             <TextBlock Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultMonitorModeText}"/>
         </Grid>

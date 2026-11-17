@@ -40,6 +40,7 @@
             <prim:SegmentedPicker x:Name="ScrubberStylePicker" Grid.Column="1"
                                   ItemsSource="{x:Bind ViewModel.Radar.ScrubberStyleLabels}"
                                   SelectedIndex="{x:Bind ViewModel.Radar.ScrubberStyleIndex, Mode=TwoWay}"/>
+            <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="How the console draws the loop's frames"/>
             <TextBlock Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultScrubberStyleText}"/>
 
             <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Preview"/>

@@ -3,15 +3,15 @@
      EDGE-HATCH), on a Primitives/SettingsConsolePlate. Was the whole Settings → Edges page (retired 2026-11-16).
 
        Edges  [Restore defaults]                                                                  DEFAULT
-       Pattern       [Hatch|Dots]                                                                   Hatch
-       Style         [Thinning | Fading | Both | Black shadow]       ← the WIDEST control: 420          Both
-       Line colour   (A)● ● ● ● ● (+)                                                     (A) Bar surface
-       Band width    ─────●──────────────────────────────  35 px     ← slider * + value 56            35 px
+       Pattern       [Hatch|Dots]                                    Crossing lines or a dot screen     Hatch
+       Style         [Thinning | Fading | Both | Black shadow]       Black shadow = the old plain shade  Both
+       Line color    (A)● ● ● ● ● (+)                                A = the bar surface      (A) Bar surface
+       Band width    ─────●──────────────────────────────  35 px     Off with Black shadow (only then)  35 px
        Line spacing  ──●─────────────────────────────────   5 px                                      5 px
        Line weight   ────────────────────────────────────● 2.0 px                                    2.0 px
        Line opacity  ────────────────────────────────────●  100%                                       100%
-                     ☑ Hatch the panes' map-side edges                                                  On
-       96            420                                             hint (none yet)              150, right
+                     ☑ Hatch the panes' map-side edges               Where an open pane meets the map     On
+       96            420 (slider * + value 56)                       hint (one line)              150, right
 
      Every control writes ONE AppSettings value through EdgeHatchViewModel; the bands follow live.
      ⚠️ THE ROW GRID is Styles.xaml's (SettingsConsoleRowsStyle + Settings*ColumnWidth); the checkbox sits in the Control column.
@@ -57,6 +57,7 @@
                                   IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
                                   ItemsSource="{x:Bind ViewModel.PatternLabels}"
                                   SelectedIndex="{x:Bind ViewModel.PatternIndex, Mode=TwoWay}"/>
+            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Crossing lines or a dot screen"/>
             <TextBlock Grid.Row="0" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultPatternText}"/>
 
             <!-- Style: the WIDEST control — it fills the 420 Control column. -->
@@ -64,10 +65,12 @@
             <prim:SegmentedPicker x:Name="EdgeHatchStylePicker" Grid.Row="1" Grid.Column="1"
                                   ItemsSource="{x:Bind ViewModel.StyleLabels}"
                                   SelectedIndex="{x:Bind ViewModel.StyleIndex, Mode=TwoWay}"/>
+            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Black shadow = the old plain shade"/>
             <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultStyleText}"/>
 
-            <!-- Swatches + "+" for any colour; "A" = the bar surface, which follows the theme. -->
-            <TextBlock Grid.Row="2" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Line colour"/>
+            <!-- Swatches + "+" for any color; "A" = the bar surface, which follows the theme. -->
+            <TextBlock Grid.Row="2" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Line color"/>
+            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="A = the bar surface"/>
             <prim:ColorSwatchPicker x:Name="EdgeHatchColorPicker" Grid.Row="2" Grid.Column="1"
                                     HorizontalAlignment="Left"
                                     AllowCustom="True"
@@ -96,6 +99,9 @@
                 <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}"
                            Text="{x:Bind ViewModel.WidthText, Mode=OneWay}"/>
             </Grid>
+            <!-- The four sliders grey together under Black shadow; ONE hint says why (on the first of them). -->
+            <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Off with Black shadow"
+                       Visibility="{x:Bind Hidden(ViewModel.IsHatch), Mode=OneWay}"/>
             <TextBlock Grid.Row="3" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultWidthText}"/>
 
             <TextBlock Grid.Row="4" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="{x:Bind ViewModel.SpacingLabel, Mode=OneWay}"/>
@@ -136,6 +142,7 @@
                       Content="Hatch the panes' map-side edges"
                       IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
                       IsChecked="{x:Bind ViewModel.OnPanes, Mode=TwoWay}"/>
+            <TextBlock Grid.Row="7" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Where an open pane meets the map"/>
             <TextBlock Grid.Row="7" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultOnPanesText}"/>
         </Grid>
     </prim:SettingsConsolePlate>

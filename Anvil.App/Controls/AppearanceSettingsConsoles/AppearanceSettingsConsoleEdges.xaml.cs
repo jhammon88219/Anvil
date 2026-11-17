@@ -29,10 +29,13 @@ namespace Anvil.Controls.AppearanceSettingsConsoles
 		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
 		{
 			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Restore Edges defaults?",
-				"Pattern, style, colour, the four sliders and the panes' edges go back to the DEFAULT column."))
+				"Pattern, style, color, the four sliders and the panes' edges go back to the DEFAULT column."))
 			{
 				vm.RestoreDefaults();
 			}
 		}
+
+		/// <summary>Visible when <paramref name="on"/> is false — the sliders' "Off with Black shadow" hint.</summary>
+		public Visibility Hidden(bool on) => on ? Visibility.Collapsed : Visibility.Visible;
 	}
 }

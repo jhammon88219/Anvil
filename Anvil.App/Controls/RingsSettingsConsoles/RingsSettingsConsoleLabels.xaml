@@ -3,18 +3,18 @@
      Primitives/SettingsConsolePlate. Text has a font, size and halo, not a line pattern — so its own rows, not a ring card.
 
        Distance labels  [Restore defaults]                                                         DEFAULT
-       Colour       (A)(■)…(+)                                A = the distance rings' colour        Rings'
+       Color        (A)(■)…(+)                                A = the distance rings' color         Rings'
        Opacity      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━●  100%                                         100%
        Font         [ Regular | Medium | Italic ]                                                 Medium
        Size         ━━━●━━━━━━━━━━━━━━━━━━━━━━━━━━━  10 px                                          10 px
-       Spacing      ●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  0.00 em  Between the letters                0.00 em
+       Spacing      ●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  0.00 em  Space between the letters          0.00 em
        Halo         ━━━━━━●━━━━━━━━━━━━━━━━━━━━━━━━  1.2 px  Keeps it readable over returns       1.2 px
-       Halo colour  (A)(■)…(+)                                A = the theme's dark casing           Theme
-       Placement    [ Above | On the ring | Below ]                                                 Above
-       Lines        [ 1 | 2 | 4 ]                             Label lines round the site               1
+       Halo color   (A)(■)…(+)                                A = the theme's dark casing           Theme
+       Placement    [ Above | On the ring | Below ]            Where each label sits on its ring    Above
+       Lines        [ 1 | 2 | 4 ]                             How many lines of labels run out…        1
        Position     ●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  000°     Or drag the knob on the ring   000° (North)
                     ☑ Show the unit                           100 mi, not 100                         On
-                    ☑ Show the drag knob on the map                                                   On
+                    ☑ Show the drag knob on the map           Hide it once the labels are placed      On
        96           420 (slider * · value 56)                 hint (one line)                  150, right
 
      ⚠️ THE ROW GRID is Styles.xaml's (SettingsConsoleRowsStyle + Settings*ColumnWidth); checkboxes sit in the Control column. The WHOLE card greys while the distance rings are off (its
@@ -59,14 +59,14 @@
                     <RowDefinition Height="Auto"/> <!-- 11 knob -->
                 </Grid.RowDefinitions>
 
-                <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Colour"/>
+                <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Color"/>
                 <prim:ColorSwatchPicker x:Name="LabelColorPicker" Grid.Column="1" HorizontalAlignment="Left" AllowCustom="True"
                                         ItemsSource="{x:Bind ViewModel.Radar.RangeRings.LabelColorSwatches}"
                                         ToolTips="{x:Bind ViewModel.Radar.RangeRings.LabelColorNames}"
                                         SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.LabelColorIndex, Mode=TwoWay}"
                                         CustomHex="{x:Bind ViewModel.Radar.RangeRings.LabelColorHex, Mode=TwoWay}"/>
                 <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                           Text="{x:Bind LockedOr(ViewModel.Radar.RangeRings.ShowDistanceRings, 'A = the distance rings&#x2019; colour'), Mode=OneWay}"/>
+                           Text="{x:Bind LockedOr(ViewModel.Radar.RangeRings.ShowDistanceRings, 'A = the distance rings&#x2019; color'), Mode=OneWay}"/>
                 <TextBlock Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.Radar.RangeRings.DefaultLabelColorText}"/>
 
                 <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Opacity"/>
@@ -104,7 +104,7 @@
                     <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}"
                                Text="{x:Bind Em(ViewModel.Radar.RangeRings.LabelSpacing), Mode=OneWay}"/>
                 </Grid>
-                <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Between the letters"/>
+                <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Space between the letters"/>
                 <TextBlock Grid.Row="4" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.Radar.RangeRings.DefaultLabelSpacingText}"/>
 
                 <TextBlock Grid.Row="5" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Halo"/>
@@ -118,7 +118,7 @@
                 <TextBlock Grid.Row="5" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Keeps it readable over returns"/>
                 <TextBlock Grid.Row="5" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.Radar.RangeRings.DefaultLabelHaloText}"/>
 
-                <TextBlock Grid.Row="6" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Halo colour"/>
+                <TextBlock Grid.Row="6" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Halo color"/>
                 <prim:ColorSwatchPicker x:Name="HaloColorPicker" Grid.Row="6" Grid.Column="1" HorizontalAlignment="Left" AllowCustom="True"
                                         ItemsSource="{x:Bind ViewModel.Radar.RangeRings.HaloColorSwatches}"
                                         ToolTips="{x:Bind ViewModel.Radar.RangeRings.HaloColorNames}"
@@ -131,13 +131,14 @@
                 <prim:SegmentedPicker x:Name="LabelPlacementPicker" Grid.Row="7" Grid.Column="1"
                                       ItemsSource="{x:Bind ViewModel.Radar.RangeRings.LabelPlacementLabels}"
                                       SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.LabelPlacementIndex, Mode=TwoWay}"/>
+                <TextBlock Grid.Row="7" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Where each label sits on its ring"/>
                 <TextBlock Grid.Row="7" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.Radar.RangeRings.DefaultPlacementText}"/>
 
                 <TextBlock Grid.Row="8" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Lines"/>
                 <prim:SegmentedPicker x:Name="LabelLinesPicker" Grid.Row="8" Grid.Column="1"
                                       ItemsSource="{x:Bind ViewModel.Radar.RangeRings.LabelAxesLabels}"
                                       SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.LabelAxesIndex, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="8" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Label lines round the site"/>
+                <TextBlock Grid.Row="8" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="How many lines of labels run out from the site"/>
                 <TextBlock Grid.Row="8" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.Radar.RangeRings.DefaultLabelLinesText}"/>
 
                 <TextBlock Grid.Row="9" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Position"/>
@@ -160,6 +161,7 @@
                 <CheckBox x:Name="LabelKnobCheckBox" Grid.Row="11" Grid.Column="1" VerticalAlignment="Center" Content="Show the drag knob on the map"
                           IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowLabelHandle, Mode=TwoWay}"
                           ToolTipService.ToolTip="The knob on the outer range ring. Drag it around to move every label; hide it once they're where you want them"/>
+                <TextBlock Grid.Row="11" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Hide it once the labels are placed"/>
                 <TextBlock Grid.Row="11" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.Radar.RangeRings.DefaultLabelHandleText}"/>
             </Grid>
         </ContentControl>

@@ -6,7 +6,7 @@
        Warnings      [ 30 ⌃⌄]  seconds · min 15 s           [Live]  Waits for the live feed while connected     30 s
        …             (one row per feed, LiveDataViewModel.Polling)
        Storm cells   [ 60 ⌃⌄]  seconds · min 30 s           [Polled] No live feed carries it                    1 min
-       Radar         Follows the radar's scan pattern        Settings → Radar → Live polling
+       Radar         Follows the radar's scan pattern        Set in Radar → Live polling
        96            420 (NumberBox 96 · unit text)          hint: tag + words (one line)                150, right
 
      ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's — the row template repeats them. Each NumberBox is clamped to the feed's
@@ -79,7 +79,7 @@
                 <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Radar" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <TextBlock Grid.Column="1" Text="Follows the radar's scan pattern" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Settings → Radar → Live polling"/>
+                <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Set in Radar → Live polling"/>
             </Grid>
         </StackPanel>
     </prim:SettingsConsolePlate>

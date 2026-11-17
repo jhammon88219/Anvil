@@ -73,7 +73,7 @@ namespace Anvil.Controls.RingsSettingsConsoles
 		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
 		{
 			if (Ring is { } ring && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, $"Restore {Title} defaults?",
-				"Its colour, opacity, thickness and line go back to the DEFAULT column."))
+				"Its color, opacity, thickness and line go back to the DEFAULT column."))
 			{
 				ring.RestoreDefaults();
 			}

@@ -41,7 +41,7 @@
             </Grid.RowDefinitions>
 
             <!-- "A" = the accent (follows Windows); "+" = any colour. -->
-            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Line colour"/>
+            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Line color"/>
             <prim:ColorSwatchPicker x:Name="HatchScrubberColorPicker" Grid.Column="1" HorizontalAlignment="Left"
                                     IsEnabled="{x:Bind ViewModel.Radar.IsHatchScrubber, Mode=OneWay}"
                                     AllowCustom="True"
@@ -50,8 +50,7 @@
                                     SelectedIndex="{x:Bind ViewModel.Radar.HatchLook.ColorIndex, Mode=TwoWay}"
                                     CustomHex="{x:Bind ViewModel.Radar.HatchLook.ColorHex, Mode=TwoWay}"/>
             <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                       Visibility="{x:Bind Hidden(ViewModel.Radar.IsHatchScrubber), Mode=OneWay}"
-                       Text="Only with the Hatch style"/>
+                       Text="{x:Bind ColorHint(ViewModel.Radar.IsHatchScrubber), Mode=OneWay}"/>
             <TextBlock Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultHatchColorText}"/>
 
             <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Line spacing"/>

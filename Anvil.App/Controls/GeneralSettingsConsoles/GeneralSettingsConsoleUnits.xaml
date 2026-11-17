@@ -59,6 +59,7 @@
                                   ItemsSource="{x:Bind ViewModel.UnitSetLabels}"
                                   SelectedIndex="{x:Bind ViewModel.UnitSetIndex, Mode=TwoWay}"
                                   ToolTipService.ToolTip="US · Metric · Forecaster fix every unit below; Custom lets you pick each one"/>
+            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Use Anvil's presets or choose Custom"/>
             <TextBlock Grid.Row="0" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultUnitSetText}"/>
 
             <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Clock"/>

@@ -35,7 +35,7 @@ namespace Anvil.Controls.RingsSettingsConsoles
 		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
 		{
 			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Restore Distance labels defaults?",
-				"The labels' colours, text, halo, placement, position and drag knob go back to the DEFAULT column."))
+				"The labels' colors, text, halo, placement, position and drag knob go back to the DEFAULT column."))
 			{
 				vm.Radar.RangeRings.ResetLabels();
 			}

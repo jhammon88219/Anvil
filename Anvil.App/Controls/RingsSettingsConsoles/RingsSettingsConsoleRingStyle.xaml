@@ -42,7 +42,7 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Colour"/>
+            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Color"/>
             <prim:ColorSwatchPicker x:Name="RingColorPicker" Grid.Column="1" HorizontalAlignment="Left"
                                     IsEnabled="{x:Bind IsEditable, Mode=OneWay}" AllowCustom="True"
                                     ItemsSource="{x:Bind Ring.ColorSwatches, Mode=OneWay}"

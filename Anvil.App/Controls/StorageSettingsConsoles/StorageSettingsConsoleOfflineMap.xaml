@@ -8,7 +8,7 @@
        Detail    [   Standard   |   Full   ]               Streets at city zoom · about 4.4 GB      Standard
        Save to   C:\Users\you\Anvil Maps        [Browse…]                                       Anvil Maps
        File      anvil-map-standard-l48.pmtiles            You already have this map — kept beside it
-                 [Download]                                In the background — Anvil keeps its map until you switch
+                 [Download]                                Runs in the background · your current map stays until you switch
                  ▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░    [Cancel]    ← only while running
                  Step 4 of 5 · Download · 1.70 GB of 4.40 GB · 94 MB/s · about 1 minute left
                  ⚠ Your connection dropped at 1.7 GB of 4.4 GB…   [Retry]                   ← only after one stopped
@@ -52,7 +52,7 @@
             <TextBlock Margin="0,6,0,0" Text="Area"/>
             <basemaps:BasemapAreaChecklist x:Name="OfflineMapAreaChecklist" Grid.Column="1" ViewModel="{x:Bind ViewModel}"/>
             <TextBlock Grid.Column="2" Margin="0,6,0,0" VerticalAlignment="Top" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                       Text="The world to zoom 7 always comes too"/>
+                       Text="A low-detail map of the whole world always comes too"/>
             <TextBlock Grid.Column="3" Margin="0,6,0,0" VerticalAlignment="Top" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultAreaText}"/>
 
@@ -86,7 +86,7 @@
             <Button x:Name="OfflineMapDownloadButton" Grid.Row="4" Grid.Column="1" Content="Download" Style="{StaticResource AccentButtonStyle}"
                     IsEnabled="{x:Bind ViewModel.CanStartDownload, Mode=OneWay}" Click="{x:Bind ViewModel.StartDownload}"/>
             <TextBlock Grid.Row="4" Grid.Column="2" Grid.ColumnSpan="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                       Text="In the background — Anvil keeps its map until you switch"/>
+                       Text="Runs in the background · your current map stays until you switch"/>
 
             <!-- While a download runs (from here OR the setup window): the bar, one readout line, Cancel. -->
             <Grid x:Name="OfflineMapDownloadProgress" Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" ColumnSpacing="8" RowSpacing="4"

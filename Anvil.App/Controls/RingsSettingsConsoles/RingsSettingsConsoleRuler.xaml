@@ -4,7 +4,7 @@
 
        Ruler  [Restore defaults]                                                                   DEFAULT
        Ruler from  [   Radar site   |   My location   ]          The site until a location is placed   Radar site
-       Knob size   ━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━  32 px       The ruler's and the label knob          32 px
+       Knob size   ━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━  32 px       Sizes the ruler and label knobs         32 px
        96          420 (slider * · value 56)                     hint (one line)                   150, right
 
      ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's. Arming the ruler is a gesture (the map-tools rail); this is its anchor
@@ -52,7 +52,7 @@
                 <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}"
                            Text="{x:Bind Px0(ViewModel.Radar.RangeRings.KnobSize), Mode=OneWay}"/>
             </Grid>
-            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="The ruler's and the label knob"/>
+            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Sizes the ruler and label knobs"/>
             <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.Radar.RangeRings.DefaultKnobSizeText}"/>
         </Grid>
     </prim:SettingsConsolePlate>

@@ -3,8 +3,8 @@
      duplicate Home site), on a Primitives/SettingsConsolePlate. General B (2026-11-16).
 
        Startup    [Restore defaults]                                                               DEFAULT
-       Opens on   (•) Pick up where I left off                                              Where I left off
-                  ( ) Start in
+       Opens on   (•) Pick up where I left off        Opens Anvil in the state you closed it  Where I left off
+           ( ) Start in
                       [Map only|NowCast|ForeCast|Now + Fore|PastCast]   (394, under the radio's text)  NowCast
                                                   ↕ 24 px (a group-break row: the "Opens on" group ends)
        Home site  KTLX · Norman                                                                        None
@@ -54,6 +54,7 @@
             <RadioButton x:Name="StartupResumeRadioButton" Grid.Row="0" Grid.Column="1" GroupName="StartupChoice" VerticalAlignment="Center"
                          Content="Pick up where I left off"
                          IsChecked="{x:Bind ViewModel.StartupResume, Mode=TwoWay}"/>
+            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Opens Anvil in the state you closed it"/>
             <TextBlock Grid.Row="0" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultStartupResumeText}"/>
 
@@ -67,6 +68,7 @@
                                   ItemsSource="{x:Bind ViewModel.StartupModeLabels}"
                                   SelectedIndex="{x:Bind ViewModel.StartupModeIndex, Mode=TwoWay}"
                                   IsEnabled="{x:Bind ViewModel.StartupFixed, Mode=OneWay}"/>
+            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Select which Cast mode(s) Anvil starts in"/>
             <TextBlock Grid.Row="2" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultStartupModeText}"/>
 
@@ -74,6 +76,7 @@
             <TextBlock Grid.Row="4" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Home site"/>
             <TextBlock x:Name="HomeSiteNameText" Grid.Row="4" Grid.Column="1" VerticalAlignment="Center"
                        Text="{x:Bind ViewModel.SiteFavorites.HomeSiteName, Mode=OneWay}"/>
+            <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Set it in the Atlas or from a site's map key"/>
             <TextBlock Grid.Row="4" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultHomeSiteText}"/>
 
@@ -90,6 +93,7 @@
                       Content="Start in full screen"
                       IsChecked="{x:Bind ViewModel.StartInFullScreen, Mode=TwoWay}"
                       ToolTipService.ToolTip="Open Anvil full screen (F11 or Esc leaves it)"/>
+            <TextBlock Grid.Row="6" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="F11 or Esc leaves full screen"/>
             <TextBlock Grid.Row="6" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultStartInFullScreenText}"/>
 
@@ -98,7 +102,7 @@
             <CheckBox x:Name="ShowMapSetupAtLaunchCheckBox" Grid.Row="7" Grid.Column="1" VerticalAlignment="Center"
                       Content="Show map setup at launch"
                       IsChecked="{x:Bind ViewModel.BasemapSetup.ShowAtLaunch, Mode=TwoWay}"/>
-            <TextBlock Grid.Row="7" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Only while Anvil has no map"/>
+            <TextBlock Grid.Row="7" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="While Anvil has no map set"/>
             <TextBlock Grid.Row="7" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                        Text="{x:Bind ViewModel.DefaultShowMapSetupText}"/>
         </Grid>

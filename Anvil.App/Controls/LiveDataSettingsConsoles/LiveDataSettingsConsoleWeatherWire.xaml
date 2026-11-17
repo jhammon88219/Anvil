@@ -3,7 +3,7 @@
      the NOAA Weather Wire (NWWS-OI) sign-in.
 
        Weather Wire account                                                       (no Restore defaults, no DEFAULT)
-       User name  [firstname.lastname                     ]   From the NWS · one computer only
+       User name  [firstname.lastname                     ]   From the NWS · one computer at a time
        Password   [Saved — type to replace                ]   Kept in Windows Credential Manager
                   [Save account] [Test connection]             Signed in. The account works.   ← the account message
        96         420                                          hint (one line)
@@ -38,7 +38,7 @@
                 <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="User name"/>
                 <TextBox x:Name="NwwsUsernameTextBox" Grid.Column="1" PlaceholderText="firstname.lastname"
                          Text="{x:Bind ViewModel.NwwsUsername, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="From the NWS · one computer only"/>
+                <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="From the NWS · one computer at a time"/>
 
                 <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Password"/>
                 <PasswordBox x:Name="NwwsPasswordBox" Grid.Row="1" Grid.Column="1"

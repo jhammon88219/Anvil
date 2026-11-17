@@ -25,6 +25,9 @@ namespace Anvil.Controls.RadarSettingsConsoles
 		/// <summary>The mode's hint — what it checks on, in one line.</summary>
 		public string ModeHint(bool fixedTime) => fixedTime ? "On a steady timer" : "On the radar's own scan plan";
 
+		/// <summary>The interval's hint — what it is, or (greyed) what turns it on.</summary>
+		public string EveryHint(bool fixedTime) => fixedTime ? "Seconds between checks for a new scan" : "Only with Fixed time";
+
 		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
 		{
 			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Restore Live polling defaults?",
