@@ -47,7 +47,7 @@
 
     <UserControl.Resources>
         <Style x:Key="BasemapSetupStepTitleStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontSize" Value="{StaticResource BodyLargeFontSize}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="0,18,0,2"/>
         </Style>
@@ -57,7 +57,7 @@
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
         </Style>
         <Style x:Key="BasemapSetupFootNoteStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
         </Style>
@@ -84,7 +84,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel>
-            <TextBlock Text="Anvil" FontSize="22" FontWeight="SemiBold"/>
+            <TextBlock Text="Anvil" FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"/>
             <TextBlock Text="Weather Workstation" Margin="0,-2,0,0"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </StackPanel>
@@ -239,7 +239,7 @@
                            Style="{StaticResource BasemapSetupFootNoteStyle}"/>
                 <!-- LIT: the accent face, a size up, an arrow — the one thing to press. -->
                 <Button x:Name="OpenAnvilButton" Grid.Column="1" Style="{StaticResource AccentButtonStyle}"
-                        Padding="20,8" FontSize="15" Click="OnOpenAnvilClick">
+                        Padding="20,8" FontSize="{StaticResource BodyLargeFontSize}" Click="OnOpenAnvilClick">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE72A;" FontSize="14"/>
                         <TextBlock Text="Open Anvil"/>

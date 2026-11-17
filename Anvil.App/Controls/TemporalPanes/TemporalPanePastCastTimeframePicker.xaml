@@ -118,9 +118,9 @@
                                Visibility="{x:Bind HasText(ViewModel.Radar.ReplaySite), Mode=OneWay}"/>
                 </StackPanel>
                 <StackPanel Visibility="{x:Bind ShownWhen(ViewModel.Radar.HasReplayError), Mode=OneWay}">
-                    <TextBlock x:Name="ErrorLine" FontSize="12" HorizontalAlignment="Center"
+                    <TextBlock x:Name="ErrorLine" FontSize="{StaticResource CaptionFontSize}" HorizontalAlignment="Center"
                                Text="{x:Bind ErrorFirstLine(ViewModel.Radar.ReplayError), Mode=OneWay}"/>
-                    <TextBlock x:Name="ErrorHint" FontSize="12" HorizontalAlignment="Center"
+                    <TextBlock x:Name="ErrorHint" FontSize="{StaticResource CaptionFontSize}" HorizontalAlignment="Center"
                                Text="Click to retry or change timeframe"/>
                 </StackPanel>
             </Grid>

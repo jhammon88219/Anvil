@@ -46,10 +46,10 @@
                             <Border Padding="6,0" CornerRadius="4" VerticalAlignment="Center"
                                     Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
                                     Visibility="{x:Bind IsInUse}">
-                                <TextBlock Text="In use" FontSize="11" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                                <TextBlock Text="In use" FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
                             </Border>
                         </StackPanel>
-                        <TextBlock Text="{x:Bind Details}" FontSize="11" TextTrimming="CharacterEllipsis"
+                        <TextBlock Text="{x:Bind Details}" FontSize="{StaticResource CaptionFontSize}" TextTrimming="CharacterEllipsis"
                                    Style="{StaticResource TabularNumberTextStyle}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
@@ -73,7 +73,7 @@
                     </Grid.ColumnDefinitions>
                     <FontIcon Glyph="&#xE7BA;" FontSize="16" VerticalAlignment="Center"
                               Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
-                    <TextBlock Grid.Column="1" Text="{x:Bind DeleteQuestion}" TextWrapping="Wrap" FontSize="12" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind DeleteQuestion}" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"/>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                         <Button Content="Keep" Click="OnKeepFileClick"/>
                         <Button Content="Delete" Click="OnDeleteFileClick"/>
@@ -105,7 +105,7 @@
 
             <!-- What the last Add / Delete did (a refused file says why). An INERT row (no AboutKey). -->
             <prim:SettingsConsoleRow ControlSpan="2">
-                <TextBlock FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                <TextBlock FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" VerticalAlignment="Center"
                            Text="{x:Bind ViewModel.FilesMessage, Mode=OneWay}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </prim:SettingsConsoleRow>

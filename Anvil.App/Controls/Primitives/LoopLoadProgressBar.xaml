@@ -59,12 +59,12 @@
 
         <!-- THE BIG COUNT, centred on the cells' row. -->
         <StackPanel VerticalAlignment="Center">
-            <TextBlock FontSize="34" FontWeight="SemiBold" LineHeight="38" Foreground="#FFE8EAED"
+            <TextBlock FontSize="{StaticResource PageTitleFontSize}" FontWeight="SemiBold" LineHeight="{StaticResource PageTitleLineHeight}" Foreground="#FFE8EAED"
                        Typography.NumeralAlignment="Tabular">
                 <Run Text="{x:Bind CountText(Count), Mode=OneWay}"/>
-                <Run Text="{x:Bind TotalText(Total), Mode=OneWay}" FontSize="16" FontWeight="Normal" Foreground="#FF8C96A3"/>
+                <Run Text="{x:Bind TotalText(Total), Mode=OneWay}" FontSize="{StaticResource BodyLargeFontSize}" FontWeight="Normal" Foreground="#FF8C96A3"/>
             </TextBlock>
-            <TextBlock Text="{x:Bind Label, Mode=OneWay}" FontSize="12" Margin="0,5,0,0" Foreground="#FFA6AEB8"/>
+            <TextBlock Text="{x:Bind Label, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" Margin="0,5,0,0" Foreground="#FFA6AEB8"/>
         </StackPanel>
 
         <!-- THE CELLS, one per frame (CellTemplate; UpdateCells keeps their fractions current). -->
@@ -83,9 +83,9 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Text="{x:Bind Caption, Mode=OneWay}" FontSize="11" Foreground="#FFA6AEB8"
+            <TextBlock Text="{x:Bind Caption, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" Foreground="#FFA6AEB8"
                        TextTrimming="CharacterEllipsis" Typography.NumeralAlignment="Tabular"/>
-            <TextBlock Grid.Column="1" Text="{x:Bind Detail, Mode=OneWay}" FontSize="11" Foreground="#FFA6AEB8"
+            <TextBlock Grid.Column="1" Text="{x:Bind Detail, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" Foreground="#FFA6AEB8"
                        Typography.NumeralAlignment="Tabular"/>
         </Grid>
     </Grid>

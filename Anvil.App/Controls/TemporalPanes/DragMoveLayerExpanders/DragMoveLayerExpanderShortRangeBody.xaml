@@ -37,7 +37,7 @@
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
         <!-- A row's hint line: small, wrapping, in the CAUTION colour (the model console's forecast-time colour). -->
         <Style x:Key="ShortRangeHintStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}"/>
         </Style>
@@ -60,7 +60,7 @@
         <TextBlock x:Name="ShortRangeFrameLine" Grid.Row="1" Margin="0,0,0,12"
                    Text="{x:Bind ViewModel.FrameText, Mode=OneWay}"
                    Visibility="{x:Bind HintVisibility(ViewModel.FrameText), Mode=OneWay}"
-                   FontSize="12" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                   FontSize="{StaticResource CaptionFontSize}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
         <!-- [label | control] in the outlook section's 60 px label column. -->

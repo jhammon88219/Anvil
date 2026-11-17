@@ -54,7 +54,7 @@
                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                           Glyph="{x:Bind comp:RadarConsoleSiteTab.PinGlyph(IsHome, IsFavorite), Mode=OneWay}"/>
                 <TextBlock Grid.Column="1" Text="{x:Bind Id}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2" Text="{x:Bind Name}" FontSize="12" VerticalAlignment="Center"
+                <TextBlock Grid.Column="2" Text="{x:Bind Name}" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                 <Ellipse Grid.Column="3" Width="8" Height="8" VerticalAlignment="Center"
@@ -101,7 +101,7 @@
                         <StackPanel Spacing="4">
                             <TextBlock Margin="11,2,11,2"
                                        Text="Set a home site or star favorites in the Atlas to list them here."
-                                       TextWrapping="Wrap" FontSize="12"
+                                       TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}"
                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                        Visibility="{x:Bind ViewModel.SiteFavorites.IsEmpty, Mode=OneWay}"/>
                             <!-- FAVORITES ONLY — the SAME property as Settings → Radar → Radar site keys (two switches,

@@ -206,6 +206,86 @@
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
+    <!-- ══════════════════════════════ THE TYPE SCALE (2026-11-17, canvas artboards 12–13) ══════════════════════════════
+         EIGHT text roles, and NOTHING else: no text in XAML types a bare FontSize (TypeScaleTests fails on one — icons are
+         exempt, they aren't text). Built on WinUI's Fluent ramp (Caption 12 · Body 14 · Subtitle 20 · Title 28) plus Anvil's
+         own steps. Retune a role HERE and every text of that role follows.
+
+           Display      40 / 48   SemiBold, tabular   the clocks, big live numbers
+           Page title   34 / 40   SemiBold            a window page's title, the warning tiles' counts
+           Title        28 / 34   SemiBold            plate titles, temporal pane titles, big totals
+           Subtitle     20 / 26   SemiBold            window band titles + values, discussion heads, setup steps
+           Body large   16 / 22   (Strong: SemiBold)  rail names, page descriptions, About text, key readouts
+           Body         14 / 20   (Strong: SemiBold)  THE DEFAULT — labels, controls, rows, buttons, menus
+           Caption      12 / 16                       hints, row defaults, secondary lines, timestamps, legends
+           Overline     12 / 16   CAPS, tracking 80   every caps label: column heads, field labels, ABOUT, DEFAULT
+
+         Use: a plain TextBlock takes the role's STYLE (BodyTextStyle …). Anything else — a control, a Run, a TextBlock that
+         already wears another style, a Setter in another style — takes the role's SIZE (and LINE HEIGHT where it sets one):
+         FontSize="{StaticResource BodyFontSize}". Weight stays the element's own. -->
+    <x:Double x:Key="DisplayFontSize">40</x:Double>
+    <x:Double x:Key="DisplayLineHeight">48</x:Double>
+    <x:Double x:Key="PageTitleFontSize">34</x:Double>
+    <x:Double x:Key="PageTitleLineHeight">40</x:Double>
+    <x:Double x:Key="TitleFontSize">28</x:Double>
+    <x:Double x:Key="TitleLineHeight">34</x:Double>
+    <x:Double x:Key="SubtitleFontSize">20</x:Double>
+    <x:Double x:Key="SubtitleLineHeight">26</x:Double>
+    <x:Double x:Key="BodyLargeFontSize">16</x:Double>
+    <x:Double x:Key="BodyLargeLineHeight">22</x:Double>
+    <x:Double x:Key="BodyFontSize">14</x:Double>
+    <x:Double x:Key="BodyLineHeight">20</x:Double>
+    <x:Double x:Key="CaptionFontSize">12</x:Double>
+    <x:Double x:Key="CaptionLineHeight">16</x:Double>
+    <x:Double x:Key="OverlineFontSize">12</x:Double>
+    <x:Double x:Key="OverlineLineHeight">16</x:Double>
+    <x:Int32 x:Key="OverlineCharacterSpacing">80</x:Int32>
+
+    <Style x:Key="DisplayTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="{StaticResource DisplayFontSize}"/>
+        <Setter Property="LineHeight" Value="{StaticResource DisplayLineHeight}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Typography.NumeralAlignment" Value="Tabular"/>
+    </Style>
+    <Style x:Key="PageTitleTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="{StaticResource PageTitleFontSize}"/>
+        <Setter Property="LineHeight" Value="{StaticResource PageTitleLineHeight}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style x:Key="TitleTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="{StaticResource TitleFontSize}"/>
+        <Setter Property="LineHeight" Value="{StaticResource TitleLineHeight}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style x:Key="SubtitleTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="{StaticResource SubtitleFontSize}"/>
+        <Setter Property="LineHeight" Value="{StaticResource SubtitleLineHeight}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style x:Key="BodyLargeTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="{StaticResource BodyLargeFontSize}"/>
+        <Setter Property="LineHeight" Value="{StaticResource BodyLargeLineHeight}"/>
+    </Style>
+    <Style x:Key="BodyLargeStrongTextStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyLargeTextStyle}">
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style x:Key="BodyTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
+        <Setter Property="LineHeight" Value="{StaticResource BodyLineHeight}"/>
+    </Style>
+    <Style x:Key="BodyStrongTextStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyTextStyle}">
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style x:Key="CaptionTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
+        <Setter Property="LineHeight" Value="{StaticResource CaptionLineHeight}"/>
+    </Style>
+    <Style x:Key="OverlineTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="{StaticResource OverlineFontSize}"/>
+        <Setter Property="LineHeight" Value="{StaticResource OverlineLineHeight}"/>
+        <Setter Property="CharacterSpacing" Value="{StaticResource OverlineCharacterSpacing}"/>
+    </Style>
+
     <!-- ⚠️ THE SHADOW GRADIENTS ARE LITERAL BLACK, NOT THEME BRUSHES, and that is deliberate: a shadow is the absence
          of light in any theme (the same rule the map theme sheets state for the map page's drop shadows). Only their
          STRENGTH is themed, through OverlayBarShadowOpacity on each element — one number per theme instead of eight
@@ -269,13 +349,13 @@
     <!-- SETTINGS CONSOLES (rows on a Primitives/SettingsConsolePlate): the grey one-line HINT after a control, and the
          right-hand DEFAULT column's text. Shared by every <Page>SettingsConsole<Section>. -->
     <Style x:Key="SettingsConsoleHintTextStyle" TargetType="TextBlock" BasedOn="{StaticResource TabularNumberTextStyle}">
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
     </Style>
     <Style x:Key="SettingsConsoleDefaultTextStyle" TargetType="TextBlock" BasedOn="{StaticResource TabularNumberTextStyle}">
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="HorizontalAlignment" Value="Right"/>
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -643,7 +723,7 @@
          the panel's edge); both are DELETED. A section title is the Header of one of those two expanders now — see
          SectionHeaderHeight above. -->
     <Style x:Key="SettingsFieldLabelStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
     </Style>
@@ -922,13 +1002,13 @@
 
     <!-- The Anvil Atlas's small-caps field label + value (both tabs — shared, which is why they live here). -->
     <Style x:Key="AtlasFieldLabelStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontSize" Value="{StaticResource OverlineFontSize}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="CharacterSpacing" Value="40"/>
+        <Setter Property="CharacterSpacing" Value="{StaticResource OverlineCharacterSpacing}"/>
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
     </Style>
     <Style x:Key="AtlasFieldValueStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
     </Style>

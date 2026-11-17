@@ -50,10 +50,10 @@
             </Grid.ColumnDefinitions>
             <ContentPresenter Content="{x:Bind Marker, Mode=OneWay}"
                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            <TextBlock Grid.Column="1" Text="{x:Bind Label, Mode=OneWay}" FontSize="13"
+            <TextBlock Grid.Column="1" Text="{x:Bind Label, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}"
                        TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
             <TextBlock Grid.Column="2" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind Count, Mode=OneWay}"
-                       FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0"
+                       FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold" Margin="12,0,0,0"
                        HorizontalAlignment="Right" VerticalAlignment="Center"/>
         </Grid>
     </Grid>

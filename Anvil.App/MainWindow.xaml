@@ -328,7 +328,7 @@
                     Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
                     Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}">
                 <TextBlock Text="{x:Bind RadarPaneLabel(ViewModel.Radar.SelectedRadarOption), Mode=OneWay}"
-                           FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                           FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Border>
             <Border x:Name="CompareModelPaneLabel"
                     Style="{StaticResource ComparePaneLabelStyle}"
@@ -337,7 +337,7 @@
                     Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
                     Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}">
                 <TextBlock Text="{x:Bind ViewModel.ShortRange.ModelPaneLabel, Mode=OneWay}"
-                           FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                           FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Border>
         </Grid>
 
@@ -400,7 +400,7 @@
                             <Setter Property="CornerRadius" Value="4"/>
                             <Setter Property="VerticalAlignment" Value="Stretch"/>
                             <Setter Property="Margin" Value="0,3"/>
-                            <Setter Property="FontSize" Value="13"/>
+                            <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
                         </Style>
                     </Grid.Resources>
                     <Grid.ColumnDefinitions>
@@ -825,7 +825,7 @@
                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                 BorderThickness="1">
             <TextBlock Text="Full screen · move the pointer to the top for the menu · press F11 or Esc to exit"
-                       FontSize="13"
+                       FontSize="{StaticResource BodyFontSize}"
                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
         </Border>
         <!-- /FULL-SCREEN (bolt-on) -->

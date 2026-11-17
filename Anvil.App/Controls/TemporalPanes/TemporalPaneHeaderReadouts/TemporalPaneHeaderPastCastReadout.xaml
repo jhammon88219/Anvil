@@ -25,7 +25,7 @@
                    Opacity="{x:Bind PlaceholderOpacity(ViewModel.HasLoadedReplayWindow), Mode=OneWay}"
                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
         <TextBlock Text="{x:Bind ViewModel.LoadedReplayRangeSuffix, Mode=OneWay}"
-                   FontSize="16" VerticalAlignment="Bottom" Margin="0,0,0,5"
+                   FontSize="{StaticResource BodyLargeFontSize}" VerticalAlignment="Bottom" Margin="0,0,0,5"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
     </StackPanel>
 </UserControl>

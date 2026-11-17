@@ -128,7 +128,7 @@
 
                             <TextBlock x:Name="Label"
                                        Text="{TemplateBinding Content}"
-                                       FontSize="12"
+                                       FontSize="{StaticResource CaptionFontSize}"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>

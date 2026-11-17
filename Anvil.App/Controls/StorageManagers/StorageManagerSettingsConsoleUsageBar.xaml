@@ -29,12 +29,12 @@
         <!-- The total over its caption (34 + 16 = 50 tall, exact line heights). (The "Open folder" key beside it was removed
              2026-11-17, the user's call — each row keeps its own folder button.) -->
         <StackPanel x:Name="UsageTotalBlock" HorizontalAlignment="Left">
-            <TextBlock x:Name="UsageTotalText" FontSize="28" FontWeight="SemiBold"
-                       LineHeight="34" LineStackingStrategy="BlockLineHeight"
+            <TextBlock x:Name="UsageTotalText" FontSize="{StaticResource TitleFontSize}" FontWeight="SemiBold"
+                       LineHeight="{StaticResource TitleLineHeight}" LineStackingStrategy="BlockLineHeight"
                        Style="{StaticResource TabularNumberTextStyle}"
                        Text="{x:Bind ViewModel.TotalText, Mode=OneWay}"/>
-            <TextBlock x:Name="UsageTotalCaption" Text="used by Anvil" FontSize="12"
-                       LineHeight="16" LineStackingStrategy="BlockLineHeight"
+            <TextBlock x:Name="UsageTotalCaption" Text="used by Anvil" FontSize="{StaticResource CaptionFontSize}"
+                       LineHeight="{StaticResource CaptionLineHeight}" LineStackingStrategy="BlockLineHeight"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </StackPanel>
 

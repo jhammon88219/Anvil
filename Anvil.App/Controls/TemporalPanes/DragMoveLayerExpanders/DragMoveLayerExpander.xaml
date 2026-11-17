@@ -157,7 +157,7 @@
                 <!-- Title only (no subtitle: it shortened that row's slider — removed 2026-10-21; a section's
                      own note goes in its body, under the card). -->
                 <TextBlock Grid.Column="3" Text="{x:Bind Header, Mode=OneWay}"
-                           FontSize="14" FontWeight="SemiBold"
+                           FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold"
                            VerticalAlignment="Center" Margin="0,0,10,0"
                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                            Opacity="{x:Bind GhostDimUnless(IsEnabled, IsGhost), Mode=OneWay}"
@@ -190,7 +190,7 @@
                            Text="{x:Bind Percent(OpacityValue), Mode=OneWay}"
                            Opacity="{x:Bind GhostDimUnless(IsOpacityEnabled, IsGhost), Mode=OneWay}"
                            Visibility="{x:Bind BoolVisibility(ShowOpacity), Mode=OneWay}"
-                           FontSize="12" TextAlignment="Right" VerticalAlignment="Center"
+                           FontSize="{StaticResource CaptionFontSize}" TextAlignment="Right" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Grid>
 

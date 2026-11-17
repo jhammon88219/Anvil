@@ -68,20 +68,20 @@
         <Ellipse Width="8" Height="8" VerticalAlignment="Center" HorizontalAlignment="Left"
                  Visibility="{x:Bind RowShown(IsHeader, Status), Mode=OneWay}"
                  Fill="{x:Bind StateBrush(Status.State), Mode=OneWay}"/>
-        <TextBlock Grid.Column="1" Text="{x:Bind Status.Name, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
+        <TextBlock Grid.Column="1" Text="{x:Bind Status.Name, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
                    TextTrimming="CharacterEllipsis"
                    Visibility="{x:Bind RowShown(IsHeader, Status), Mode=OneWay}"/>
-        <TextBlock x:Name="ResultText" Grid.Column="2" Text="{x:Bind Status.ResultText, Mode=OneWay}" FontSize="13"
+        <TextBlock x:Name="ResultText" Grid.Column="2" Text="{x:Bind Status.ResultText, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}"
                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                    Style="{StaticResource TabularNumberTextStyle}"
                    ToolTipService.ToolTip="{x:Bind TipOf(Status.Reason), Mode=OneWay}"
                    Visibility="{x:Bind RowShown(IsHeader, Status), Mode=OneWay}"/>
-        <TextBlock Grid.Column="3" Text="{x:Bind Status.Source, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
+        <TextBlock Grid.Column="3" Text="{x:Bind Status.Source, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
                    TextTrimming="CharacterEllipsis"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Visibility="{x:Bind SourceShown(IsHeader, Status.CanRetry), Mode=OneWay}"/>
         <!-- RETRY: in the source's place while the layer has failed; fetches only that layer again. -->
-        <Button x:Name="LoadRowRetryButton" Grid.Column="3" Content="Retry" FontSize="12" Padding="8,0" MinHeight="0"
+        <Button x:Name="LoadRowRetryButton" Grid.Column="3" Content="Retry" FontSize="{StaticResource CaptionFontSize}" Padding="8,0" MinHeight="0"
                 Height="20" VerticalAlignment="Center" Click="OnRetryClick"
                 ToolTipService.ToolTip="Fetch this layer again for the loaded event"
                 Visibility="{x:Bind RetryShown(IsHeader, Status.CanRetry), Mode=OneWay}"/>

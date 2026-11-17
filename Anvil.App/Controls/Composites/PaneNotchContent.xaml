@@ -57,8 +57,8 @@
     <UserControl.Resources>
         <!-- Both forms' text, +2 over the old sizes (the user's call, 2026-10-21): pickers 14 → 16, model name 12 → 16 /
              product 12 → 14; the ramp's scale numbers went 11 → 13 inside ProductColorRamp. -->
-        <x:Double x:Key="NotchFontSize">16</x:Double>
-        <x:Double x:Key="NotchSecondaryFontSize">14</x:Double>
+        <StaticResource x:Key="NotchFontSize" ResourceKey="BodyLargeFontSize"/>
+        <StaticResource x:Key="NotchSecondaryFontSize" ResourceKey="BodyFontSize"/>
         <!-- Thin vertical rule between the three groups, matching the bar's divider. -->
         <Style x:Key="NotchDividerStyle" TargetType="Border">
             <Setter Property="Width" Value="1"/>

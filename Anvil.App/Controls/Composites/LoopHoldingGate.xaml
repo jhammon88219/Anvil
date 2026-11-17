@@ -106,18 +106,18 @@
                         <!-- ⚠️ TYPE SCALE (the user's call, 2026-10-02; why line 14 → 17 on 2026-10-04): the TITLE is
                              the largest text here (24), the why line next (17), everything else 12–13. -->
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="24" LineHeight="30"
+                            <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="{StaticResource TitleFontSize}" LineHeight="{StaticResource TitleLineHeight}"
                                        FontWeight="SemiBold" TextWrapping="NoWrap"
                                        Foreground="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}"/>
                             <!-- The site + time line: WHITE, centred under the title. -->
-                            <TextBlock Text="{x:Bind ViewModel.EventLine, Mode=OneWay}" FontSize="12" Margin="0,4,0,0"
+                            <TextBlock Text="{x:Bind ViewModel.EventLine, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" Margin="0,4,0,0"
                                        HorizontalAlignment="Center" Foreground="#FFFFFFFF"/>
                         </StackPanel>
                     </Grid>
                 </Border>
 
                 <!-- THE WHY LINE (the user's call, 2026-10-02): why a loop takes time. Under the band since 2026-10-04. -->
-                <TextBlock Text="{x:Bind ViewModel.Why}" FontSize="17" LineHeight="25" TextWrapping="Wrap" Width="400"
+                <TextBlock Text="{x:Bind ViewModel.Why}" FontSize="{StaticResource BodyLargeFontSize}" LineHeight="{StaticResource BodyLargeLineHeight}" TextWrapping="Wrap" Width="400"
                            TextAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,28" Foreground="#FFFFFFFF"/>
 
                 <!-- THE BARS (layout C+E, the user's call 2026-10-04): Primitives/LoopLoadProgressBar — a big count
@@ -139,7 +139,7 @@
 
                 <!-- THE LOAD'S TIME, Ready only: "That took 2 minutes and 14 seconds to load." — Begin → last frame built
                      (the same clock the load-time log records). -->
-                <TextBlock Text="{x:Bind ViewModel.ElapsedText, Mode=OneWay}" FontSize="13" Margin="0,18,0,0"
+                <TextBlock Text="{x:Bind ViewModel.ElapsedText, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}" Margin="0,18,0,0"
                            TextAlignment="Center" HorizontalAlignment="Center" Foreground="#FFE8EAED"
                            Visibility="{x:Bind ViewModel.IsReadyShown, Mode=OneWay}"/>
             </StackPanel>
@@ -184,10 +184,10 @@
                     Background="#F214181E" BorderBrush="#40E8EAED"
                     Visibility="{x:Bind ViewModel.IsCancelledShown, Mode=OneWay}">
                 <StackPanel Spacing="4">
-                    <TextBlock Text="Load cancelled" FontSize="14" FontWeight="SemiBold" Foreground="#FFE8EAED"/>
-                    <TextBlock Text="{x:Bind ViewModel.KeptText, Mode=OneWay}" FontSize="12" TextWrapping="Wrap"
+                    <TextBlock Text="Load cancelled" FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold" Foreground="#FFE8EAED"/>
+                    <TextBlock Text="{x:Bind ViewModel.KeptText, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap"
                                Foreground="#BFE8EAED" Margin="0,0,0,8"/>
-                    <Button Content="Got it" FontSize="12" Padding="14,5" CornerRadius="8" HorizontalAlignment="Right"
+                    <Button Content="Got it" FontSize="{StaticResource CaptionFontSize}" Padding="14,5" CornerRadius="8" HorizontalAlignment="Right"
                             Click="OnGotItClick"/>
                 </StackPanel>
             </Border>

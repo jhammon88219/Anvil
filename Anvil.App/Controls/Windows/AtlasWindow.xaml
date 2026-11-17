@@ -201,7 +201,7 @@
                     </Grid>
 
                     <TextBlock Grid.Column="1" Text="Anvil Atlas" VerticalAlignment="Center"
-                               FontSize="22" FontWeight="SemiBold"/>
+                               FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"/>
 
                     <!-- Radar sites: TOTAL first, rule, then per network. -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center"
@@ -210,23 +210,23 @@
                         <StackPanel>
                             <TextBlock Text="RADAR SITES" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.ShownSiteCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <Border Width="1" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                         <StackPanel>
                             <TextBlock Text="NEXRAD" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.NexradCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="TDWR" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.TdwrCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="RESEARCH" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.ResearchCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </StackPanel>
 
@@ -237,28 +237,28 @@
                         <StackPanel>
                             <TextBlock Text="PAST EVENTS" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.TotalCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <Border Width="1" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                         <StackPanel>
                             <TextBlock Text="TORNADO" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.TornadoCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="HURRICANE" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.HurricaneCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="DERECHO" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.DerechoCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="CUSTOM" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.CustomCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </StackPanel>
                 </Grid>
@@ -405,7 +405,7 @@
                                         <Border CornerRadius="11" Padding="9,2,4,2"
                                                 Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <TextBlock Text="{x:Bind Label}" FontSize="12"
+                                                <TextBlock Text="{x:Bind Label}" FontSize="{StaticResource CaptionFontSize}"
                                                            VerticalAlignment="Center"/>
                                                 <Button Padding="4,2" MinWidth="0" MinHeight="0"
                                                         Background="Transparent" BorderThickness="0"
@@ -422,7 +422,7 @@
 
                             <TextBlock Grid.Column="1" VerticalAlignment="Center"
                                        Text="{x:Bind ViewModel.RadarAtlas.ResultCountText, Mode=OneWay}"
-                                       FontSize="12"
+                                       FontSize="{StaticResource CaptionFontSize}"
                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                         </Grid>
 
@@ -473,7 +473,7 @@
 
                                             <StackPanel Grid.Column="1" Margin="12,5" VerticalAlignment="Center">
                                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                                    <TextBlock Text="{x:Bind Id}" FontWeight="SemiBold" FontSize="15"/>
+                                                    <TextBlock Text="{x:Bind Id}" FontWeight="SemiBold" FontSize="{StaticResource BodyLargeFontSize}"/>
                                                     <FontIcon Glyph="&#xE80F;" FontSize="12" VerticalAlignment="Center"
                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                               Visibility="{x:Bind win:AtlasWindow.ShowIf(IsHome), Mode=OneWay}"/>
@@ -481,7 +481,7 @@
                                                 <!-- "Norman · OK" — the state is what makes a 200-row list
                                                      findable; the name alone assumes you already know where
                                                      Melbourne is. -->
-                                                <TextBlock Text="{x:Bind NameAndState}" FontSize="12"
+                                                <TextBlock Text="{x:Bind NameAndState}" FontSize="{StaticResource CaptionFontSize}"
                                                            TextTrimming="CharacterEllipsis"
                                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                             </StackPanel>
@@ -594,7 +594,7 @@
 
                                 <TextBlock Grid.Column="0" Margin="0,0,16,0" VerticalAlignment="Center"
                                            Text="{x:Bind ViewModel.RadarAtlas.DetailTitle, Mode=OneWay}"
-                                           FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                           FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
 
                                 <!-- Status chip: neutral pill, the dot is the only colour. -->
                                 <Border Grid.Column="1" VerticalAlignment="Center"
@@ -604,7 +604,7 @@
                                         <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                                  Fill="{x:Bind win:AtlasWindow.StatusBrush(ViewModel.RadarAtlas.SelectedSite.Availability), Mode=OneWay}"/>
                                         <TextBlock Text="{x:Bind ViewModel.RadarAtlas.SelectedSite.StatusLabel, Mode=OneWay}"
-                                                   FontSize="12"/>
+                                                   FontSize="{StaticResource CaptionFontSize}"/>
                                         <ctl:GlossaryHint VerticalAlignment="Center"
                                                           Card="{x:Bind ViewModel.RadarAtlas.StatusHint, Mode=OneWay}"/>
                                     </StackPanel>
@@ -615,7 +615,7 @@
                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailClassLabel, Mode=OneWay}"
-                                                   FontSize="12"
+                                                   FontSize="{StaticResource CaptionFontSize}"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                         <ctl:GlossaryHint VerticalAlignment="Center"
                                                           Card="{x:Bind ViewModel.RadarAtlas.NetworkHint, Mode=OneWay}"/>
@@ -649,7 +649,7 @@
                             <!-- SUBTITLE — the radar's kind + coordinates (they moved here from the old site card). -->
                             <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,-6,0,0">
                                 <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailSubtitle, Mode=OneWay}"
-                                           FontSize="13" VerticalAlignment="Center"
+                                           FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <ctl:GlossaryHint VerticalAlignment="Center"
                                                   Card="{x:Bind ViewModel.RadarAtlas.CoordsHint, Mode=OneWay}"/>
@@ -680,7 +680,7 @@
                                                  long as the fetch is in flight. -->
                                             <Grid>
                                                 <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailAgeValue, Mode=OneWay}"
-                                                           FontSize="20" FontWeight="SemiBold"
+                                                           FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"
                                                            Foreground="{x:Bind win:AtlasWindow.AgeBrush(ViewModel.RadarAtlas.DetailAgeMinutes), Mode=OneWay}"/>
                                                 <ProgressRing Width="16" Height="16"
                                                               HorizontalAlignment="Left" VerticalAlignment="Center"
@@ -700,7 +700,7 @@
                                     <Grid>
                                         <StackPanel>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailScanValue, Mode=OneWay}"
-                                                       FontSize="20" FontWeight="SemiBold"/>
+                                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"/>
                                             <TextBlock Text="{x:Bind win:AtlasWindow.ScanModeLabel(ViewModel.RadarAtlas.DetailScanLabel), Mode=OneWay}"
                                                        TextWrapping="Wrap" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                         </StackPanel>
@@ -715,7 +715,7 @@
                                     <Grid>
                                         <StackPanel>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailDistanceValue, Mode=OneWay}"
-                                                       FontSize="20" FontWeight="SemiBold"/>
+                                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"/>
                                             <TextBlock Text="FROM YOU" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                         </StackPanel>
                                         <ctl:GlossaryHint HorizontalAlignment="Right" VerticalAlignment="Top"
@@ -730,7 +730,7 @@
                                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
                                         <FontIcon Glyph="&#xE722;" FontSize="24"
                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                                        <TextBlock Text="Site photo" FontSize="12" HorizontalAlignment="Center"
+                                        <TextBlock Text="Site photo" FontSize="{StaticResource CaptionFontSize}" HorizontalAlignment="Center"
                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                     </StackPanel>
                                 </Border>
@@ -766,7 +766,7 @@
                                                Style="{StaticResource AtlasFieldLabelStyle}"/>
                                     <TextBlock Grid.Column="1"
                                                Text="{x:Bind ViewModel.RadarAtlas.NwsStatus.CheckedText, Mode=OneWay}"
-                                               FontSize="12" VerticalAlignment="Center"
+                                               FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis"
                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                     <!-- E72C Refresh. -->
@@ -778,7 +778,7 @@
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <FontIcon FontSize="12" Glyph="&#xE72C;"/>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsStatus.CheckButtonText, Mode=OneWay}"
-                                                       FontSize="12"/>
+                                                       FontSize="{StaticResource CaptionFontSize}"/>
                                         </StackPanel>
                                     </Button>
                                 </Grid>
@@ -788,7 +788,7 @@
                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                         Visibility="{x:Bind CollapsedWhen(ViewModel.RadarAtlas.NwsDetail.ShowTable), Mode=OneWay}">
                                     <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.EmptyText, Mode=OneWay}"
-                                               FontSize="13"
+                                               FontSize="{StaticResource BodyFontSize}"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </Border>
 
@@ -860,12 +860,12 @@
                                                 <StackPanel Spacing="6"
                                                             Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.NwsDetail.HasMessage), Mode=OneWay}">
                                                     <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.Latest.Header, Mode=OneWay}"
-                                                               FontSize="12"
+                                                               FontSize="{StaticResource CaptionFontSize}"
                                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                                     <Border CornerRadius="6" Padding="10,8"
                                                             Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                                         <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.Latest.Text, Mode=OneWay}"
-                                                                   FontFamily="Consolas" FontSize="12" LineHeight="18"
+                                                                   FontFamily="Consolas" FontSize="{StaticResource CaptionFontSize}" LineHeight="{StaticResource CaptionLineHeight}"
                                                                    TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                                                     </Border>
                                                 </StackPanel>
@@ -886,7 +886,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="DATA UPTIME" VerticalAlignment="Center"
                                                Style="{StaticResource AtlasFieldLabelStyle}"/>
-                                    <TextBlock Text="from gaps in the public archive" FontSize="12" VerticalAlignment="Center"
+                                    <TextBlock Text="from gaps in the public archive" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                     <ctl:GlossaryHint VerticalAlignment="Center"
                                                       Card="{x:Bind ViewModel.RadarAtlas.History.UptimeHint, Mode=OneWay}"/>
@@ -899,7 +899,7 @@
                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                         Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.History.UptimeEmptyText), Mode=OneWay}">
                                     <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.UptimeEmptyText, Mode=OneWay}"
-                                               FontSize="13" TextWrapping="Wrap"
+                                               FontSize="{StaticResource BodyFontSize}" TextWrapping="Wrap"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </Border>
 
@@ -915,7 +915,7 @@
                                                 Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                             <StackPanel>
                                                 <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.Uptime7Value, Mode=OneWay}"
-                                                           FontSize="20" FontWeight="SemiBold"/>
+                                                           FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"/>
                                                 <TextBlock Text="LAST 7 DAYS" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                             </StackPanel>
                                         </Border>
@@ -923,7 +923,7 @@
                                                 Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                             <StackPanel>
                                                 <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.Uptime30Value, Mode=OneWay}"
-                                                           FontSize="20" FontWeight="SemiBold"/>
+                                                           FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"/>
                                                 <TextBlock Text="LAST 30 DAYS" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                             </StackPanel>
                                         </Border>
@@ -931,7 +931,7 @@
                                                 Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                             <StackPanel>
                                                 <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.OutagesValue, Mode=OneWay}"
-                                                           FontSize="20" FontWeight="SemiBold"/>
+                                                           FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"/>
                                                 <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.OutagesLabel, Mode=OneWay}"
                                                            Style="{StaticResource AtlasFieldLabelStyle}"/>
                                             </StackPanel>
@@ -961,18 +961,18 @@
                                         </ItemsControl>
                                         <Grid>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.StripStartLabel, Mode=OneWay}"
-                                                       FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                                       FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                             <TextBlock Text="each cell is one day · dot = NWS message" HorizontalAlignment="Center"
-                                                       FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                                       FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.StripEndLabel, Mode=OneWay}"
                                                        HorizontalAlignment="Right"
-                                                       FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                                       FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                         </Grid>
                                     </StackPanel>
 
                                     <!-- Holes, newest first. E8BD Message — ⚠️ unverified codepoint, check on first run. -->
                                     <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.NoHolesText, Mode=OneWay}"
-                                               FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               FontSize="{StaticResource BodyFontSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.History.NoHolesText), Mode=OneWay}"/>
                                     <ItemsControl ItemsSource="{x:Bind ViewModel.RadarAtlas.History.HoleRows, Mode=OneWay}"
                                                   Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.History.HasHoles), Mode=OneWay}">
@@ -986,13 +986,13 @@
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <TextBlock Text="{x:Bind When}" FontFamily="Consolas" FontSize="12"
+                                                        <TextBlock Text="{x:Bind When}" FontFamily="Consolas" FontSize="{StaticResource CaptionFontSize}"
                                                                    VerticalAlignment="Center"
                                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                                                             <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                                                      Fill="{x:Bind win:AtlasWindow.HoleBrush(Kind)}"/>
-                                                            <TextBlock Text="{x:Bind What}" FontSize="13" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{x:Bind What}" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"/>
                                                         </StackPanel>
                                                         <FontIcon Grid.Column="2" Glyph="&#xE8BD;" FontSize="13"
                                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
@@ -1004,7 +1004,7 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                     <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.MoreHolesText, Mode=OneWay}"
-                                               FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                               FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                                Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.History.MoreHolesText), Mode=OneWay}"/>
                                 </StackPanel>
                             </StackPanel>
@@ -1017,26 +1017,26 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="MESSAGE HISTORY" VerticalAlignment="Center"
                                                Style="{StaticResource AtlasFieldLabelStyle}"/>
-                                    <TextBlock Text="NWS outage messages · 30 days" FontSize="12" VerticalAlignment="Center"
+                                    <TextBlock Text="NWS outage messages · 30 days" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                 </StackPanel>
                                 <Border CornerRadius="8" Padding="14,12"
                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                         Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.History.MessagesEmptyText), Mode=OneWay}">
                                     <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.MessagesEmptyText, Mode=OneWay}"
-                                               FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                               FontSize="{StaticResource BodyFontSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </Border>
                                 <ItemsControl ItemsSource="{x:Bind ViewModel.RadarAtlas.History.MessageRows, Mode=OneWay}"
                                               Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.History.HasMessages), Mode=OneWay}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:RadarNwsMessageRow">
                                             <StackPanel Spacing="6" Margin="0,0,0,10">
-                                                <TextBlock Text="{x:Bind Header}" FontSize="12"
+                                                <TextBlock Text="{x:Bind Header}" FontSize="{StaticResource CaptionFontSize}"
                                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                                 <Border CornerRadius="6" Padding="10,8"
                                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                                     <TextBlock Text="{x:Bind Text}"
-                                                               FontFamily="Consolas" FontSize="12" LineHeight="18"
+                                                               FontFamily="Consolas" FontSize="{StaticResource CaptionFontSize}" LineHeight="{StaticResource CaptionLineHeight}"
                                                                TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                                                 </Border>
                                             </StackPanel>
@@ -1050,7 +1050,7 @@
                                         <FontIcon FontSize="10"
                                                   Glyph="{x:Bind win:AtlasWindow.ExpandGlyph(ViewModel.RadarAtlas.History.IsMessagesExpanded), Mode=OneWay}"/>
                                         <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.MoreMessagesLabel, Mode=OneWay}"
-                                                   FontSize="12"/>
+                                                   FontSize="{StaticResource CaptionFontSize}"/>
                                     </StackPanel>
                                 </HyperlinkButton>
                             </StackPanel>
@@ -1067,14 +1067,14 @@
                                     <TextBlock Text="SCAN PATTERNS" VerticalAlignment="Center"
                                                Style="{StaticResource AtlasFieldLabelStyle}"/>
                                     <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.ScanCaption, Mode=OneWay}"
-                                               FontSize="12" VerticalAlignment="Center"
+                                               FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                 </StackPanel>
                                 <Border CornerRadius="8" Padding="14,12"
                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                         Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.History.ScanEmptyText), Mode=OneWay}">
                                     <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.ScanEmptyText, Mode=OneWay}"
-                                               FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                               FontSize="{StaticResource BodyFontSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </Border>
                                 <StackPanel Spacing="8"
                                             Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.History.HasScanShares), Mode=OneWay}">
@@ -1106,7 +1106,7 @@
                                                 <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,16,4">
                                                     <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                                              Fill="{x:Bind win:AtlasWindow.ShareBrush(Index)}"/>
-                                                    <TextBlock Text="{x:Bind Label}" FontSize="12"
+                                                    <TextBlock Text="{x:Bind Label}" FontSize="{StaticResource CaptionFontSize}"
                                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                                 </StackPanel>
                                             </DataTemplate>
@@ -1120,7 +1120,7 @@
                                     <StackPanel Spacing="6">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <TextBlock Text="NON-STANDARD VCPS" Style="{StaticResource AtlasFieldLabelStyle}"/>
-                                            <TextBlock Text="not in Anvil's list · shown as the radar reported" FontSize="12"
+                                            <TextBlock Text="not in Anvil's list · shown as the radar reported" FontSize="{StaticResource CaptionFontSize}"
                                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                         </StackPanel>
                                         <ItemsControl ItemsSource="{x:Bind ViewModel.RadarAtlas.History.NonStandardRows, Mode=OneWay}">
@@ -1132,10 +1132,10 @@
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <TextBlock Text="{x:Bind Vcp}" FontSize="13" FontWeight="SemiBold"/>
-                                                        <TextBlock Grid.Column="1" Text="{x:Bind Detail}" FontSize="13"
+                                                        <TextBlock Text="{x:Bind Vcp}" FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="{x:Bind Detail}" FontSize="{StaticResource BodyFontSize}"
                                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                        <TextBlock Grid.Column="2" Text="{x:Bind When}" FontFamily="Consolas" FontSize="12"
+                                                        <TextBlock Grid.Column="2" Text="{x:Bind When}" FontFamily="Consolas" FontSize="{StaticResource CaptionFontSize}"
                                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                                     </Grid>
                                                 </DataTemplate>
@@ -1150,7 +1150,7 @@
                                     <TextBlock Text="YOUR USE" VerticalAlignment="Center"
                                                Style="{StaticResource AtlasFieldLabelStyle}"/>
                                     <TextBlock Text="{x:Bind ViewModel.RadarAtlas.UsageSinceText, Mode=OneWay}"
-                                               FontSize="12" VerticalAlignment="Center"
+                                               FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                     <!-- E75C EraseTool — ⚠️ unverified codepoint, check on first run. -->
                                     <Button Padding="6,2" MinWidth="0" MinHeight="0"
@@ -1162,7 +1162,7 @@
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <FontIcon FontSize="12" Glyph="&#xE75C;"
                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            <TextBlock Text="Clear" FontSize="12"
+                                            <TextBlock Text="Clear" FontSize="{StaticResource CaptionFontSize}"
                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                         </StackPanel>
                                     </Button>
@@ -1173,7 +1173,7 @@
                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                         Visibility="{x:Bind CollapsedWhen(ViewModel.RadarAtlas.HasUsage), Mode=OneWay}">
                                     <TextBlock Text="{x:Bind ViewModel.RadarAtlas.UsageEmptyText, Mode=OneWay}"
-                                               FontSize="13"
+                                               FontSize="{StaticResource BodyFontSize}"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </Border>
 
@@ -1190,7 +1190,7 @@
                                             Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                         <StackPanel>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.UsageLoadsValue, Mode=OneWay}"
-                                                       FontSize="20" FontWeight="SemiBold"/>
+                                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"/>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.UsageLoadsLabel, Mode=OneWay}"
                                                        TextWrapping="Wrap" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                         </StackPanel>
@@ -1201,7 +1201,7 @@
                                         <Grid>
                                             <StackPanel>
                                                 <TextBlock Text="{x:Bind ViewModel.RadarAtlas.LoadTimeValue, Mode=OneWay}"
-                                                           FontSize="20" FontWeight="SemiBold"/>
+                                                           FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"/>
                                                 <TextBlock Text="{x:Bind ViewModel.RadarAtlas.LoadTimeLabel, Mode=OneWay}"
                                                            TextWrapping="Wrap" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                             </StackPanel>
@@ -1214,7 +1214,7 @@
                                             Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                         <StackPanel>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.LastUsedValue, Mode=OneWay}"
-                                                       FontSize="20" FontWeight="SemiBold"/>
+                                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"/>
                                             <TextBlock Text="LAST USED" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                         </StackPanel>
                                     </Border>
@@ -1223,7 +1223,7 @@
                                             Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                         <StackPanel>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.RankValue, Mode=OneWay}"
-                                                       FontSize="20" FontWeight="SemiBold"/>
+                                                       FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"/>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.RankLabel, Mode=OneWay}"
                                                        TextWrapping="Wrap" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                         </StackPanel>

@@ -48,7 +48,7 @@
                     <Button x:Name="BasemapSetupTestKeyButton" Grid.Column="1" Content="Test" Click="{x:Bind ViewModel.TestKey}"
                             IsEnabled="{x:Bind ViewModel.CanTestKey, Mode=OneWay}"/>
                 </Grid>
-                <TextBlock Text="{x:Bind ViewModel.KeyMessage, Mode=OneWay}" TextWrapping="Wrap" FontSize="12"
+                <TextBlock Text="{x:Bind ViewModel.KeyMessage, Mode=OneWay}" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </StackPanel>
         </Border>

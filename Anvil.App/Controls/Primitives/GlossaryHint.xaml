@@ -34,7 +34,7 @@
             Background="{ThemeResource SubtleFillColorSecondaryBrush}"
             AutomationProperties.Name="{x:Bind HintName(Card), Mode=OneWay}">
         <Button.Content>
-            <TextBlock Text="?" FontSize="11" FontWeight="SemiBold"
+            <TextBlock Text="?" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold"
                        HorizontalAlignment="Center" VerticalAlignment="Center"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </Button.Content>
@@ -42,13 +42,13 @@
             <ToolTip>
                 <StackPanel MaxWidth="300" Spacing="2">
                     <TextBlock Text="{x:Bind Card.Term, Mode=OneWay}"
-                               FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                               FontSize="{StaticResource BodyLargeFontSize}" FontWeight="SemiBold" TextWrapping="Wrap"/>
                     <TextBlock Text="{x:Bind Card.Technical, Mode=OneWay}"
-                               FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"
+                               FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" Margin="0,0,0,6"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
 
                     <TextBlock Text="{x:Bind Card.Definition, Mode=OneWay}"
-                               FontSize="12" TextWrapping="Wrap" LineHeight="17"
+                               FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" LineHeight="{StaticResource CaptionLineHeight}"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                     <!-- THIS site's value, said out loud. Tinted so the eye finds it without reading. -->
@@ -56,14 +56,14 @@
                             Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                             Visibility="{x:Bind ShowIfText(Card.Now), Mode=OneWay}">
                         <TextBlock Text="{x:Bind Card.Now, Mode=OneWay}"
-                                   FontSize="12" TextWrapping="Wrap" LineHeight="17"/>
+                                   FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" LineHeight="{StaticResource CaptionLineHeight}"/>
                     </Border>
 
                     <Rectangle Height="1" Margin="0,8,0,6"
                                Fill="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                                Visibility="{x:Bind ShowIfText(Card.Context), Mode=OneWay}"/>
                     <TextBlock Text="{x:Bind Card.Context, Mode=OneWay}"
-                               FontSize="11" TextWrapping="Wrap" LineHeight="16"
+                               FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" LineHeight="{StaticResource CaptionLineHeight}"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                Visibility="{x:Bind ShowIfText(Card.Context), Mode=OneWay}"/>
                 </StackPanel>

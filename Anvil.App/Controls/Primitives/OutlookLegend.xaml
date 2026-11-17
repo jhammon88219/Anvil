@@ -71,7 +71,7 @@
                           Data="M-14,16 L2,0 M-7,16 L9,0 M0,16 L16,0 M7,16 L23,0 M14,16 L30,0 M21,16 L37,0 M28,16 L44,0 M35,16 L51,0"/>
                 </Grid>
                 <TextBlock Grid.Column="1" Text="{x:Bind OfficialName}"
-                           FontSize="13" VerticalAlignment="Center"
+                           FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Grid>
@@ -104,11 +104,11 @@
                           Data="M-14,16 L2,0 M-7,16 L9,0 M0,16 L16,0 M7,16 L23,0 M14,16 L30,0 M21,16 L37,0 M28,16 L44,0 M35,16 L51,0"/>
                 </Grid>
                 <TextBlock Grid.Column="1" Text="{x:Bind Level.OfficialName}"
-                           FontSize="13" VerticalAlignment="Center"
+                           FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <TextBlock Grid.Column="2" Text="{x:Bind StatusText}"
-                           FontSize="12" VerticalAlignment="Center"
+                           FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Grid>
         </DataTemplate>
@@ -133,7 +133,7 @@
                         <RotateTransform Angle="{x:Bind ChevronAngle(IsExpanded), Mode=OneWay}"/>
                     </FontIcon.RenderTransform>
                 </FontIcon>
-                <TextBlock Grid.Column="1" Text="Legend" FontSize="12" VerticalAlignment="Center"
+                <TextBlock Grid.Column="1" Text="Legend" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <Border Grid.Column="2" Height="1" VerticalAlignment="Center"
                         Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
@@ -183,7 +183,7 @@
                     <TextBlock Grid.Column="2" Style="{StaticResource TabularNumberTextStyle}"
                                Text="{x:Bind Percent(HatchOpacity), Mode=OneWay}"
                                Opacity="{x:Bind ReadoutOpacity(ShowHatching), Mode=OneWay}"
-                               FontSize="12" TextAlignment="Right" VerticalAlignment="Center"
+                               FontSize="{StaticResource CaptionFontSize}" TextAlignment="Right" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </Grid>
                 <Grid Margin="0,0,0,2" ColumnSpacing="8">

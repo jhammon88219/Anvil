@@ -95,7 +95,7 @@
                 <Border Grid.Row="0" CornerRadius="6" Padding="10,7"
                         Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
                     <TextBlock TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
-                               FontSize="14" FontWeight="SemiBold"
+                               FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold"
                                Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                Text="{x:Bind SweepVm.StatusText, Mode=OneWay}"/>
                 </Border>
@@ -108,11 +108,11 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Dwell s" VerticalAlignment="Center" FontSize="12"/>
+                    <TextBlock Grid.Column="0" Text="Dwell s" VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}"/>
                     <NumberBox x:Name="DwellBox" Grid.Column="1"
                                SpinButtonPlacementMode="Compact" SmallChange="5" LargeChange="30"
                                Minimum="5" Maximum="600" ValueChanged="OnDwellChanged"/>
-                    <TextBlock Grid.Column="2" Text="Timeout s" VerticalAlignment="Center" FontSize="12"/>
+                    <TextBlock Grid.Column="2" Text="Timeout s" VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}"/>
                     <NumberBox x:Name="TimeoutBox" Grid.Column="3"
                                SpinButtonPlacementMode="Compact" SmallChange="10" LargeChange="30"
                                Minimum="10" Maximum="1200" ValueChanged="OnTimeoutChanged"/>
@@ -124,7 +124,7 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="Frames (0 = full dwell)"
-                               VerticalAlignment="Center" FontSize="12"/>
+                               VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}"/>
                     <NumberBox x:Name="FramesBox" Grid.Column="1"
                                SpinButtonPlacementMode="Compact" SmallChange="1" LargeChange="5"
                                Minimum="0" Maximum="50" ValueChanged="OnFramesChanged"/>
@@ -163,12 +163,12 @@
                 <Border Grid.Row="0" CornerRadius="6" Padding="10,7"
                         Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
                     <TextBlock TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
-                               FontSize="14" FontWeight="SemiBold"
+                               FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold"
                                Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                Text="{x:Bind ValidationVm.StatusText, Mode=OneWay}"/>
                 </Border>
 
-                <TextBlock Grid.Row="1" TextWrapping="Wrap" FontSize="12"
+                <TextBlock Grid.Row="1" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Text="Replays the fixed corpus (Assets/RadarCorpus/radar-corpus.json) through the real decode/dealias path and flags any volume whose over-unfold % exceeds its baseline."/>
 
@@ -203,7 +203,7 @@
                     <RowDefinition Height="Auto"/> <!-- the toggle -->
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" TextWrapping="Wrap" FontSize="12"
+                <TextBlock Grid.Row="0" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Text="Opens the read-only Level-2 pipeline window: a mini-scrubber per product plus VWP/storm-motion state. Observe-only — it polls the WebView while open and changes nothing."/>
 
@@ -229,17 +229,17 @@
 
                 <Border Grid.Row="0" CornerRadius="6" Padding="10,7"
                         Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
-                    <TextBlock TextWrapping="Wrap" FontSize="14" FontWeight="SemiBold"
+                    <TextBlock TextWrapping="Wrap" FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold"
                                Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                Text="{x:Bind SeedVm.StatusText, Mode=OneWay}"/>
                 </Border>
 
-                <TextBlock Grid.Row="1" TextWrapping="Wrap" FontSize="12"
+                <TextBlock Grid.Row="1" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Text="Plays every built-in event at each ticked window: COLD (that window's cached files and decoded frames forgotten first), then WARM. Shortest window first, so every cold pass is truly cold. PastCast must be on. Each load is logged with its timings, bytes and the speed cap."/>
 
                 <StackPanel Grid.Row="2" Spacing="4">
-                    <TextBlock Text="Windows" FontSize="12"/>
+                    <TextBlock Text="Windows" FontSize="{StaticResource CaptionFontSize}"/>
                     <ItemsControl ItemsSource="{x:Bind SeedVm.Windows}" IsEnabled="{x:Bind SeedVm.IsIdle, Mode=OneWay}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -279,22 +279,22 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Speed cap Mbps (0 = off)" VerticalAlignment="Center" FontSize="12"/>
+                    <TextBlock Grid.Column="0" Text="Speed cap Mbps (0 = off)" VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}"/>
                     <NumberBox x:Name="SeedSpeedBox" Grid.Column="1" SpinButtonPlacementMode="Compact"
                                SmallChange="5" LargeChange="25" Minimum="0" Maximum="10000"
                                ValueChanged="OnSeedSpeedChanged"
                                ToolTipService.ToolTip="Simulated connection speed for ALL radar downloads while set (stays on after the run until 0)"/>
-                    <TextBlock Grid.Column="2" Text="Pause s" VerticalAlignment="Center" FontSize="12"/>
+                    <TextBlock Grid.Column="2" Text="Pause s" VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}"/>
                     <NumberBox x:Name="SeedPauseBox" Grid.Column="3" SpinButtonPlacementMode="Compact"
                                SmallChange="5" LargeChange="30" Minimum="0" Maximum="600"
                                ValueChanged="OnSeedPauseChanged"/>
-                    <TextBlock Grid.Column="4" Text="Timeout min" VerticalAlignment="Center" FontSize="12"/>
+                    <TextBlock Grid.Column="4" Text="Timeout min" VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}"/>
                     <NumberBox x:Name="SeedTimeoutBox" Grid.Column="5" SpinButtonPlacementMode="Compact"
                                SmallChange="5" LargeChange="15" Minimum="1" Maximum="240"
                                ValueChanged="OnSeedTimeoutChanged"/>
                 </Grid>
 
-                <TextBlock Grid.Row="5" FontSize="12" Text="{x:Bind SeedVm.PlanText, Mode=OneWay}"
+                <TextBlock Grid.Row="5" FontSize="{StaticResource CaptionFontSize}" Text="{x:Bind SeedVm.PlanText, Mode=OneWay}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                 <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="8">
@@ -313,7 +313,7 @@
                     <RowDefinition Height="Auto"/> <!-- the cap -->
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" TextWrapping="Wrap" FontSize="12"
+                <TextBlock Grid.Row="0" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Text="Replaces PastCast's Radar memory cap (Settings → Radar) and keeps every 0.5° rescan in ANY window length, so a long SAILS window loads far more frames. Read at each Load. For measuring the map's real memory ceiling (memory samples in the radar diagnostics) — it can black out the map. 0 = off. Not saved."/>
 
@@ -322,7 +322,7 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="PastCast frame cap (0 = app's 40)" VerticalAlignment="Center" FontSize="12"/>
+                    <TextBlock Grid.Column="0" Text="PastCast frame cap (0 = app's 40)" VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}"/>
                     <NumberBox x:Name="FrameCapBox" Grid.Column="1" SpinButtonPlacementMode="Compact"
                                SmallChange="20" LargeChange="40" Minimum="0" Maximum="1000"
                                ValueChanged="OnFrameCapChanged"/>
@@ -334,10 +334,10 @@
              uses; Open Anvil / Continue without a map just close the preview. ===== -->
         <prim:SettingsExpander Grid.Row="5" Header="Map setup window" IsExpanded="True">
             <StackPanel Spacing="8">
-                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                <TextBlock TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Text="The window Anvil shows before launch while it has no map. Opens it now at the picked step, so every step can be checked with a map in place."/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="Step" VerticalAlignment="Center" FontSize="12"/>
+                    <TextBlock Text="Step" VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}"/>
                     <ComboBox x:Name="MapSetupPreviewStepComboBox" Width="160"
                               SelectedIndex="{x:Bind ViewModel.BasemapSetup.StepIndex, Mode=TwoWay}">
                         <ComboBoxItem Content="Choose"/>

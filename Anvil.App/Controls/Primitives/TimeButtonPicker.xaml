@@ -96,7 +96,7 @@
                         <x:String>10</x:String>
                         <x:String>11</x:String>
                     </ComboBox>
-                    <TextBlock Grid.Row="1" Grid.Column="1" Text=":" FontSize="16" VerticalAlignment="Center"
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text=":" FontSize="{StaticResource BodyLargeFontSize}" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     <!-- Minutes are the one list that can't be fixed here: 00…55 by 5 PLUS the committed minute when
                          it is off the 5s, refilled on every open (OnFlyoutOpening). -->

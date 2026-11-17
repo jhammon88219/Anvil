@@ -43,9 +43,9 @@
                 ToolTipService.ToolTip="{x:Bind StatusToolTip, Mode=OneWay}"/>
 
         <StackPanel Grid.Column="1" Margin="12,0,12,0" Spacing="2" VerticalAlignment="Center">
-            <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontSize="30" FontWeight="SemiLight"
+            <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontSize="{StaticResource TitleFontSize}" FontWeight="SemiLight"
                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-            <TextBlock Text="{x:Bind Subtitle, Mode=OneWay}" FontSize="13"
+            <TextBlock Text="{x:Bind Subtitle, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}"
                        Opacity="{x:Bind SubtitleOpacity, Mode=OneWay}"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </StackPanel>

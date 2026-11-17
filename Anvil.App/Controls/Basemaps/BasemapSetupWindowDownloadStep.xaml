@@ -68,7 +68,7 @@
 
         <TextBlock x:Name="StepName" Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind Step.Name, Mode=OneWay}"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-        <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="12" Text="{x:Bind Step.Detail, Mode=OneWay}"
+        <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}" Text="{x:Bind Step.Detail, Mode=OneWay}"
                    Style="{StaticResource TabularNumberTextStyle}"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 

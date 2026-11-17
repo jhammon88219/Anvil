@@ -39,7 +39,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="{x:Bind Display}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="{x:Bind Detail}" FontSize="12" VerticalAlignment="Center"
+                <TextBlock Grid.Column="1" Text="{x:Bind Detail}" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Grid>
         </DataTemplate>

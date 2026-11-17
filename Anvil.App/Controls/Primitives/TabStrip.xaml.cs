@@ -66,7 +66,8 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(JoinsBody), typeof(bool), typeof(TabStrip),
 				new PropertyMetadata(false, (d, _) => ((TabStrip)d).ApplySelection()));
 
-		/// <summary>The rows' name size: 13 (the Atlas); Settings sets 15 (2026-11-17). The marks stay 16.</summary>
+		/// <summary>The rows' name size: Body 14 (the Atlas); Settings sets Body large (its BodyLargeFontSize, 2026-11-17).
+		/// The marks stay 16 (icons aren't on the type scale).</summary>
 		public double LabelFontSize
 		{
 			get => (double)GetValue(LabelFontSizeProperty);
@@ -75,7 +76,7 @@ namespace Anvil.Controls.Primitives
 
 		public static readonly DependencyProperty LabelFontSizeProperty =
 			DependencyProperty.Register(nameof(LabelFontSize), typeof(double), typeof(TabStrip),
-				new PropertyMetadata(13d, (d, _) => ((TabStrip)d).ApplySelection()));
+				new PropertyMetadata(14d, (d, _) => ((TabStrip)d).ApplySelection()));
 
 		/// <summary>
 		/// The selected row's button box in <paramref name="relativeTo"/>'s coordinates, or null while nothing is selected or

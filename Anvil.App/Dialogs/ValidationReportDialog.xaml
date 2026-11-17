@@ -41,7 +41,7 @@
         <!-- Read-only monospace body so the columns line up; scrolls for the full report. -->
         <TextBox x:Name="ReportText" Grid.Row="1"
                  IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
-                 FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+                 FontFamily="Cascadia Mono,Consolas,monospace" FontSize="{StaticResource CaptionFontSize}"
                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
                  ScrollViewer.VerticalScrollBarVisibility="Auto"/>
     </Grid>

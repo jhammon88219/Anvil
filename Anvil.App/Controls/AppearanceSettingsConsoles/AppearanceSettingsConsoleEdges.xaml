@@ -57,7 +57,7 @@
                         <Border Width="16" Height="16" CornerRadius="8" BorderThickness="1"
                                 Background="{ThemeResource OverlayBarSurfaceBrush}"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-                            <TextBlock Text="A" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Text="A" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultColorText}"/>
                     </StackPanel>

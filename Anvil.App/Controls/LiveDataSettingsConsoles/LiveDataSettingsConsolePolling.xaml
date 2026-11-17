@@ -32,11 +32,11 @@
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <Border Padding="6,1" CornerRadius="3" VerticalAlignment="Center" Visibility="{x:Bind IsLive}"
                                 Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}">
-                            <TextBlock Text="Live" FontSize="11" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                            <TextBlock Text="Live" FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
                         </Border>
                         <Border Padding="6,1" CornerRadius="3" VerticalAlignment="Center" Visibility="{x:Bind local:LiveDataSettingsConsolePolling.Not(IsLive)}"
                                 Background="{ThemeResource ControlFillColorSecondaryBrush}">
-                            <TextBlock Text="Polled" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock Text="Polled" FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         </Border>
                         <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind LiveHint}"/>
                     </StackPanel>
@@ -46,7 +46,7 @@
                                Minimum="{x:Bind MinimumSeconds}" Maximum="{x:Bind MaximumSeconds}"
                                SmallChange="5" LargeChange="60" SpinButtonPlacementMode="Compact"
                                ToolTipService.ToolTip="Seconds between checks when no live source carries this feed"/>
-                    <TextBlock Text="{x:Bind UnitText}" VerticalAlignment="Center" FontSize="12"
+                    <TextBlock Text="{x:Bind UnitText}" VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}"
                                Style="{StaticResource TabularNumberTextStyle}"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>

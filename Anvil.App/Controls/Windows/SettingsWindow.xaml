@@ -95,23 +95,23 @@
                 </Grid>
 
                 <TextBlock Grid.Column="1" Text="Anvil Settings" VerticalAlignment="Center"
-                           FontSize="22" FontWeight="SemiBold"/>
+                           FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"/>
 
                 <!-- ABOUT ANVIL: version first, rule, then the rest. -->
                 <StackPanel x:Name="SettingsBandAbout" Grid.Column="2" Orientation="Horizontal" Spacing="20"
                             VerticalAlignment="Center" Margin="21,0,0,0">
                     <StackPanel>
                         <TextBlock Text="VERSION" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
-                        <TextBlock Text="{x:Bind AppVersion}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                        <TextBlock Text="{x:Bind AppVersion}" FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                     </StackPanel>
                     <Border Width="1" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                     <StackPanel>
                         <TextBlock Text="BUILD" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
-                        <TextBlock Text="{x:Bind BuildKind}" FontSize="20" HorizontalAlignment="Left"/>
+                        <TextBlock Text="{x:Bind BuildKind}" FontSize="{StaticResource SubtitleFontSize}" HorizontalAlignment="Left"/>
                     </StackPanel>
                     <StackPanel>
                         <TextBlock Text="LICENSE" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
-                        <TextBlock Text="AGPL-3.0" FontSize="20" HorizontalAlignment="Left"/>
+                        <TextBlock Text="AGPL-3.0" FontSize="{StaticResource SubtitleFontSize}" HorizontalAlignment="Left"/>
                     </StackPanel>
                     <StackPanel>
                         <TextBlock Text="SOURCE" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
@@ -145,7 +145,7 @@
                  right — it is the rows' right margin (was 6), so the rows never slide under a bar. The JOIN runs on over
                  that gutter to meet the body. -->
             <ctl:PanelScroller x:Name="SettingsRailScroller" Scrolled="OnRailJoinMoved">
-                <ctl:TabStrip x:Name="Strip" Margin="6,8,0,8" JoinsBody="True" LabelFontSize="15" SizeChanged="OnRailJoinMoved"
+                <ctl:TabStrip x:Name="Strip" Margin="6,8,0,8" JoinsBody="True" LabelFontSize="{StaticResource BodyLargeFontSize}" SizeChanged="OnRailJoinMoved"
                               ItemsSource="{x:Bind Tabs}"
                               SelectedIndex="{x:Bind ViewModel.SettingsTabIndex, Mode=TwoWay}"/>
             </ctl:PanelScroller>
@@ -166,12 +166,13 @@
                                                                                                     title's baseline, trims ·
                                                                                                     the caution key, centred on
                                                                                                     the title's capitals
-                   ABOUT · LOAD HOME SITE ON LAUNCH                                     ← 13; the SELECTED row
-                   When Anvil opens, it starts the live radar loop for …                ← 15 / 22 lines, 3 max, FIXED 90 px box
+                   ABOUT · LOAD HOME SITE ON LAUNCH                                     ← Overline; the SELECTED row
+                   When Anvil opens, it starts the live radar loop for …                ← Body large 16/22, 3 max, FIXED 88 px box
                    … your home site is set in the Radar Atlas.               DEFAULT    ← DEFAULT + value pinned BOTTOM-right
                                                                               Off          (clear of the Reset all key above)
                    ──────────────────────────────────────────────────────────────────── hairline; the consoles scroll under it
-                 ⚠️ The About box is ONE fixed height (caption 18 + 6 + three 22 px lines) whatever is selected, or nothing
+                 Sizes are TYPE-SCALE roles (Styles.xaml): title Page title, description Body large, captions Overline.
+                 ⚠️ The About box is ONE fixed height (Overline 16 + 6 + three Body-large 22 px lines = 88) whatever is selected, or nothing
                  (SettingsText.NothingSelected), so picking a row never moves the page. Its words are the catalog's
                  (Services/Settings/SettingsText); the selection is kept PER PAGE (SettingsWindow.OnRowPicked).
                  Right margin 4 = the cards' right edge (the scroller below bleeds -12 into BodyHost's 16). -->
@@ -193,9 +194,9 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="SettingsPageTitle" FontSize="34" FontWeight="SemiBold" TextLineBounds="Tight"
+                        <TextBlock x:Name="SettingsPageTitle" FontSize="{StaticResource PageTitleFontSize}" FontWeight="SemiBold" TextLineBounds="Tight"
                                    VerticalAlignment="Bottom" Text="{x:Bind PageTitle, Mode=OneWay}"/>
-                        <TextBlock x:Name="SettingsPageDescription" Grid.Column="1" FontSize="15" TextLineBounds="Tight"
+                        <TextBlock x:Name="SettingsPageDescription" Grid.Column="1" FontSize="{StaticResource BodyLargeFontSize}" TextLineBounds="Tight"
                                    VerticalAlignment="Bottom" TextTrimming="CharacterEllipsis"
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                    ToolTipService.ToolTip="{x:Bind PageDescription, Mode=OneWay}"
@@ -208,26 +209,26 @@
                                             ToolTipService.ToolTip="{x:Bind ResetAllToolTip, Mode=OneWay}"
                                             Click="OnResetAllClick"/>
                 </Grid>
-                <Grid x:Name="SettingsAboutBox" Height="90" Margin="0,14,0,0" ColumnSpacing="16">
+                <Grid x:Name="SettingsAboutBox" Height="88" Margin="0,14,0,0" ColumnSpacing="16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel>
-                        <TextBlock x:Name="SettingsAboutCaption" FontSize="13" CharacterSpacing="80" LineHeight="18"
+                        <TextBlock x:Name="SettingsAboutCaption" FontSize="{StaticResource OverlineFontSize}" CharacterSpacing="{StaticResource OverlineCharacterSpacing}" LineHeight="{StaticResource OverlineLineHeight}"
                                    LineStackingStrategy="BlockLineHeight" TextTrimming="CharacterEllipsis"
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="{x:Bind AboutCaption, Mode=OneWay}"/>
                         <TextBlock x:Name="SettingsAboutText" Margin="0,6,0,0" MaxWidth="800" HorizontalAlignment="Left"
-                                   FontSize="15" LineHeight="22" LineStackingStrategy="BlockLineHeight"
+                                   FontSize="{StaticResource BodyLargeFontSize}" LineHeight="{StaticResource BodyLargeLineHeight}" LineStackingStrategy="BlockLineHeight"
                                    TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind AboutText, Mode=OneWay}"/>
                     </StackPanel>
                     <!-- BOTTOM-right of the box (2026-11-17): at the top it sat right under the title line's Reset all key. -->
                     <StackPanel x:Name="SettingsAboutDefault" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                 Visibility="{x:Bind HasAboutDefault, Mode=OneWay}">
-                        <TextBlock Text="DEFAULT" FontSize="13" CharacterSpacing="60" LineHeight="18" LineStackingStrategy="BlockLineHeight"
+                        <TextBlock Text="DEFAULT" FontSize="{StaticResource OverlineFontSize}" CharacterSpacing="{StaticResource OverlineCharacterSpacing}" LineHeight="{StaticResource OverlineLineHeight}" LineStackingStrategy="BlockLineHeight"
                                    HorizontalAlignment="Right" Foreground="{ThemeResource SettingsCautionForegroundBrush}"/>
-                        <TextBlock Margin="0,6,0,0" FontSize="15" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                        <TextBlock Margin="0,6,0,0" FontSize="{StaticResource BodyLargeFontSize}" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
                                    MaxLines="2" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind AboutDefault, Mode=OneWay}"/>
                     </StackPanel>
                 </Grid>

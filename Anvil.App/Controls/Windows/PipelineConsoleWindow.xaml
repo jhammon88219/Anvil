@@ -68,7 +68,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0"
                                Text="Pipeline Console"
-                               FontSize="13" FontWeight="SemiBold" CharacterSpacing="40"
+                               FontSize="{StaticResource OverlineFontSize}" FontWeight="SemiBold" CharacterSpacing="{StaticResource OverlineCharacterSpacing}"
                                VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     <Button Grid.Column="1"
@@ -83,12 +83,12 @@
                 <!-- Telemetry: VWP/storm-motion + what the pipeline is building. -->
                 <StackPanel Grid.Row="1" Spacing="3" Margin="0,0,0,12">
                     <TextBlock Text="{x:Bind ViewModel.PipelineConsole.VwpStatusText, Mode=OneWay}"
-                               FontSize="14" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                               FontSize="{StaticResource BodyFontSize}" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                     <TextBlock Text="{x:Bind ViewModel.PipelineConsole.StormMotionText, Mode=OneWay}"
-                               FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               FontSize="{StaticResource BodyFontSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                TextWrapping="NoWrap"/>
                     <TextBlock Text="{x:Bind ViewModel.PipelineConsole.PipelineFlagsText, Mode=OneWay}"
-                               FontSize="12" FontFamily="Consolas,Cascadia Mono,monospace"
+                               FontSize="{StaticResource CaptionFontSize}" FontFamily="Consolas,Cascadia Mono,monospace"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                TextWrapping="NoWrap"/>
                 </StackPanel>
@@ -111,11 +111,11 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="2" Text="1st paint"
                                    HorizontalAlignment="Right" Margin="8,0,0,0"
-                                   FontSize="11" CharacterSpacing="20"
+                                   FontSize="{StaticResource OverlineFontSize}" CharacterSpacing="{StaticResource OverlineCharacterSpacing}"
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                         <TextBlock Grid.Column="3" Text="full loop"
                                    HorizontalAlignment="Right" Margin="8,0,0,0"
-                                   FontSize="11" CharacterSpacing="20"
+                                   FontSize="{StaticResource OverlineFontSize}" CharacterSpacing="{StaticResource OverlineCharacterSpacing}"
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                     </Grid>
 
@@ -134,7 +134,7 @@
                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6"
                                                     VerticalAlignment="Center">
                                             <TextBlock Text="{x:Bind ShortLabel}" Width="34"
-                                                       FontSize="14" FontWeight="SemiBold"
+                                                       FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold"
                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                             <Border Width="30" Height="10" CornerRadius="2"
                                                     Background="{x:Bind Option.Ramp, Mode=OneWay, Converter={StaticResource RampBrush}}"/>
@@ -165,14 +165,14 @@
                                         <TextBlock Grid.Column="2" Text="{x:Bind FirstText, Mode=OneWay}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center"
                                                    Margin="8,0,0,0"
-                                                   FontSize="13" FontFamily="Consolas,Cascadia Mono,monospace"
+                                                   FontSize="{StaticResource BodyFontSize}" FontFamily="Consolas,Cascadia Mono,monospace"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                                         <!-- Time to fill this product's whole row (accurate, measured in radar.js). -->
                                         <TextBlock Grid.Column="3" Text="{x:Bind CompleteText, Mode=OneWay}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center"
                                                    Margin="8,0,0,0"
-                                                   FontSize="13" FontFamily="Consolas,Cascadia Mono,monospace"
+                                                   FontSize="{StaticResource BodyFontSize}" FontFamily="Consolas,Cascadia Mono,monospace"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                     </Grid>
                                 </DataTemplate>
@@ -194,7 +194,7 @@
 
                         <!-- Empty state (no loop). -->
                         <TextBlock Text="No radar loop loaded — click a site to watch the pipeline."
-                                   FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                   FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                    HorizontalAlignment="Center" Margin="0,4"
                                    Visibility="{x:Bind VisibleWhen2(ViewModel.PipelineConsole.HasLoop), Mode=OneWay}"/>
                     </Grid>

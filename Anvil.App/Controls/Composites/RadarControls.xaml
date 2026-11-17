@@ -46,15 +46,15 @@
              mc:Ignorable="d">
 
     <UserControl.Resources>
-        <x:Double x:Key="ReadoutFontSize">12</x:Double>
+        <StaticResource x:Key="ReadoutFontSize" ResourceKey="CaptionFontSize"/>
         <!-- The scan block's two text roles: a quiet LABEL ("VCP:") and a primary VALUE ("212"). -->
         <Style x:Key="ScanLabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
         </Style>
         <Style x:Key="ScanValueStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <!-- LEFT, so ActualWidth is the TEXT: ScanTextRight reads it to end the tools tier's centre section. -->
             <Setter Property="HorizontalAlignment" Value="Left"/>
@@ -112,10 +112,10 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="00:00" Typography.NumeralAlignment="Tabular"
-                           FontSize="40" FontWeight="SemiLight" LineHeight="42" LineStackingStrategy="BlockLineHeight"/>
+                           FontSize="{StaticResource DisplayFontSize}" FontWeight="SemiLight" LineHeight="{StaticResource DisplayLineHeight}" LineStackingStrategy="BlockLineHeight"/>
                 <Grid Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5">
-                    <TextBlock Text="{x:Bind AmDesignator}" FontSize="16"/>
-                    <TextBlock Text="{x:Bind PmDesignator}" FontSize="16"/>
+                    <TextBlock Text="{x:Bind AmDesignator}" FontSize="{StaticResource BodyLargeFontSize}"/>
+                    <TextBlock Text="{x:Bind PmDesignator}" FontSize="{StaticResource BodyLargeFontSize}"/>
                 </Grid>
             </Grid>
             <Grid x:Name="ClockTime" ColumnSpacing="4" HorizontalAlignment="Left"
@@ -129,19 +129,19 @@
                 <TextBlock Grid.Column="0"
                            Text="{x:Bind ClockDigits(ViewModel.CurrentFrameTimeText), Mode=OneWay}"
                            Typography.NumeralAlignment="Tabular"
-                           FontSize="40"
+                           FontSize="{StaticResource DisplayFontSize}"
                            FontWeight="SemiLight"
-                           LineHeight="42"
+                           LineHeight="{StaticResource DisplayLineHeight}"
                            LineStackingStrategy="BlockLineHeight"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                 <!-- AM/PM rides the digits' baseline-ish bottom edge, small and secondary.
                      ⚠️ Its slot is as wide as the WIDER designator (two invisible samples share the cell), so noon /
                      midnight don't nudge the width either ("AM" and "PM" differ by a hair). -->
                 <Grid Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5">
-                    <TextBlock Text="{x:Bind AmDesignator}" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
-                    <TextBlock Text="{x:Bind PmDesignator}" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
+                    <TextBlock Text="{x:Bind AmDesignator}" FontSize="{StaticResource BodyLargeFontSize}" Opacity="0" IsHitTestVisible="False"/>
+                    <TextBlock Text="{x:Bind PmDesignator}" FontSize="{StaticResource BodyLargeFontSize}" Opacity="0" IsHitTestVisible="False"/>
                     <TextBlock Text="{x:Bind ClockSuffix(ViewModel.CurrentFrameTimeText), Mode=OneWay}"
-                               FontSize="16"
+                               FontSize="{StaticResource BodyLargeFontSize}"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </Grid>
             </Grid>
@@ -155,7 +155,7 @@
                        Grid.Row="1"
                        HorizontalAlignment="Left"
                        Text="{x:Bind ViewModel.RadarAgeText, Mode=OneWay}"
-                       FontSize="14"
+                       FontSize="{StaticResource BodyFontSize}"
                        TextTrimming="CharacterEllipsis"
                        Foreground="{x:Bind AgeBrush(ViewModel.RadarAgeMinutes), Mode=OneWay}"
                        ToolTipService.ToolTip="How long ago the radar started scanning the frame you're looking at. Storms it passed later in that sweep are a little fresher. Green = fresh, red = stale."/>

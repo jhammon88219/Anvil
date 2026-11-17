@@ -79,7 +79,7 @@
 
                 <TextBlock Grid.Column="1"
                            Text="{x:Bind Header, Mode=OneWay}"
-                           FontSize="14" FontWeight="SemiBold"
+                           FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold"
                            VerticalAlignment="Center" Margin="0,0,10,0"
                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                            Opacity="{x:Bind DimUnless(IsEnabled), Mode=OneWay}"

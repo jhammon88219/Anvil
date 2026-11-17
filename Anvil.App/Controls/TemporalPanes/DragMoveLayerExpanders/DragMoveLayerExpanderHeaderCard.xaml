@@ -46,20 +46,20 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <TextBlock Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind Headline, Mode=OneWay}"
-                       FontSize="15" VerticalAlignment="Bottom"
+                       FontSize="{StaticResource BodyLargeFontSize}" VerticalAlignment="Bottom"
                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
             <TextBlock Grid.Column="1" Style="{StaticResource TabularNumberTextStyle}"
                        Text="{x:Bind Context, Mode=OneWay}"
                        Visibility="{x:Bind ShowContext(Footer), Mode=OneWay}"
                        ToolTipService.ToolTip="{x:Bind Context, Mode=OneWay}"
-                       FontSize="13" Margin="0,0,0,1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                       FontSize="{StaticResource BodyFontSize}" Margin="0,0,0,1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                        TextTrimming="CharacterEllipsis"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             <TextBlock Grid.Column="1" Style="{StaticResource TabularNumberTextStyle}"
                        Text="{x:Bind Footer, Mode=OneWay}"
                        Visibility="{x:Bind HasText(Footer), Mode=OneWay}"
                        ToolTipService.ToolTip="{x:Bind Footer, Mode=OneWay}"
-                       FontSize="13" Margin="0,0,0,1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                       FontSize="{StaticResource BodyFontSize}" Margin="0,0,0,1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                        TextTrimming="CharacterEllipsis"
                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
         </Grid>

@@ -288,7 +288,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{x:Bind ViewModel.Outlook.CyclePositionText, Mode=OneWay}"
-                                   VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}" TextTrimming="CharacterEllipsis"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         <CheckBox x:Name="ShowPreviousIssuanceCheckBox" Grid.Column="1" Content="Previous outline" MinWidth="0"
                                   IsChecked="{x:Bind ViewModel.Outlook.ShowPreviousCycle, Mode=TwoWay}"

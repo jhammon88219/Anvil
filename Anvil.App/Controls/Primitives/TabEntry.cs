@@ -60,7 +60,7 @@ namespace Anvil.Controls.Primitives
 			set => SetProperty(ref _joinsBody, value);
 		}
 
-		private double _labelFontSize = 13;
+		private double _labelFontSize = 14; // the type scale's Body (Styles.xaml BodyFontSize)
 		/// <summary>The strip's <see cref="TabStrip.LabelFontSize"/>, copied onto every row. Written by the strip only.</summary>
 		public double LabelFontSize
 		{

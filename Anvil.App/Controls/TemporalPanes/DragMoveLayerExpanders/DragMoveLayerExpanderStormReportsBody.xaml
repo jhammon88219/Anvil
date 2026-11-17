@@ -138,12 +138,12 @@
                             </Grid.ColumnDefinitions>
                             <Ellipse Width="9" Height="9" VerticalAlignment="Center"
                                      Fill="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderStormReportsBody.KindBrush(Report.Kind)}"/>
-                            <TextBlock Grid.Column="1" Text="{x:Bind TimeText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                            <TextBlock Grid.Column="1" Text="{x:Bind TimeText, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                                        Style="{StaticResource TabularNumberTextStyle}"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <TextBlock Grid.Column="2" Text="{x:Bind Report.Place}" FontSize="12" VerticalAlignment="Center"
+                            <TextBlock Grid.Column="2" Text="{x:Bind Report.Place}" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Grid.Column="3" Text="{x:Bind MagText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                            <TextBlock Grid.Column="3" Text="{x:Bind MagText, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         </Grid>
                     </DataTemplate>

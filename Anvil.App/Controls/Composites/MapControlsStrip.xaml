@@ -295,7 +295,7 @@
                         <StackPanel Width="220" Spacing="2">
                             <TextBlock Text="Map layers" FontWeight="SemiBold" Margin="0,0,0,4"/>
                             <TextBlock Text="The map is hidden. These apply when you show it."
-                                       TextWrapping="Wrap" FontSize="12" Margin="0,0,0,4"
+                                       TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}" Margin="0,0,0,4"
                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                        Visibility="{x:Bind HiddenNoteVisibility(ViewModel.Basemap.IsMapShown), Mode=OneWay}"/>
                             <!-- THE TREE: one row per category (BasemapCategory). Every row reserves a 20 px

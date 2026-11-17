@@ -168,7 +168,7 @@
                           VerticalAlignment="Center"/>
                 <TextBlock Text="{x:Bind Word(IsShown, Target, Label), Mode=OneWay}"
                            Visibility="{x:Bind VisibleWhen(ShowLabel), Mode=OneWay}"
-                           FontSize="15"
+                           FontSize="{StaticResource BodyLargeFontSize}"
                            VerticalAlignment="Center"/>
             </StackPanel>
         </Button>

@@ -66,19 +66,19 @@
         <Ellipse Width="8" Height="8" VerticalAlignment="Center" HorizontalAlignment="Left"
                  Visibility="{x:Bind RowShown(IsHeader, Status), Mode=OneWay}"
                  Fill="{x:Bind StateBrush(Status.State), Mode=OneWay}"/>
-        <TextBlock Grid.Column="1" Text="{x:Bind Status.Name, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
+        <TextBlock Grid.Column="1" Text="{x:Bind Status.Name, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
                    TextTrimming="CharacterEllipsis"
                    Visibility="{x:Bind RowShown(IsHeader, Status), Mode=OneWay}"/>
-        <TextBlock Grid.Column="2" Text="{x:Bind Status.Every, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
+        <TextBlock Grid.Column="2" Text="{x:Bind Status.Every, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
                    Style="{StaticResource TabularNumberTextStyle}"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Visibility="{x:Bind RowShown(IsHeader, Status), Mode=OneWay}"/>
-        <TextBlock x:Name="LastText" Grid.Column="3" Text="{x:Bind Status.LastText, Mode=OneWay}" FontSize="13"
+        <TextBlock x:Name="LastText" Grid.Column="3" Text="{x:Bind Status.LastText, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}"
                    VerticalAlignment="Center" TextAlignment="Right" TextTrimming="CharacterEllipsis"
                    Style="{StaticResource TabularNumberTextStyle}"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Visibility="{x:Bind RowShown(IsHeader, Status), Mode=OneWay}"/>
-        <TextBlock Grid.Column="4" Text="{x:Bind Status.NextText, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
+        <TextBlock Grid.Column="4" Text="{x:Bind Status.NextText, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
                    TextAlignment="Right" Style="{StaticResource TabularNumberTextStyle}"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Visibility="{x:Bind RowShown(IsHeader, Status), Mode=OneWay}"/>

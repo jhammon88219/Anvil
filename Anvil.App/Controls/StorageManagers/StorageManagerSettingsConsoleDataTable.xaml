@@ -31,8 +31,8 @@
 
     <UserControl.Resources>
         <Style x:Key="StorageColumnTitleStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="CharacterSpacing" Value="60"/>
+            <Setter Property="FontSize" Value="{StaticResource OverlineFontSize}"/>
+            <Setter Property="CharacterSpacing" Value="{StaticResource OverlineCharacterSpacing}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
         </Style>

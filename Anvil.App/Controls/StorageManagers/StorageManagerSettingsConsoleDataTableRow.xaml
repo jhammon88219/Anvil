@@ -96,10 +96,10 @@
                    HorizontalAlignment="Left" Fill="{x:Bind Swatch, Mode=OneWay}"/>
 
         <!-- The name stands well above its grey hint: 16 Medium vs the hint's 12 regular, secondary colour. -->
-        <TextBlock x:Name="KindName" Grid.Column="1" VerticalAlignment="Center" FontSize="16" FontWeight="Medium"
+        <TextBlock x:Name="KindName" Grid.Column="1" VerticalAlignment="Center" FontSize="{StaticResource BodyLargeFontSize}" FontWeight="Medium"
                    Text="{x:Bind Item.Name, Mode=OneWay}"/>
         <TextBlock x:Name="KindHint" Grid.Column="2" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                   FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Text="{x:Bind Item.Hint, Mode=OneWay}"/>
 
         <TextBlock x:Name="SizeText" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right"

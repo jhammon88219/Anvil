@@ -33,14 +33,14 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock x:Name="SettingsConsolePlateTitle" FontSize="28" FontWeight="SemiBold"
-                           LineHeight="34" LineStackingStrategy="BlockLineHeight" VerticalAlignment="Center"
+                <TextBlock x:Name="SettingsConsolePlateTitle" FontSize="{StaticResource TitleFontSize}" FontWeight="SemiBold"
+                           LineHeight="{StaticResource TitleLineHeight}" LineStackingStrategy="BlockLineHeight" VerticalAlignment="Center"
                            Text="{x:Bind Title, Mode=OneWay}"/>
                 <ContentPresenter x:Name="SettingsConsolePlateHeaderContent" Grid.Column="1" VerticalAlignment="Center"
                                   HorizontalAlignment="Left"
                                   Content="{x:Bind HeaderContent, Mode=OneWay}"/>
                 <TextBlock x:Name="SettingsConsolePlateDefaultHeader" Grid.Column="2" Text="DEFAULT" VerticalAlignment="Center"
-                           FontSize="11" CharacterSpacing="60"
+                           FontSize="{StaticResource OverlineFontSize}" CharacterSpacing="{StaticResource OverlineCharacterSpacing}"
                            Foreground="{ThemeResource SettingsCautionForegroundBrush}"
                            Visibility="{x:Bind Show(ShowDefaultHeader), Mode=OneWay}"/>
             </Grid>

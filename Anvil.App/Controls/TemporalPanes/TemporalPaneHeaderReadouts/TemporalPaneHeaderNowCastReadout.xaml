@@ -26,13 +26,13 @@
         </Grid.ColumnDefinitions>
         <TextBlock x:Name="ClockDigits" Grid.Column="0"
                    Typography.NumeralAlignment="Tabular"
-                   FontSize="40" FontWeight="SemiLight"
-                   LineHeight="42" LineStackingStrategy="BlockLineHeight"
+                   FontSize="{StaticResource DisplayFontSize}" FontWeight="SemiLight"
+                   LineHeight="{StaticResource DisplayLineHeight}" LineStackingStrategy="BlockLineHeight"
                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
         <Grid Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5">
-            <TextBlock x:Name="AmSample" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
-            <TextBlock x:Name="PmSample" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
-            <TextBlock x:Name="ClockSuffix" FontSize="16"
+            <TextBlock x:Name="AmSample" FontSize="{StaticResource BodyLargeFontSize}" Opacity="0" IsHitTestVisible="False"/>
+            <TextBlock x:Name="PmSample" FontSize="{StaticResource BodyLargeFontSize}" Opacity="0" IsHitTestVisible="False"/>
+            <TextBlock x:Name="ClockSuffix" FontSize="{StaticResource BodyLargeFontSize}"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </Grid>
     </Grid>

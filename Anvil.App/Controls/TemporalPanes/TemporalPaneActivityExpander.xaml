@@ -112,18 +112,18 @@
                             <ColumnDefinition Width="Auto"/> <!-- HIDDEN: the failed-feed dot -->
                         </Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="{x:Bind Activity.Radar.Title, Mode=OneWay}" FontSize="13.5"
+                            <TextBlock Text="{x:Bind Activity.Radar.Title, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}"
                                        TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
                                        Style="{StaticResource TabularNumberTextStyle}"/>
                             <Border Padding="5,0" CornerRadius="4" VerticalAlignment="Center"
                                     Background="{ThemeResource AccentFillColorDefaultBrush}"
                                     Visibility="{x:Bind HasText(Activity.Radar.QueuedText), Mode=OneWay}">
-                                <TextBlock Text="{x:Bind Activity.Radar.QueuedText, Mode=OneWay}" FontSize="11" FontWeight="SemiBold"
+                                <TextBlock Text="{x:Bind Activity.Radar.QueuedText, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold"
                                            Style="{StaticResource TabularNumberTextStyle}"
                                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                             </Border>
                         </StackPanel>
-                        <TextBlock Grid.Column="1" Text="{x:Bind Activity.Radar.Detail, Mode=OneWay}" FontSize="13"
+                        <TextBlock Grid.Column="1" Text="{x:Bind Activity.Radar.Detail, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}"
                                    VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         <!-- HIDDEN only: the feed summary line is gone (one line, 2026-10-21), so a feed in trouble shows
@@ -164,7 +164,7 @@
                             Visibility="{x:Bind SummaryShown(Activity.IsHidden, Activity.HasSummary, Activity.HasRadar), Mode=OneWay}">
                     <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="#FFF85149"
                              Visibility="{x:Bind Shown(Activity.SummaryHasFailure), Mode=OneWay}"/>
-                    <TextBlock Text="{x:Bind Activity.Summary, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
+                    <TextBlock Text="{x:Bind Activity.Summary, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
                                TextTrimming="CharacterEllipsis" Style="{StaticResource TabularNumberTextStyle}"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>
@@ -188,9 +188,9 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="{x:Bind Activity.EventLine, Mode=OneWay}" FontSize="13.5" VerticalAlignment="Center"
+                            <TextBlock Text="{x:Bind Activity.EventLine, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis" Style="{StaticResource TabularNumberTextStyle}"/>
-                            <TextBlock Grid.Column="1" Text="{x:Bind Activity.LoadedText, Mode=OneWay}" FontSize="13"
+                            <TextBlock Grid.Column="1" Text="{x:Bind Activity.LoadedText, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}"
                                        VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         </Grid>
@@ -202,7 +202,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="7" Height="22" Padding="6,0">
                             <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="#FFF85149"
                                      Visibility="{x:Bind Shown(Activity.SummaryHasFailure), Mode=OneWay}"/>
-                            <TextBlock Text="{x:Bind Activity.Summary, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
+                            <TextBlock Text="{x:Bind Activity.Summary, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis" Style="{StaticResource TabularNumberTextStyle}"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         </StackPanel>
@@ -215,7 +215,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="7" Height="22" Padding="6,0">
                             <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                      Fill="{x:Bind LinkBrush(Activity.Live.LinkState), Mode=OneWay}"/>
-                            <TextBlock Text="{x:Bind Activity.Live.SourceLine, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
+                            <TextBlock Text="{x:Bind Activity.Live.SourceLine, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis" Style="{StaticResource TabularNumberTextStyle}"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         </StackPanel>

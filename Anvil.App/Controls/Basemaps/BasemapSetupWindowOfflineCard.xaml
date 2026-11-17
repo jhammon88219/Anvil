@@ -50,7 +50,7 @@
                 <prim:SegmentedPicker x:Name="BasemapSetupDetailPicker" HorizontalAlignment="Stretch"
                                       ItemsSource="{x:Bind ViewModel.DetailLabels}"
                                       SelectedIndex="{x:Bind ViewModel.DetailIndex, Mode=TwoWay}"/>
-                <TextBlock Text="{x:Bind ViewModel.SizeSummaryText, Mode=OneWay}" TextWrapping="Wrap" FontSize="12" Margin="0,0,0,6"
+                <TextBlock Text="{x:Bind ViewModel.SizeSummaryText, Mode=OneWay}" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}" Margin="0,0,0,6"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                 <TextBlock Text="Save to"/>
@@ -65,10 +65,10 @@
                     <Button x:Name="BasemapSetupSaveFolderBrowseButton" Grid.Column="1" Content="Browse…" Click="OnBrowseSaveFolderClick"/>
                 </Grid>
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                    <TextBlock Text="{x:Bind ViewModel.FreeSpaceText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                    <TextBlock Text="{x:Bind ViewModel.FreeSpaceText, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     <HyperlinkButton x:Name="BasemapSetupExistingFileLink" Content="I already have a map file"
-                                     FontSize="12" Padding="0,2" Click="{x:Bind ViewModel.ShowExistingFile}"/>
+                                     FontSize="{StaticResource CaptionFontSize}" Padding="0,2" Click="{x:Bind ViewModel.ShowExistingFile}"/>
                 </StackPanel>
             </StackPanel>
         </Border>

@@ -63,7 +63,7 @@
             <!-- The exact name the download gets (BasemapFileNames): the options, plus -2, -3… beside a same-options map. -->
             <prim:SettingsConsoleRow Label="File" AboutKey="offline.file" HintSpansDefault="True"
                                      Hint="{x:Bind ViewModel.DuplicateNote, Mode=OneWay}">
-                <TextBlock VerticalAlignment="Center" FontFamily="Consolas" FontSize="12"
+                <TextBlock VerticalAlignment="Center" FontFamily="Consolas" FontSize="{StaticResource CaptionFontSize}"
                            TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="True"
                            Text="{x:Bind ViewModel.PlannedFileName, Mode=OneWay}"/>
             </prim:SettingsConsoleRow>
@@ -90,7 +90,7 @@
                     <Button x:Name="OfflineMapCancelButton" Grid.Column="1" Content="Cancel" Click="{x:Bind ViewModel.CancelDownload}"
                             ToolTipService.ToolTip="Stops the download. What's downloaded is kept — Download picks it up again."/>
                     <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{x:Bind ViewModel.DownloadLineText, Mode=OneWay}"
-                               FontSize="12" TextWrapping="Wrap" Style="{StaticResource TabularNumberTextStyle}"/>
+                               FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" Style="{StaticResource TabularNumberTextStyle}"/>
                 </Grid>
             </prim:SettingsConsoleRow>
 
@@ -104,7 +104,7 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <FontIcon Glyph="&#xE7BA;" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
-                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.FailureText, Mode=OneWay}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.FailureText, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" VerticalAlignment="Center"/>
                     <Button x:Name="OfflineMapRetryButton" Grid.Column="2" Content="Retry" Click="{x:Bind ViewModel.RetryDownload}"/>
                 </Grid>
             </prim:SettingsConsoleRow>

@@ -56,7 +56,7 @@
 
             <!-- Only while High (over half of RAM) or Low (4-pane loops on the frame floor): the caution line, starting at the HINT
                  column (96 + 12 + 420 + 12 = 540 in from the rows' left edge). -->
-            <TextBlock Margin="540,0,0,4" TextWrapping="Wrap" FontSize="12"
+            <TextBlock Margin="540,0,0,4" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}"
                        Foreground="{ThemeResource SettingsCautionForegroundBrush}"
                        Visibility="{x:Bind Shown(ViewModel.Radar.Memory.IsWarning), Mode=OneWay}"
                        Text="{x:Bind ViewModel.Radar.Memory.NoteText, Mode=OneWay}"/>

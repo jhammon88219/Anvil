@@ -23,7 +23,7 @@
                 <prim:SettingsConsoleRow.HintContent>
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                         <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Free for personal use ·"/>
-                        <HyperlinkButton Content="Get a free key at protomaps.com" Padding="0" FontSize="12"
+                        <HyperlinkButton Content="Get a free key at protomaps.com" Padding="0" FontSize="{StaticResource CaptionFontSize}"
                                          NavigateUri="https://protomaps.com/account"/>
                     </StackPanel>
                 </prim:SettingsConsoleRow.HintContent>
@@ -44,7 +44,7 @@
 
             <!-- The key's last message: an INERT row (no AboutKey) that belongs to the row above. -->
             <prim:SettingsConsoleRow ControlSpan="2">
-                <TextBlock FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                <TextBlock FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" VerticalAlignment="Center"
                            Text="{x:Bind ViewModel.KeyMessage, Mode=OneWay}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </prim:SettingsConsoleRow>

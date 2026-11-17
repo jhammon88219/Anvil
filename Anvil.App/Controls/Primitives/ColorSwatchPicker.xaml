@@ -88,7 +88,7 @@
                                         Background="{TemplateBinding Background}"
                                         BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
                                         BorderThickness="1">
-                                    <TextBlock Text="{TemplateBinding Content}" FontSize="11"
+                                    <TextBlock Text="{TemplateBinding Content}" FontSize="{StaticResource CaptionFontSize}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </Border>

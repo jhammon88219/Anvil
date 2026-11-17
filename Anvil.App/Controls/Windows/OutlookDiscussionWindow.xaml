@@ -60,7 +60,7 @@
 
         <!-- One paragraph of SPC's text: re-flowed, selectable so a line can be copied out. -->
         <DataTemplate x:Key="ParagraphTemplate" x:DataType="x:String">
-            <TextBlock Text="{x:Bind}" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="0,0,0,8"
+            <TextBlock Text="{x:Bind}" FontSize="{StaticResource BodyFontSize}" LineHeight="{StaticResource BodyLineHeight}" TextWrapping="Wrap" Margin="0,0,0,8"
                        IsTextSelectionEnabled="True"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </DataTemplate>
@@ -91,10 +91,10 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="{x:Bind Name}" FontSize="14" FontWeight="SemiBold" CharacterSpacing="20"
+                            <TextBlock Text="{x:Bind Name}" FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold" CharacterSpacing="20"
                                        TextTrimming="CharacterEllipsis"
                                        Foreground="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
-                            <TextBlock Grid.Column="1" Text="{x:Bind Numeral}" FontSize="12" VerticalAlignment="Bottom"
+                            <TextBlock Grid.Column="1" Text="{x:Bind Numeral}" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Bottom"
                                        Margin="0,0,0,1" Typography.NumeralAlignment="Tabular" Foreground="White"/>
                         </Grid>
                     </Border>
@@ -102,27 +102,27 @@
                                 Opacity="{x:Bind local:OutlookDiscussionWindow.CardOpacity(IsPresent)}">
                         <StackPanel Orientation="Horizontal" Spacing="4"
                                     Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(HasFigures)}">
-                            <TextBlock Text="{x:Bind People}" FontSize="18" Typography.NumeralAlignment="Tabular"
+                            <TextBlock Text="{x:Bind People}" FontSize="{StaticResource SubtitleFontSize}" Typography.NumeralAlignment="Tabular"
                                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                            <TextBlock Text="people" FontSize="11" VerticalAlignment="Bottom" Margin="0,0,0,3"
+                            <TextBlock Text="people" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Bottom" Margin="0,0,0,3"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         </StackPanel>
-                        <TextBlock Text="{x:Bind Area}" FontSize="11" Typography.NumeralAlignment="Tabular"
+                        <TextBlock Text="{x:Bind Area}" FontSize="{StaticResource CaptionFontSize}" Typography.NumeralAlignment="Tabular"
                                    Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(HasFigures)}"
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                         <ItemsControl Margin="0,7,0,0" ItemsSource="{x:Bind Places}"
                                       Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(HasFigures)}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="x:String">
-                                    <TextBlock Text="{x:Bind}" FontSize="11" LineHeight="17" TextTrimming="CharacterEllipsis"
+                                    <TextBlock Text="{x:Bind}" FontSize="{StaticResource CaptionFontSize}" LineHeight="{StaticResource CaptionLineHeight}" TextTrimming="CharacterEllipsis"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <TextBlock Text="In this outlook" FontSize="11"
+                        <TextBlock Text="In this outlook" FontSize="{StaticResource CaptionFontSize}"
                                    Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(IsPresentWithoutFigures)}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        <TextBlock Text="Not in this outlook" FontSize="11" TextWrapping="Wrap"
+                        <TextBlock Text="Not in this outlook" FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap"
                                    Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(IsAbsent)}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
@@ -133,7 +133,7 @@
 
         <!-- A risk headline as one line under the cards ("HIGH RISK FROM CENTRAL AND NORTHERN OKLAHOMA…"), as written. -->
         <DataTemplate x:Key="HeadlineLineTemplate" x:DataType="vm:OutlookHeadlineRow">
-            <TextBlock Text="{x:Bind Line}" FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,0,0,3"
+            <TextBlock Text="{x:Bind Line}" FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,0,0,3"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </DataTemplate>
 
@@ -149,7 +149,7 @@
                     <TextBlock Text="{x:Bind Label}" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1">
-                    <TextBlock Text="{x:Bind Heading}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
+                    <TextBlock Text="{x:Bind Heading}" FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold" TextWrapping="Wrap"
                                Margin="0,0,0,4" IsTextSelectionEnabled="True"
                                Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(HasHeading)}"
                                Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
@@ -174,7 +174,7 @@
                 <!-- ⚠️ Right 220 = the lock + pin + caption corner (the Atlas band's rule). -->
                 <!-- Bottom 20 + the panel's Spacing 8 = 28 under the title (the user's call, 2026-10-02). -->
                 <TextBlock Text="{x:Bind ViewModel.OutlookDiscussion.Title, Mode=OneWay}" Margin="0,0,220,20"
-                           FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                           FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                 <Grid ColumnSpacing="12" RowSpacing="4"
                       Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.IsDiscussion), Mode=OneWay}">
@@ -194,7 +194,7 @@
                         <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.IssuedHint}" VerticalAlignment="Center"/>
                         <TextBlock Text="ISSUED" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                     </StackPanel>
-                    <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" FontSize="13"
+                    <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" FontSize="{StaticResource BodyFontSize}"
                                Typography.NumeralAlignment="Tabular"
                                Text="{x:Bind ViewModel.OutlookDiscussion.Issued, Mode=OneWay}"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -203,7 +203,7 @@
                         <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.ValidHint}" VerticalAlignment="Center"/>
                         <TextBlock Text="VALID" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                     </StackPanel>
-                    <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" FontSize="13"
+                    <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" FontSize="{StaticResource BodyFontSize}"
                                Typography.NumeralAlignment="Tabular"
                                Text="{x:Bind ViewModel.OutlookDiscussion.Valid, Mode=OneWay}"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -213,7 +213,7 @@
                         <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.ForecasterHint}" VerticalAlignment="Center"/>
                         <TextBlock Text="FORECASTER" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                     </StackPanel>
-                    <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" FontSize="13"
+                    <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" FontSize="{StaticResource BodyFontSize}"
                                Text="{x:Bind ViewModel.OutlookDiscussion.Forecaster, Mode=OneWay}"
                                Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasForecaster), Mode=OneWay}"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -223,7 +223,7 @@
                         <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.NextOutlookHint}" VerticalAlignment="Center"/>
                         <TextBlock Text="NEXT OUTLOOK" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                     </StackPanel>
-                    <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" FontSize="13"
+                    <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" FontSize="{StaticResource BodyFontSize}"
                                Text="{x:Bind ViewModel.OutlookDiscussion.NextOutlook, Mode=OneWay}"
                                Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasNextOutlook), Mode=OneWay}"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -240,7 +240,7 @@
                     <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
                                 Margin="0,21,0,0"
                                 Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasSource), Mode=OneWay}">
-                        <HyperlinkButton Padding="0" MinHeight="0" FontSize="13"
+                        <HyperlinkButton Padding="0" MinHeight="0" FontSize="{StaticResource BodyFontSize}"
                                          NavigateUri="{x:Bind local:OutlookDiscussionWindow.ToUri(ViewModel.OutlookDiscussion.SourceUrl), Mode=OneWay}"
                                          ToolTipService.ToolTip="{x:Bind ViewModel.OutlookDiscussion.SourceUrl, Mode=OneWay}">
                             <StackPanel Orientation="Horizontal" Spacing="5">
@@ -250,7 +250,7 @@
                                           VerticalAlignment="Center"/>
                             </StackPanel>
                         </HyperlinkButton>
-                        <TextBlock VerticalAlignment="Center" FontSize="13"
+                        <TextBlock VerticalAlignment="Center" FontSize="{StaticResource BodyFontSize}"
                                    Text="{x:Bind ViewModel.OutlookDiscussion.SourceNote, Mode=OneWay}"
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                     </StackPanel>
@@ -263,7 +263,7 @@
             <StackPanel>
                 <!-- A status line ("Loading forecast discussion…") in place of the parts. -->
                 <TextBlock Text="{x:Bind ViewModel.OutlookDiscussion.Message, Mode=OneWay}"
-                           FontSize="13" TextWrapping="Wrap"
+                           FontSize="{StaticResource BodyFontSize}" TextWrapping="Wrap"
                            Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.IsMessage), Mode=OneWay}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
@@ -313,27 +313,27 @@
                                  With location off, a link to Windows' location privacy page. -->
                             <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2,0,0"
                                         Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasYouLine), Mode=OneWay}">
-                                <TextBlock VerticalAlignment="Center" FontSize="13"
+                                <TextBlock VerticalAlignment="Center" FontSize="{StaticResource BodyFontSize}"
                                            Text="{x:Bind ViewModel.OutlookDiscussion.YouText, Mode=OneWay}"
                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                                 <Border CornerRadius="4" Padding="6,1,6,2" VerticalAlignment="Center"
                                         Background="{x:Bind ViewModel.OutlookDiscussion.YouPillFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
                                         Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasYouPill), Mode=OneWay}">
                                     <!-- The line break between the Runs IS the space after "·" (XAML collapses it to one). -->
-                                    <TextBlock FontSize="13" FontWeight="SemiBold">
+                                    <TextBlock FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold">
                                         <Run Text="{x:Bind ViewModel.OutlookDiscussion.YouPillWords, Mode=OneWay}"
                                              Foreground="{x:Bind ViewModel.OutlookDiscussion.YouPillInk, Mode=OneWay, Converter={StaticResource HexToBrush}}"/>
                                         <Run Text="{x:Bind ViewModel.OutlookDiscussion.YouPillNumber, Mode=OneWay}" Foreground="White"/>
                                     </TextBlock>
                                 </Border>
-                                <TextBlock VerticalAlignment="Center" FontSize="13"
+                                <TextBlock VerticalAlignment="Center" FontSize="{StaticResource BodyFontSize}"
                                            Text="{x:Bind ViewModel.OutlookDiscussion.YouTrail, Mode=OneWay}"
                                            Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasYouPill), Mode=OneWay}"
                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                                <TextBlock VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"
+                                <TextBlock VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}" TextTrimming="CharacterEllipsis"
                                            Text="{x:Bind ViewModel.OutlookDiscussion.YouDetail, Mode=OneWay}"
                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                                <HyperlinkButton Padding="0" MinHeight="0" FontSize="12" Content="Location settings"
+                                <HyperlinkButton Padding="0" MinHeight="0" FontSize="{StaticResource CaptionFontSize}" Content="Location settings"
                                                  NavigateUri="ms-settings:privacy-location"
                                                  Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.IsLocationOff), Mode=OneWay}"/>
                             </StackPanel>
@@ -353,7 +353,7 @@
                             <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.AlertHint}" VerticalAlignment="Center"/>
                             <TextBlock Text="ALERT" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                         </StackPanel>
-                        <TextBlock Grid.Column="1" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
+                        <TextBlock Grid.Column="1" FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold" TextWrapping="Wrap"
                                    IsTextSelectionEnabled="True"
                                    Text="{x:Bind ViewModel.OutlookDiscussion.Alert, Mode=OneWay}"
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
@@ -370,7 +370,7 @@
                             <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.SummaryHint}" VerticalAlignment="Center"/>
                             <TextBlock Text="SUMMARY" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                         </StackPanel>
-                        <TextBlock Grid.Column="1" FontSize="15" LineHeight="23" TextWrapping="Wrap"
+                        <TextBlock Grid.Column="1" FontSize="{StaticResource BodyLargeFontSize}" LineHeight="{StaticResource BodyLargeLineHeight}" TextWrapping="Wrap"
                                    IsTextSelectionEnabled="True"
                                    Text="{x:Bind ViewModel.OutlookDiscussion.Summary, Mode=OneWay}"
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
@@ -410,9 +410,9 @@
                                         <FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="11"
                                                   Glyph="{x:Bind local:OutlookDiscussionWindow.Chevron(ViewModel.OutlookDiscussion.IsPreviousExpanded), Mode=OneWay}"
                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                        <TextBlock Grid.Column="1" Text="Previous discussion" FontSize="13"
+                                        <TextBlock Grid.Column="1" Text="Previous discussion" FontSize="{StaticResource BodyFontSize}"
                                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                                        <TextBlock Grid.Column="2" HorizontalAlignment="Right" FontSize="12"
+                                        <TextBlock Grid.Column="2" HorizontalAlignment="Right" FontSize="{StaticResource CaptionFontSize}"
                                                    Text="{x:Bind ViewModel.OutlookDiscussion.PreviousCaption, Mode=OneWay}"
                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                     </Grid>

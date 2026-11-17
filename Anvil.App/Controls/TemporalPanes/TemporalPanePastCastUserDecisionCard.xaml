@@ -117,15 +117,15 @@
                 <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="6" Margin="0,10,0,0"
                             VerticalAlignment="Center"
                             Visibility="{x:Bind ViewModel.SavedEvents.HasPlaying, Mode=OneWay}">
-                    <TextBlock Text="Casting" FontSize="13" VerticalAlignment="Center"
+                    <TextBlock Text="Casting" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                    <TextBlock Text="{x:Bind ViewModel.SavedEvents.PlayingTitle, Mode=OneWay}" FontSize="13"
+                    <TextBlock Text="{x:Bind ViewModel.SavedEvents.PlayingTitle, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                     <Border CornerRadius="8" Padding="6,0" VerticalAlignment="Center"
                             Background="{ThemeResource AccentFillColorDefaultBrush}"
                             Visibility="{x:Bind ViewModel.SavedEvents.IsPlayingCustom, Mode=OneWay}">
-                        <TextBlock Text="Custom" FontSize="11"
+                        <TextBlock Text="Custom" FontSize="{StaticResource CaptionFontSize}"
                                    Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                     </Border>
                 </StackPanel>
@@ -133,7 +133,7 @@
                         VerticalAlignment="Center" HorizontalAlignment="Center"
                         Background="{x:Bind comp:PastEventsAtlasTab.KindBandBrush(ViewModel.SavedEvents.PlayingKind), Mode=OneWay}"
                         Visibility="{x:Bind PillShown(ViewModel.SavedEvents.HasPlaying, ViewModel.SavedEvents.HasPlayingKind), Mode=OneWay}">
-                    <TextBlock Text="{x:Bind ViewModel.SavedEvents.PlayingKindLabel, Mode=OneWay}" FontSize="12"
+                    <TextBlock Text="{x:Bind ViewModel.SavedEvents.PlayingKindLabel, Mode=OneWay}" FontSize="{StaticResource CaptionFontSize}"
                                FontWeight="SemiBold" HorizontalAlignment="Center"
                                Foreground="{x:Bind comp:PastEventsAtlasTab.KindInkBrush(ViewModel.SavedEvents.PlayingKind), Mode=OneWay}"/>
                 </Border>
@@ -147,7 +147,7 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Choose timeframe…" FontSize="13"
+                    <TextBlock Grid.Column="0" Text="Choose timeframe…" FontSize="{StaticResource BodyFontSize}"
                                VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     <prim:MapControlsStripSeparator Grid.Column="1" FillWidth="True" Margin="8,0"/>
@@ -155,7 +155,7 @@
                          user's call. ⚠️ TextLineBounds="Tight" trims the layout box to the letters (cap line →
                          baseline), so VerticalAlignment Center centres the LETTERS on the bridges' middle row, not the
                          line box (which sat them low). It only trims LAYOUT — the O's round overshoot still draws. -->
-                    <TextBlock Grid.Column="2" Text="Or" FontSize="20" VerticalAlignment="Center"
+                    <TextBlock Grid.Column="2" Text="Or" FontSize="{StaticResource SubtitleFontSize}" VerticalAlignment="Center"
                                TextLineBounds="Tight"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                     <prim:MapControlsStripSeparator Grid.Column="3" FillWidth="True" Margin="8,0,-6,0"/>
@@ -172,7 +172,7 @@
                         <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" Glyph="&#xEC05;"
                                   VerticalAlignment="Center"
                                   Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                        <TextBlock Text="Atlas" FontSize="13" VerticalAlignment="Center"/>
+                        <TextBlock Text="Atlas" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
             </Grid>

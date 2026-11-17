@@ -57,14 +57,14 @@
                         </Grid.ColumnDefinitions>
                         <Border Grid.Column="0" CornerRadius="1.5"
                                 Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
-                        <TextBlock Grid.Column="1" Text="{x:Bind Label}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{x:Bind Label}" FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                            <TextBlock Text="{x:Bind Headline}" FontSize="12" TextTrimming="CharacterEllipsis"
+                            <TextBlock Text="{x:Bind Headline}" FontSize="{StaticResource CaptionFontSize}" TextTrimming="CharacterEllipsis"
                                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                            <TextBlock Text="{x:Bind TimeText}" FontSize="11"
+                            <TextBlock Text="{x:Bind TimeText}" FontSize="{StaticResource CaptionFontSize}"
                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                         </StackPanel>
-                        <TextBlock Grid.Column="3" Text="{x:Bind WatchText}" FontSize="12" FontWeight="SemiBold"
+                        <TextBlock Grid.Column="3" Text="{x:Bind WatchText}" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold"
                                    VerticalAlignment="Center" ToolTipService.ToolTip="Probability of watch issuance"/>
                     </Grid>
                 </Grid>
@@ -82,9 +82,9 @@
         <!-- THE BAND (raised). ⚠️ Right 220 = the lock + pin + caption corner (the Atlas band's rule). -->
         <Border Grid.Row="0" Padding="16,12,16,12" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}">
             <StackPanel Spacing="4" Margin="0,0,220,0">
-                <TextBlock Text="Mesoscale Discussions" FontSize="18" FontWeight="SemiBold"
+                <TextBlock Text="Mesoscale Discussions" FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                <TextBlock Text="{x:Bind ViewModel.Discussions.CardContext, Mode=OneWay}" FontSize="13"
+                <TextBlock Text="{x:Bind ViewModel.Discussions.CardContext, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}"
                            TextTrimming="CharacterEllipsis"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </StackPanel>
@@ -100,7 +100,7 @@
             <!-- THE LIST, grouped. Margin right 4 = 16 − the scroller's 12 px gutter bleed (the PanelScroller rule). -->
             <ctl:PanelScroller Grid.Column="0" Margin="10,12,4,12">
                 <StackPanel>
-                    <TextBlock Text="No discussions in this window" FontSize="13" Margin="6,2,0,0"
+                    <TextBlock Text="No discussions in this window" FontSize="{StaticResource BodyFontSize}" Margin="6,2,0,0"
                                Visibility="{x:Bind local:MesoDiscussionWindow.Hidden(ViewModel.Discussions.HasDiscussions), Mode=OneWay}"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
 
@@ -123,7 +123,7 @@
             <!-- THE READER -->
             <ctl:PanelScroller Grid.Column="2" Margin="16,12,4,14">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="Pick a discussion on the left, or click one on the map." FontSize="13"
+                    <TextBlock Text="Pick a discussion on the left, or click one on the map." FontSize="{StaticResource BodyFontSize}"
                                Visibility="{x:Bind local:MesoDiscussionWindow.Hidden(ViewModel.Discussions.HasSelection), Mode=OneWay}"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
 
@@ -142,7 +142,7 @@
                                     IsEnabled="{x:Bind ViewModel.Discussions.CanStepPrevious, Mode=OneWay}"
                                     Click="OnPreviousClick" ToolTipService.ToolTip="Read the previous discussion"/>
                             <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.Discussions.ReaderTitle, Mode=OneWay}"
-                                       FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"
+                                       FontSize="{StaticResource BodyLargeFontSize}" FontWeight="SemiBold" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"/>
                             <Button Grid.Column="2" Content="›" Padding="10,2" MinWidth="0"
                                     IsEnabled="{x:Bind ViewModel.Discussions.CanStepNext, Mode=OneWay}"
@@ -174,7 +174,7 @@
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Text="VALID" Style="{StaticResource AtlasFieldLabelStyle}"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" FontSize="13" Typography.NumeralAlignment="Tabular"
+                            <TextBlock Grid.Row="0" Grid.Column="1" FontSize="{StaticResource BodyFontSize}" Typography.NumeralAlignment="Tabular"
                                        Text="{x:Bind ViewModel.Discussions.ReaderValid, Mode=OneWay}"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
@@ -185,42 +185,42 @@
                                         ToolTipService.ToolTip="Probability of watch issuance">
                                 <ProgressBar Width="180" VerticalAlignment="Center" Maximum="100"
                                              Value="{x:Bind ViewModel.Discussions.ReaderWatchPercent, Mode=OneWay}"/>
-                                <TextBlock FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
+                                <TextBlock FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold" VerticalAlignment="Center"
                                            Text="{x:Bind ViewModel.Discussions.ReaderWatch, Mode=OneWay}"/>
                             </StackPanel>
 
                             <TextBlock Grid.Row="2" Text="AREAS" Style="{StaticResource AtlasFieldLabelStyle}"
                                        Visibility="{x:Bind local:MesoDiscussionWindow.HasText(ViewModel.Discussions.ReaderAreas), Mode=OneWay}"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" FontSize="13" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                            <TextBlock Grid.Row="2" Grid.Column="1" FontSize="{StaticResource BodyFontSize}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
                                        Text="{x:Bind ViewModel.Discussions.ReaderAreas, Mode=OneWay}"/>
 
                             <TextBlock Grid.Row="3" Text="CONCERNING" Style="{StaticResource AtlasFieldLabelStyle}"
                                        Visibility="{x:Bind local:MesoDiscussionWindow.HasText(ViewModel.Discussions.ReaderConcerning), Mode=OneWay}"/>
-                            <TextBlock Grid.Row="3" Grid.Column="1" FontSize="13" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                            <TextBlock Grid.Row="3" Grid.Column="1" FontSize="{StaticResource BodyFontSize}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
                                        Text="{x:Bind ViewModel.Discussions.ReaderConcerning, Mode=OneWay}"/>
 
-                            <TextBlock Grid.Row="4" Grid.Column="1" FontSize="13" TextWrapping="Wrap"
+                            <TextBlock Grid.Row="4" Grid.Column="1" FontSize="{StaticResource BodyFontSize}" TextWrapping="Wrap"
                                        Text="{x:Bind ViewModel.Discussions.ReaderStatus, Mode=OneWay}"
                                        Visibility="{x:Bind local:MesoDiscussionWindow.HasText(ViewModel.Discussions.ReaderStatus), Mode=OneWay}"
                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
 
                             <TextBlock Grid.Row="5" Text="SUMMARY" Style="{StaticResource AtlasFieldLabelStyle}"
                                        Visibility="{x:Bind local:MesoDiscussionWindow.HasText(ViewModel.Discussions.ReaderSummary), Mode=OneWay}"/>
-                            <TextBlock Grid.Row="5" Grid.Column="1" FontSize="14" LineHeight="21" TextWrapping="Wrap"
+                            <TextBlock Grid.Row="5" Grid.Column="1" FontSize="{StaticResource BodyFontSize}" LineHeight="{StaticResource BodyLineHeight}" TextWrapping="Wrap"
                                        IsTextSelectionEnabled="True"
                                        Text="{x:Bind ViewModel.Discussions.ReaderSummary, Mode=OneWay}"
                                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
 
                             <TextBlock Grid.Row="6" Text="DISCUSSION" Style="{StaticResource AtlasFieldLabelStyle}"
                                        Visibility="{x:Bind local:MesoDiscussionWindow.HasText(ViewModel.Discussions.ReaderDiscussion), Mode=OneWay}"/>
-                            <TextBlock Grid.Row="6" Grid.Column="1" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                            <TextBlock Grid.Row="6" Grid.Column="1" FontSize="{StaticResource BodyFontSize}" LineHeight="{StaticResource BodyLineHeight}" TextWrapping="Wrap"
                                        IsTextSelectionEnabled="True"
                                        Text="{x:Bind ViewModel.Discussions.ReaderDiscussion, Mode=OneWay}"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                             <TextBlock Grid.Row="7" Text="SENT TO" Style="{StaticResource AtlasFieldLabelStyle}"
                                        Visibility="{x:Bind local:MesoDiscussionWindow.HasText(ViewModel.Discussions.ReaderSignature), Mode=OneWay}"/>
-                            <TextBlock Grid.Row="7" Grid.Column="1" FontSize="12" TextWrapping="Wrap"
+                            <TextBlock Grid.Row="7" Grid.Column="1" FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap"
                                        Text="{x:Bind ViewModel.Discussions.ReaderSignature, Mode=OneWay}"
                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                         </Grid>

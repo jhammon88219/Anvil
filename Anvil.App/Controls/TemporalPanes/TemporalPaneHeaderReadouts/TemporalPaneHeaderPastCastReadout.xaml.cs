@@ -12,8 +12,10 @@ namespace Anvil.Controls.TemporalPanes.TemporalPaneHeaderReadouts
 			InitializeComponent();
 		}
 
-		/// <summary>The range at 30; the placeholder at 16.</summary>
-		public double RangeFontSize(bool loaded) => loaded ? 30 : 16;
+		/// <summary>The range = the type scale's Title; the placeholder = Body large (Styles.xaml TYPE SCALE — doubles are
+		/// safe to read in C#, unlike theme brushes).</summary>
+		public double RangeFontSize(bool loaded) =>
+			(double)Application.Current.Resources[loaded ? "TitleFontSize" : "BodyLargeFontSize"];
 
 		/// <summary>A placeholder dims to 40%.</summary>
 		public double PlaceholderOpacity(bool loaded) => loaded ? 1.0 : 0.4;

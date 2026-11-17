@@ -29,15 +29,15 @@
              mc:Ignorable="d">
 
     <UserControl.Resources>
-        <x:Double x:Key="ReadoutFontSize">12</x:Double>
+        <StaticResource x:Key="ReadoutFontSize" ResourceKey="CaptionFontSize"/>
         <!-- The scan block's two text roles — RadarControls' own, copied (retune both). -->
         <Style x:Key="ScanLabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
         </Style>
         <Style x:Key="ScanValueStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="HorizontalAlignment" Value="Left"/>
             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
@@ -76,10 +76,10 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="00:00" Typography.NumeralAlignment="Tabular"
-                           FontSize="40" FontWeight="SemiLight" LineHeight="42" LineStackingStrategy="BlockLineHeight"/>
+                           FontSize="{StaticResource DisplayFontSize}" FontWeight="SemiLight" LineHeight="{StaticResource DisplayLineHeight}" LineStackingStrategy="BlockLineHeight"/>
                 <Grid Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5">
-                    <TextBlock Text="{x:Bind AmDesignator}" FontSize="16"/>
-                    <TextBlock Text="{x:Bind PmDesignator}" FontSize="16"/>
+                    <TextBlock Text="{x:Bind AmDesignator}" FontSize="{StaticResource BodyLargeFontSize}"/>
+                    <TextBlock Text="{x:Bind PmDesignator}" FontSize="{StaticResource BodyLargeFontSize}"/>
                 </Grid>
             </Grid>
             <Grid x:Name="ClockTime" ColumnSpacing="4" HorizontalAlignment="Left"
@@ -91,19 +91,19 @@
                 <TextBlock Grid.Column="0"
                            Text="{x:Bind ClockDigits(ViewModel.ClockText), Mode=OneWay}"
                            Typography.NumeralAlignment="Tabular"
-                           FontSize="40" FontWeight="SemiLight" LineHeight="42" LineStackingStrategy="BlockLineHeight"
+                           FontSize="{StaticResource DisplayFontSize}" FontWeight="SemiLight" LineHeight="{StaticResource DisplayLineHeight}" LineStackingStrategy="BlockLineHeight"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                 <Grid Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5">
-                    <TextBlock Text="{x:Bind AmDesignator}" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
-                    <TextBlock Text="{x:Bind PmDesignator}" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
+                    <TextBlock Text="{x:Bind AmDesignator}" FontSize="{StaticResource BodyLargeFontSize}" Opacity="0" IsHitTestVisible="False"/>
+                    <TextBlock Text="{x:Bind PmDesignator}" FontSize="{StaticResource BodyLargeFontSize}" Opacity="0" IsHitTestVisible="False"/>
                     <TextBlock Text="{x:Bind ClockSuffix(ViewModel.ClockText), Mode=OneWay}"
-                               FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                               FontSize="{StaticResource BodyLargeFontSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </Grid>
             </Grid>
             <!-- How far from now + the day. The CAUTION colour marks it a forecast (radar's age line is green→red). -->
             <TextBlock x:Name="WhenText" Grid.Row="1" HorizontalAlignment="Left"
                        Text="{x:Bind ViewModel.WhenText, Mode=OneWay}"
-                       FontSize="14" TextTrimming="CharacterEllipsis"
+                       FontSize="{StaticResource BodyFontSize}" TextTrimming="CharacterEllipsis"
                        Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
         </Grid>
 

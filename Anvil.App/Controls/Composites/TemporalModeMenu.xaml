@@ -59,7 +59,7 @@
                 <Setter Property="Padding" Value="12,0"/>
                 <Setter Property="CornerRadius" Value="4"/>
                 <Setter Property="BorderThickness" Value="0"/>
-                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
             </Style>
             <!-- A PANE target: eye + "Pane" + the shortcut, fixed width so the three line up. -->
             <Style x:Key="TemporalModeMenuPaneButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
@@ -69,7 +69,7 @@
                 <Setter Property="Padding" Value="10,0"/>
                 <Setter Property="CornerRadius" Value="4"/>
                 <Setter Property="BorderThickness" Value="0"/>
-                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
@@ -103,7 +103,7 @@
                     </Grid.ColumnDefinitions>
                     <FontIcon Glyph="{x:Bind EyeGlyph(ViewModel.IsNowPaneOpen), Mode=OneWay}" FontSize="16"/>
                     <TextBlock Grid.Column="1" Text="Pane" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="Ctrl+2" FontSize="12" VerticalAlignment="Center"
+                    <TextBlock Grid.Column="2" Text="Ctrl+2" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                 </Grid>
             </Button>
@@ -137,7 +137,7 @@
                     </Grid.ColumnDefinitions>
                     <FontIcon Glyph="{x:Bind EyeGlyph(ViewModel.IsForePaneOpen), Mode=OneWay}" FontSize="16"/>
                     <TextBlock Grid.Column="1" Text="Pane" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="Ctrl+3" FontSize="12" VerticalAlignment="Center"
+                    <TextBlock Grid.Column="2" Text="Ctrl+3" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                 </Grid>
             </Button>
@@ -175,14 +175,14 @@
                     </Grid.ColumnDefinitions>
                     <FontIcon Glyph="{x:Bind EyeGlyph(ViewModel.IsPastPaneOpen), Mode=OneWay}" FontSize="16"/>
                     <TextBlock Grid.Column="1" Text="Pane" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="Ctrl+1" FontSize="12" VerticalAlignment="Center"
+                    <TextBlock Grid.Column="2" Text="Ctrl+1" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                 </Grid>
             </Button>
         </Grid>
 
         <!-- The greyed hint: what a click on the dimmed side turns off. -->
-        <TextBlock x:Name="TemporalModeMenuHint" Margin="40,2,12,4" FontSize="12"
+        <TextBlock x:Name="TemporalModeMenuHint" Margin="40,2,12,4" FontSize="{StaticResource CaptionFontSize}"
                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                    Text="{x:Bind Hint(ViewModel.IsNowCast, ViewModel.IsForeCast, ViewModel.IsPastCast), Mode=OneWay}"
                    Visibility="{x:Bind HintVisibility(ViewModel.IsNowCast, ViewModel.IsForeCast, ViewModel.IsPastCast), Mode=OneWay}"/>

@@ -28,7 +28,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <CheckBox Content="{x:Bind Name}" MinWidth="0" IsChecked="{x:Bind IsChecked, Mode=TwoWay}"/>
-                <TextBlock Grid.Column="1" Text="{x:Bind RadarCountText}" FontSize="12" VerticalAlignment="Center"
+                <TextBlock Grid.Column="1" Text="{x:Bind RadarCountText}" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Grid>
         </DataTemplate>
@@ -36,7 +36,7 @@
 
     <StackPanel>
         <ItemsControl ItemsSource="{x:Bind ViewModel.Areas}" ItemTemplate="{StaticResource BasemapAreaRowTemplate}"/>
-        <TextBlock Text="Tick at least one area." FontSize="12"
+        <TextBlock Text="Tick at least one area." FontSize="{StaticResource CaptionFontSize}"
                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                    Visibility="{x:Bind NothingTicked(ViewModel.HasAnyArea), Mode=OneWay}"/>
     </StackPanel>

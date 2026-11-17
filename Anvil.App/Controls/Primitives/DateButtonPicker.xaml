@@ -38,13 +38,13 @@
         <!-- ⚠️ The weekday letters + other months' days get their colour from a STYLE (ThemeResource), never a
              brush looked up in C# (that returns the OS theme's brush, not the app's pinned theme). -->
         <Style x:Key="WeekdayTextStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
         </Style>
         <Style x:Key="OtherMonthTextStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
@@ -59,7 +59,7 @@
             <Setter Property="MinHeight" Value="0"/>
             <Setter Property="Margin" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="VerticalAlignment" Value="Stretch"/>
         </Style>
@@ -70,7 +70,7 @@
             <Setter Property="MinHeight" Value="0"/>
             <Setter Property="Margin" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="VerticalAlignment" Value="Stretch"/>
         </Style>
@@ -149,7 +149,7 @@
                         <Button x:Name="MonthButton" Height="30" Padding="10,0" HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Stretch" Click="OnMonthHeaderClick">
                             <Grid>
-                                <TextBlock x:Name="MonthLabel" FontSize="12" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="MonthLabel" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"/>
                                 <FontIcon Glyph="&#xE70D;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="10"
                                           HorizontalAlignment="Right" VerticalAlignment="Center"
                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -158,7 +158,7 @@
                         <Button x:Name="YearButton" Grid.Column="1" Height="30" Padding="10,0" HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Stretch" Click="OnYearHeaderClick">
                             <Grid>
-                                <TextBlock x:Name="YearLabel" FontSize="12" VerticalAlignment="Center"
+                                <TextBlock x:Name="YearLabel" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
                                            Typography.NumeralAlignment="Tabular"/>
                                 <FontIcon Glyph="&#xE70D;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="10"
                                           HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -216,10 +216,10 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="Typed" MinHeight="30" FontSize="12" MaxLength="10"
+                        <TextBox x:Name="Typed" MinHeight="30" FontSize="{StaticResource CaptionFontSize}" MaxLength="10"
                                  Typography.NumeralAlignment="Tabular" PlaceholderText="MM/DD/YYYY"
                                  TextChanged="OnTypedChanged"/>
-                        <TextBlock Grid.Column="1" Text="MM/DD/YYYY" FontSize="11" VerticalAlignment="Center"
+                        <TextBlock Grid.Column="1" Text="MM/DD/YYYY" FontSize="{StaticResource OverlineFontSize}" VerticalAlignment="Center"
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                     </Grid>
 

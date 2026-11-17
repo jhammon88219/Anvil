@@ -42,18 +42,18 @@
         </Style>
         <!-- The LABEL on the band, in Ink. -->
         <Style x:Key="WarningTileBandLabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
         </Style>
         <Style x:Key="WarningTileCountStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="34"/>
+            <Setter Property="FontSize" Value="{StaticResource PageTitleFontSize}"/>
             <Setter Property="FontWeight" Value="SemiLight"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
         </Style>
         <Style x:Key="WarningTileTagStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
             <Setter Property="Margin" Value="0,6,0,0"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -85,9 +85,9 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="{x:Bind Name}" FontSize="13" TextTrimming="CharacterEllipsis"
+                        <TextBlock Text="{x:Bind Name}" FontSize="{StaticResource BodyFontSize}" TextTrimming="CharacterEllipsis"
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                        <TextBlock Grid.Column="1" Text="{x:Bind CountText}" FontSize="13" FontWeight="SemiBold"
+                        <TextBlock Grid.Column="1" Text="{x:Bind CountText}" FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold"
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                     </Grid>
                     <Grid ColumnSpacing="6" Padding="6,3" Visibility="{x:Bind IsLit}">
@@ -95,9 +95,9 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="{x:Bind Name}" FontSize="13" TextTrimming="CharacterEllipsis"
+                        <TextBlock Text="{x:Bind Name}" FontSize="{StaticResource BodyFontSize}" TextTrimming="CharacterEllipsis"
                                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                        <TextBlock Grid.Column="1" Text="{x:Bind CountText}" FontSize="13" FontWeight="SemiBold"
+                        <TextBlock Grid.Column="1" Text="{x:Bind CountText}" FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold"
                                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
                     </Grid>
                 </Grid>
