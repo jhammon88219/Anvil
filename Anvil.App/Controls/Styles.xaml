@@ -366,6 +366,8 @@
         <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="HorizontalAlignment" Value="Right"/>
+        <Setter Property="TextAlignment" Value="Right"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
         <Setter Property="Foreground" Value="{ThemeResource SettingsDefaultValueForegroundBrush}"/>
     </Style>
     <!-- THE ROWS every console holds (docs/ui-patterns.md "The row"): a StackPanel of Primitives/SettingsConsoleRow, each
@@ -385,8 +387,12 @@
         <Setter Property="Spacing" Value="2"/>
     </Style>
     <!-- A row's NAME (the Label column). -->
+    <!-- Label + Default WRAP (large-text audit §2, 2026-11-17): at a big Windows text size a long label ("Coordinates") or
+         default no longer clips in its fixed column — it takes a second line and the row (MinHeight 40) grows. Hints stay
+         ONE line and trim, on purpose. -->
     <Style x:Key="SettingsConsoleLabelTextStyle" TargetType="TextBlock">
         <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
     <!-- CAUTION RESET: the amber key of a reset (Primitives/CautionResetButton wears it; so does Dialogs/ConfirmResetDialog's
          Reset). Its OWN template, so every state stays in the amber family — the stock template's hover/pressed fell back to
