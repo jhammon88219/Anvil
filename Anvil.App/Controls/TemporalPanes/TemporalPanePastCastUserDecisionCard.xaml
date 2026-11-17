@@ -163,7 +163,7 @@
 
                 <!-- OPEN ATLAS, on Past events (MapViewModel.OpenAtlasOnEvents — also selects the event PastCast has
                      picked). Live even while a window is loaded (Play asks before replacing it). -->
-                <Button Grid.Column="1" Style="{StaticResource OpenAtlasButtonStyle}" Width="84" Height="32"
+                <Button Grid.Column="1" Style="{StaticResource OpenAtlasButtonStyle}" MinWidth="84" MinHeight="32"
                         Padding="0" VerticalAlignment="Center" HorizontalContentAlignment="Center"
                         VerticalContentAlignment="Center"
                         Click="OnOpenAtlasClick"

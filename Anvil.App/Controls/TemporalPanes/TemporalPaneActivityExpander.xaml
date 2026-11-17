@@ -105,7 +105,7 @@
                     <StackPanel.OpacityTransition>
                         <ScalarTransition Duration="0:0:0.25"/>
                     </StackPanel.OpacityTransition>
-                    <Grid ColumnSpacing="8" Height="20">
+                    <Grid ColumnSpacing="8" MinHeight="20">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -160,7 +160,7 @@
                 <!-- ===== HIDDEN without a radar line (ForeCast, PastCast): the one-line feed summary. NowCast's Hidden
                      is the radar line ALONE (one line, 2026-10-21) — a failed feed is its red dot. ===== -->
                 <!-- No top margin: it never follows the radar line now, and 11 + 20 + 11 = the radar line's Hidden height. -->
-                <StackPanel x:Name="FeedSummary" Orientation="Horizontal" Spacing="7" Height="20" Margin="6,0"
+                <StackPanel x:Name="FeedSummary" Orientation="Horizontal" Spacing="7" MinHeight="20" Margin="6,0"
                             Visibility="{x:Bind SummaryShown(Activity.IsHidden, Activity.HasSummary, Activity.HasRadar), Mode=OneWay}">
                     <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="#FFF85149"
                              Visibility="{x:Bind Shown(Activity.SummaryHasFailure), Mode=OneWay}"/>
@@ -183,7 +183,7 @@
 
                     <!-- PASTCAST's table (idea A, 2026-10-19): what the loaded event downloaded, layer by layer. -->
                     <StackPanel x:Name="PastTable" Visibility="{x:Bind Shown(Activity.HasPastLayers), Mode=OneWay}">
-                        <Grid Height="22" Padding="6,0" ColumnSpacing="12">
+                        <Grid MinHeight="22" Padding="6,0" ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
@@ -199,7 +199,7 @@
                         <ItemsControl ItemsSource="{x:Bind Activity.PastLayers, Mode=OneWay}"
                                       ItemTemplate="{StaticResource LoadRowTemplate}"/>
                         <Border Height="1" Margin="6,6,6,4" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                        <StackPanel Orientation="Horizontal" Spacing="7" Height="22" Padding="6,0">
+                        <StackPanel Orientation="Horizontal" Spacing="7" MinHeight="22" Padding="6,0">
                             <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="#FFF85149"
                                      Visibility="{x:Bind Shown(Activity.SummaryHasFailure), Mode=OneWay}"/>
                             <TextBlock Text="{x:Bind Activity.Summary, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"
@@ -212,7 +212,7 @@
                          poll. Full state only; NowCast only (Activity.HasLive). Words: LiveDataViewModel.SourceLine. -->
                     <StackPanel x:Name="SourceLine" Visibility="{x:Bind Shown(Activity.HasLive), Mode=OneWay}">
                         <Border Height="1" Margin="6,6,6,4" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                        <StackPanel Orientation="Horizontal" Spacing="7" Height="22" Padding="6,0">
+                        <StackPanel Orientation="Horizontal" Spacing="7" MinHeight="22" Padding="6,0">
                             <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                      Fill="{x:Bind LinkBrush(Activity.Live.LinkState), Mode=OneWay}"/>
                             <TextBlock Text="{x:Bind Activity.Live.SourceLine, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center"

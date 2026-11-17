@@ -22,7 +22,7 @@
              mc:Ignorable="d"
              IsTabStop="False">
 
-    <Grid x:Name="RowSurface" Height="26" Padding="6,0" CornerRadius="4" ColumnSpacing="12"
+    <Grid x:Name="RowSurface" MinHeight="26" Padding="6,0" CornerRadius="4" ColumnSpacing="12"
           Background="Transparent"
           PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
         <VisualStateManager.VisualStateGroups>

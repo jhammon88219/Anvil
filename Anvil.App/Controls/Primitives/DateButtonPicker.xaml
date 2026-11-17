@@ -37,13 +37,17 @@
     <UserControl.Resources>
         <!-- ⚠️ The weekday letters + other months' days get their colour from a STYLE (ThemeResource), never a
              brush looked up in C# (that returns the OS theme's brush, not the app's pinned theme). -->
+        <!-- The day grid's text is GEOMETRY (equal cells in the fixed panel): it never grows with Windows' Text size
+             (docs/text-scaling-audit.md). The month/year heads, typed box and Set button do. -->
         <Style x:Key="WeekdayTextStyle" TargetType="TextBlock">
+            <Setter Property="IsTextScaleFactorEnabled" Value="False"/>
             <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
         </Style>
         <Style x:Key="OtherMonthTextStyle" TargetType="TextBlock">
+            <Setter Property="IsTextScaleFactorEnabled" Value="False"/>
             <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -60,6 +64,7 @@
             <Setter Property="Margin" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
+            <Setter Property="IsTextScaleFactorEnabled" Value="False"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="VerticalAlignment" Value="Stretch"/>
         </Style>
@@ -71,6 +76,7 @@
             <Setter Property="Margin" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
+            <Setter Property="IsTextScaleFactorEnabled" Value="False"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="VerticalAlignment" Value="Stretch"/>
         </Style>
@@ -97,7 +103,7 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <Button x:Name="Face" Height="32" Padding="10,0"
+    <Button x:Name="Face" MinHeight="32" Padding="10,0"
             HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
         <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions>
@@ -133,7 +139,7 @@
                 </Flyout.FlyoutPresenterStyle>
 
                 <!-- ⚠️ 256 × 368 = TimeButtonPicker's panel. The two flyouts are one size (the user's call). -->
-                <Grid Width="256" Height="368" RowSpacing="10">
+                <Grid Width="256" MinHeight="368" RowSpacing="10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/> <!-- Month ˅ · Year ˅ -->
                         <RowDefinition Height="*"/>    <!-- days | months | years -->
@@ -146,7 +152,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="84"/>
                         </Grid.ColumnDefinitions>
-                        <Button x:Name="MonthButton" Height="30" Padding="10,0" HorizontalAlignment="Stretch"
+                        <Button x:Name="MonthButton" MinHeight="30" Padding="10,0" HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Stretch" Click="OnMonthHeaderClick">
                             <Grid>
                                 <TextBlock x:Name="MonthLabel" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"/>
@@ -155,7 +161,7 @@
                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             </Grid>
                         </Button>
-                        <Button x:Name="YearButton" Grid.Column="1" Height="30" Padding="10,0" HorizontalAlignment="Stretch"
+                        <Button x:Name="YearButton" Grid.Column="1" MinHeight="30" Padding="10,0" HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Stretch" Click="OnYearHeaderClick">
                             <Grid>
                                 <TextBlock x:Name="YearLabel" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
@@ -223,7 +229,7 @@
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                     </Grid>
 
-                    <Button Grid.Row="3" Content="Set" Height="32" HorizontalAlignment="Stretch"
+                    <Button Grid.Row="3" Content="Set" MinHeight="32" HorizontalAlignment="Stretch"
                             Style="{StaticResource AccentButtonStyle}" Click="OnSetClick"/>
                 </Grid>
             </Flyout>

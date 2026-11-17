@@ -724,7 +724,7 @@
                                 </Border>
 
                                 <!-- Site photo — DUMMY placeholder; nothing feeds it yet. 16:9. -->
-                                <Border Grid.Column="3" Height="113" VerticalAlignment="Top"
+                                <Border Grid.Column="3" MinHeight="113" VerticalAlignment="Top"
                                         CornerRadius="8"
                                         Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
                                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">

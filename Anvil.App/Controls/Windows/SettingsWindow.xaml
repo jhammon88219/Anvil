@@ -209,7 +209,7 @@
                                             ToolTipService.ToolTip="{x:Bind ResetAllToolTip, Mode=OneWay}"
                                             Click="OnResetAllClick"/>
                 </Grid>
-                <Grid x:Name="SettingsAboutBox" Height="88" Margin="0,14,0,0" ColumnSpacing="16">
+                <Grid x:Name="SettingsAboutBox" MinHeight="88" Margin="0,14,0,0" ColumnSpacing="16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>

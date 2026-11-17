@@ -23,7 +23,7 @@
              mc:Ignorable="d"
              IsTabStop="False">
 
-    <Grid x:Name="RowSurface" Height="26" Padding="6,0" CornerRadius="4" ColumnSpacing="12"
+    <Grid x:Name="RowSurface" MinHeight="26" Padding="6,0" CornerRadius="4" ColumnSpacing="12"
           Background="Transparent"
           PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
         <VisualStateManager.VisualStateGroups>
@@ -81,8 +81,8 @@
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Visibility="{x:Bind SourceShown(IsHeader, Status.CanRetry), Mode=OneWay}"/>
         <!-- RETRY: in the source's place while the layer has failed; fetches only that layer again. -->
-        <Button x:Name="LoadRowRetryButton" Grid.Column="3" Content="Retry" FontSize="{StaticResource CaptionFontSize}" Padding="8,0" MinHeight="0"
-                Height="20" VerticalAlignment="Center" Click="OnRetryClick"
+        <Button x:Name="LoadRowRetryButton" Grid.Column="3" Content="Retry" FontSize="{StaticResource CaptionFontSize}" Padding="8,0"
+                MinHeight="20" VerticalAlignment="Center" Click="OnRetryClick"
                 ToolTipService.ToolTip="Fetch this layer again for the loaded event"
                 Visibility="{x:Bind RetryShown(IsHeader, Status.CanRetry), Mode=OneWay}"/>
     </Grid>

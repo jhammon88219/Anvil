@@ -61,7 +61,7 @@
                            Fill="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                            Visibility="{x:Bind prim:TabStrip.Show(IsSeparated)}"/>
 
-                <ToggleButton Grid.Row="1" Height="36"
+                <ToggleButton Grid.Row="1" MinHeight="36"
                               Style="{x:Bind prim:TabStrip.RowStyle(JoinsBody), Mode=OneWay}"
                               IsEnabled="{x:Bind IsEnabled, Mode=OneWay}"
                               IsChecked="{x:Bind IsSelected, Mode=OneWay}"

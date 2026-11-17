@@ -126,7 +126,7 @@
             </Grid>
         </Button>
         <!-- ⚠️ 84 × 32 and 14 in from the right = the decision card's ATLAS door exactly, so the two line up. -->
-        <Button Grid.Row="1" Grid.Column="2" Margin="0,4,14,0" Width="84" Height="32" Content="Clear"
+        <Button Grid.Row="1" Grid.Column="2" Margin="0,4,14,0" MinWidth="84" MinHeight="32" Content="Clear"
                 IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
                 Click="OnClearClick"
                 ToolTipService.ToolTip="Clear the loaded timeframe or event (a timeframe you set keeps its date and time; an event's reset to now)"/>

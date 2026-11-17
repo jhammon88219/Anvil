@@ -217,7 +217,7 @@
             </prim:PanelScroller>
 
             <!-- ▸ ENDED · 11 — the fold. The whole line is the button; the count shows while folded. -->
-            <Button x:Name="EndedAlertsFoldButton" Margin="12,10,0,0" Padding="6,0" Height="26"
+            <Button x:Name="EndedAlertsFoldButton" Margin="12,10,0,0" Padding="6,0" MinHeight="26"
                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                     Background="Transparent" BorderThickness="0" CornerRadius="4"
                     Visibility="{x:Bind Shown(ViewModel.HasEndedAlerts), Mode=OneWay}"

@@ -116,7 +116,7 @@
 
     <StackPanel>
         <!-- THE FOLD: chevron · "Legend" · hairline to the edge. The same flat button as the warnings' ENDED fold. -->
-        <Button x:Name="OutlookLegendFoldButton" Margin="0,8,0,0" Padding="0" Height="26"
+        <Button x:Name="OutlookLegendFoldButton" Margin="0,8,0,0" Padding="0" MinHeight="26"
                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                 Background="Transparent" BorderThickness="0" CornerRadius="4"
                 AutomationProperties.Name="{x:Bind FoldName(IsExpanded), Mode=OneWay}"

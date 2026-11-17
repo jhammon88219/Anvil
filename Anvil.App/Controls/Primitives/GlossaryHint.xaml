@@ -34,7 +34,7 @@
             Background="{ThemeResource SubtleFillColorSecondaryBrush}"
             AutomationProperties.Name="{x:Bind HintName(Card), Mode=OneWay}">
         <Button.Content>
-            <TextBlock Text="?" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold"
+            <TextBlock Text="?" IsTextScaleFactorEnabled="False" FontSize="{StaticResource CaptionFontSize}" FontWeight="SemiBold"
                        HorizontalAlignment="Center" VerticalAlignment="Center"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </Button.Content>

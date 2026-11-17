@@ -31,7 +31,7 @@
              HorizontalAlignment="Stretch"
              IsTabStop="False">
 
-    <Grid Height="60">
+    <Grid MinHeight="60">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="22"/>   <!-- status block -->
             <ColumnDefinition Width="*"/>    <!-- title over subline -->

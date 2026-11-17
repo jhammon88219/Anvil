@@ -27,7 +27,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <Button x:Name="Face" Height="32" Padding="10,0"
+    <Button x:Name="Face" MinHeight="32" Padding="10,0"
             HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
         <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions>
@@ -63,7 +63,7 @@
                 </Flyout.FlyoutPresenterStyle>
 
                 <!-- ⚠️ 256 × 368 = DateButtonPicker's panel. -->
-                <Grid Width="256" Height="368" ColumnSpacing="6">
+                <Grid Width="256" MinHeight="368" ColumnSpacing="6">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/> <!-- the colon -->
@@ -106,7 +106,7 @@
                     <local:SegmentedPicker x:Name="AmPm" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,10,0,0"
                                            ItemsSource="{x:Bind AmPmLabels}"/>
 
-                    <Button Grid.Row="4" Grid.ColumnSpan="3" Content="Set" Height="32" HorizontalAlignment="Stretch"
+                    <Button Grid.Row="4" Grid.ColumnSpan="3" Content="Set" MinHeight="32" HorizontalAlignment="Stretch"
                             Style="{StaticResource AccentButtonStyle}" Click="OnSetClick"/>
                 </Grid>
             </Flyout>

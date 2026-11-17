@@ -36,15 +36,15 @@
 
         <!-- min · unit · max: the unit names the whole scale, so it sits centred over it, not on one end. -->
         <Grid Grid.Row="0" Visibility="{x:Bind VisibleWhen(ShowScale), Mode=OneWay}">
-            <TextBlock Text="{x:Bind ScaleMin(Ramp), Mode=OneWay}"
+            <TextBlock IsTextScaleFactorEnabled="False" Text="{x:Bind ScaleMin(Ramp), Mode=OneWay}"
                        FontSize="{StaticResource BodyFontSize}" Typography.NumeralAlignment="Tabular"
                        HorizontalAlignment="Left"
                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-            <TextBlock Text="{x:Bind ScaleUnit(Ramp), Mode=OneWay}"
+            <TextBlock IsTextScaleFactorEnabled="False" Text="{x:Bind ScaleUnit(Ramp), Mode=OneWay}"
                        FontSize="{StaticResource BodyFontSize}"
                        HorizontalAlignment="Center"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            <TextBlock Text="{x:Bind ScaleMax(Ramp), Mode=OneWay}"
+            <TextBlock IsTextScaleFactorEnabled="False" Text="{x:Bind ScaleMax(Ramp), Mode=OneWay}"
                        FontSize="{StaticResource BodyFontSize}" Typography.NumeralAlignment="Tabular"
                        HorizontalAlignment="Right"
                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>

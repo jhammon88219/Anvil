@@ -166,7 +166,7 @@
                 <FontIcon Glyph="{x:Bind Chevron(IsShown, Edge), Mode=OneWay}"
                           FontSize="14"
                           VerticalAlignment="Center"/>
-                <TextBlock Text="{x:Bind Word(IsShown, Target, Label), Mode=OneWay}"
+                <TextBlock Text="{x:Bind Word(IsShown, Target, Label), Mode=OneWay}" IsTextScaleFactorEnabled="False"
                            Visibility="{x:Bind VisibleWhen(ShowLabel), Mode=OneWay}"
                            FontSize="{StaticResource BodyLargeFontSize}"
                            VerticalAlignment="Center"/>

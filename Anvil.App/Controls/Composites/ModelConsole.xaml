@@ -19,7 +19,8 @@
      (invisible, not hit-testable) underneath while this shows; the tools tier's left edge + play still measure THAT one,
      but its RIGHT end measures THIS console's longest scan line (ScanTextRight) — the visible text.
      ⚠️ NOT THE RADAR LOOP: no RadarLoopEngine here (sealed). It reuses only the DRAWING scrubbers; the pointer mapping is
-     a copy of RadarControls' (equal slots / DotMatrixScrubber.IndexAt) — change both. -->
+     a copy of RadarControls' (equal slots / DotMatrixScrubber.IndexAt) — change both.
+     ⚠️ EVERY TextBlock here is IsTextScaleFactorEnabled="False" — RadarControls' rule (a fixed console centred on play). -->
 <UserControl x:Class="Anvil.Controls.Composites.ModelConsole"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -75,11 +76,11 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="00:00" Typography.NumeralAlignment="Tabular"
+                <TextBlock IsTextScaleFactorEnabled="False" Grid.Column="0" Text="00:00" Typography.NumeralAlignment="Tabular"
                            FontSize="{StaticResource DisplayFontSize}" FontWeight="SemiLight" LineHeight="{StaticResource DisplayLineHeight}" LineStackingStrategy="BlockLineHeight"/>
                 <Grid Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5">
-                    <TextBlock Text="{x:Bind AmDesignator}" FontSize="{StaticResource BodyLargeFontSize}"/>
-                    <TextBlock Text="{x:Bind PmDesignator}" FontSize="{StaticResource BodyLargeFontSize}"/>
+                    <TextBlock IsTextScaleFactorEnabled="False" Text="{x:Bind AmDesignator}" FontSize="{StaticResource BodyLargeFontSize}"/>
+                    <TextBlock IsTextScaleFactorEnabled="False" Text="{x:Bind PmDesignator}" FontSize="{StaticResource BodyLargeFontSize}"/>
                 </Grid>
             </Grid>
             <Grid x:Name="ClockTime" ColumnSpacing="4" HorizontalAlignment="Left"
@@ -88,20 +89,20 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0"
+                <TextBlock IsTextScaleFactorEnabled="False" Grid.Column="0"
                            Text="{x:Bind ClockDigits(ViewModel.ClockText), Mode=OneWay}"
                            Typography.NumeralAlignment="Tabular"
                            FontSize="{StaticResource DisplayFontSize}" FontWeight="SemiLight" LineHeight="{StaticResource DisplayLineHeight}" LineStackingStrategy="BlockLineHeight"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                 <Grid Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5">
-                    <TextBlock Text="{x:Bind AmDesignator}" FontSize="{StaticResource BodyLargeFontSize}" Opacity="0" IsHitTestVisible="False"/>
-                    <TextBlock Text="{x:Bind PmDesignator}" FontSize="{StaticResource BodyLargeFontSize}" Opacity="0" IsHitTestVisible="False"/>
-                    <TextBlock Text="{x:Bind ClockSuffix(ViewModel.ClockText), Mode=OneWay}"
+                    <TextBlock IsTextScaleFactorEnabled="False" Text="{x:Bind AmDesignator}" FontSize="{StaticResource BodyLargeFontSize}" Opacity="0" IsHitTestVisible="False"/>
+                    <TextBlock IsTextScaleFactorEnabled="False" Text="{x:Bind PmDesignator}" FontSize="{StaticResource BodyLargeFontSize}" Opacity="0" IsHitTestVisible="False"/>
+                    <TextBlock IsTextScaleFactorEnabled="False" Text="{x:Bind ClockSuffix(ViewModel.ClockText), Mode=OneWay}"
                                FontSize="{StaticResource BodyLargeFontSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </Grid>
             </Grid>
             <!-- How far from now + the day. The CAUTION colour marks it a forecast (radar's age line is green→red). -->
-            <TextBlock x:Name="WhenText" Grid.Row="1" HorizontalAlignment="Left"
+            <TextBlock IsTextScaleFactorEnabled="False" x:Name="WhenText" Grid.Row="1" HorizontalAlignment="Left"
                        Text="{x:Bind ViewModel.WhenText, Mode=OneWay}"
                        FontSize="{StaticResource BodyFontSize}" TextTrimming="CharacterEllipsis"
                        Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
@@ -146,7 +147,7 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                <TextBlock IsTextScaleFactorEnabled="False" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
                            Text="{x:Bind ViewModel.FrameCountText, Mode=OneWay}"
                            Typography.NumeralAlignment="Tabular"
                            FontSize="{StaticResource ReadoutFontSize}"
@@ -194,14 +195,14 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <TextBlock Grid.Row="0" Text="Model:" Style="{StaticResource ScanLabelStyle}"/>
-            <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind ViewModel.ModelText, Mode=OneWay}"
+            <TextBlock IsTextScaleFactorEnabled="False" Grid.Row="0" Text="Model:" Style="{StaticResource ScanLabelStyle}"/>
+            <TextBlock IsTextScaleFactorEnabled="False" Grid.Row="0" Grid.Column="1" Text="{x:Bind ViewModel.ModelText, Mode=OneWay}"
                        Style="{StaticResource ScanValueStyle}" FontWeight="SemiBold"/>
-            <TextBlock Grid.Row="1" Text="Run:" Style="{StaticResource ScanLabelStyle}"/>
-            <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.RunText, Mode=OneWay}"
+            <TextBlock IsTextScaleFactorEnabled="False" Grid.Row="1" Text="Run:" Style="{StaticResource ScanLabelStyle}"/>
+            <TextBlock IsTextScaleFactorEnabled="False" Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.RunText, Mode=OneWay}"
                        Style="{StaticResource ScanValueStyle}"/>
-            <TextBlock Grid.Row="2" Text="Product:" Style="{StaticResource ScanLabelStyle}"/>
-            <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.ProductText, Mode=OneWay}"
+            <TextBlock IsTextScaleFactorEnabled="False" Grid.Row="2" Text="Product:" Style="{StaticResource ScanLabelStyle}"/>
+            <TextBlock IsTextScaleFactorEnabled="False" Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.ProductText, Mode=OneWay}"
                        Style="{StaticResource ScanValueStyle}"/>
         </Grid>
     </Grid>

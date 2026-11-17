@@ -18,7 +18,7 @@
              mc:Ignorable="d">
 
     <Button x:Name="CautionResetButtonKey" Style="{StaticResource CautionResetButtonStyle}"
-            Height="36" Padding="16,5,16,6" HorizontalAlignment="Stretch"
+            MinHeight="36" Padding="16,5,16,6" HorizontalAlignment="Stretch"
             Content="{x:Bind Text, Mode=OneWay}"
             Click="OnKeyClick"/>
 </UserControl>

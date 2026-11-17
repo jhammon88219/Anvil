@@ -66,7 +66,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0"
+                    <TextBlock IsTextScaleFactorEnabled="False" Grid.Column="0"
                                Text="Pipeline Console"
                                FontSize="{StaticResource OverlineFontSize}" FontWeight="SemiBold" CharacterSpacing="{StaticResource OverlineCharacterSpacing}"
                                VerticalAlignment="Center"
@@ -82,12 +82,12 @@
 
                 <!-- Telemetry: VWP/storm-motion + what the pipeline is building. -->
                 <StackPanel Grid.Row="1" Spacing="3" Margin="0,0,0,12">
-                    <TextBlock Text="{x:Bind ViewModel.PipelineConsole.VwpStatusText, Mode=OneWay}"
+                    <TextBlock IsTextScaleFactorEnabled="False" Text="{x:Bind ViewModel.PipelineConsole.VwpStatusText, Mode=OneWay}"
                                FontSize="{StaticResource BodyFontSize}" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                    <TextBlock Text="{x:Bind ViewModel.PipelineConsole.StormMotionText, Mode=OneWay}"
+                    <TextBlock IsTextScaleFactorEnabled="False" Text="{x:Bind ViewModel.PipelineConsole.StormMotionText, Mode=OneWay}"
                                FontSize="{StaticResource BodyFontSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                TextWrapping="NoWrap"/>
-                    <TextBlock Text="{x:Bind ViewModel.PipelineConsole.PipelineFlagsText, Mode=OneWay}"
+                    <TextBlock IsTextScaleFactorEnabled="False" Text="{x:Bind ViewModel.PipelineConsole.PipelineFlagsText, Mode=OneWay}"
                                FontSize="{StaticResource CaptionFontSize}" FontFamily="Consolas,Cascadia Mono,monospace"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                TextWrapping="NoWrap"/>
@@ -109,11 +109,11 @@
                             <ColumnDefinition Width="64"/>
                             <ColumnDefinition Width="64"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="2" Text="1st paint"
+                        <TextBlock IsTextScaleFactorEnabled="False" Grid.Column="2" Text="1st paint"
                                    HorizontalAlignment="Right" Margin="8,0,0,0"
                                    FontSize="{StaticResource OverlineFontSize}" CharacterSpacing="{StaticResource OverlineCharacterSpacing}"
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                        <TextBlock Grid.Column="3" Text="full loop"
+                        <TextBlock IsTextScaleFactorEnabled="False" Grid.Column="3" Text="full loop"
                                    HorizontalAlignment="Right" Margin="8,0,0,0"
                                    FontSize="{StaticResource OverlineFontSize}" CharacterSpacing="{StaticResource OverlineCharacterSpacing}"
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
@@ -133,7 +133,7 @@
 
                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6"
                                                     VerticalAlignment="Center">
-                                            <TextBlock Text="{x:Bind ShortLabel}" Width="34"
+                                            <TextBlock IsTextScaleFactorEnabled="False" Text="{x:Bind ShortLabel}" Width="34"
                                                        FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold"
                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                             <Border Width="30" Height="10" CornerRadius="2"
@@ -162,14 +162,14 @@
                                         </Grid>
 
                                         <!-- Time from loop start to this product's FIRST rendered frame. -->
-                                        <TextBlock Grid.Column="2" Text="{x:Bind FirstText, Mode=OneWay}"
+                                        <TextBlock IsTextScaleFactorEnabled="False" Grid.Column="2" Text="{x:Bind FirstText, Mode=OneWay}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center"
                                                    Margin="8,0,0,0"
                                                    FontSize="{StaticResource BodyFontSize}" FontFamily="Consolas,Cascadia Mono,monospace"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                                         <!-- Time to fill this product's whole row (accurate, measured in radar.js). -->
-                                        <TextBlock Grid.Column="3" Text="{x:Bind CompleteText, Mode=OneWay}"
+                                        <TextBlock IsTextScaleFactorEnabled="False" Grid.Column="3" Text="{x:Bind CompleteText, Mode=OneWay}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center"
                                                    Margin="8,0,0,0"
                                                    FontSize="{StaticResource BodyFontSize}" FontFamily="Consolas,Cascadia Mono,monospace"
@@ -193,7 +193,7 @@
                         </Grid>
 
                         <!-- Empty state (no loop). -->
-                        <TextBlock Text="No radar loop loaded — click a site to watch the pipeline."
+                        <TextBlock IsTextScaleFactorEnabled="False" Text="No radar loop loaded — click a site to watch the pipeline."
                                    FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                    HorizontalAlignment="Center" Margin="0,4"
                                    Visibility="{x:Bind VisibleWhen2(ViewModel.PipelineConsole.HasLoop), Mode=OneWay}"/>

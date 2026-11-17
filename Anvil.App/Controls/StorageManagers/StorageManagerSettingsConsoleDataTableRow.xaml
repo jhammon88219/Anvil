@@ -75,7 +75,7 @@
         <Border x:Name="DataTableRowSelectedLift" Margin="0,1,0,0" CornerRadius="4" Opacity="0" IsHitTestVisible="False"
                 Background="{ThemeResource SettingsRowSelectedBrush}"/>
 
-    <Grid x:Name="DataTableRowCells" Height="44" Margin="8,0" ColumnSpacing="10">
+    <Grid x:Name="DataTableRowCells" MinHeight="44" Margin="8,0" ColumnSpacing="10">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="16"/>  <!-- swatch -->
             <ColumnDefinition x:Name="NameColumn" Width="Auto"/> <!-- name: the TABLE sets every row to the widest name -->
