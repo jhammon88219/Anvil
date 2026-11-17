@@ -35,6 +35,16 @@
          the table's columns exactly (Margin 8 back in). ALL the visual states live here (GoToState reads the root's groups). -->
     <Grid x:Name="DataTableRowRoot" Margin="-8,0" Background="Transparent"
           PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
+        <Grid.Resources>
+            <!-- FOUND: "Find a setting" landed here — SettingsConsoleRow's flash, the same timing. -->
+            <Storyboard x:Name="DataTableRowFoundFlash">
+                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="DataTableRowFoundRing" Storyboard.TargetProperty="Opacity">
+                    <DiscreteDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+                    <DiscreteDoubleKeyFrame KeyTime="0:0:0.6" Value="1"/>
+                    <LinearDoubleKeyFrame KeyTime="0:0:1.4" Value="0"/>
+                </DoubleAnimationUsingKeyFrames>
+            </Storyboard>
+        </Grid.Resources>
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="FillStates">
                 <VisualState x:Name="Low"/>
@@ -74,6 +84,8 @@
                 Background="{ThemeResource SettingsRowHoverBrush}"/>
         <Border x:Name="DataTableRowSelectedLift" Margin="0,1,0,0" CornerRadius="4" Opacity="0" IsHitTestVisible="False"
                 Background="{ThemeResource SettingsRowSelectedBrush}"/>
+        <Border x:Name="DataTableRowFoundRing" Margin="0,1,0,0" CornerRadius="4" Opacity="0" IsHitTestVisible="False"
+                BorderThickness="2" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"/>
 
     <Grid x:Name="DataTableRowCells" MinHeight="44" Margin="8,0" ColumnSpacing="10">
         <Grid.ColumnDefinitions>

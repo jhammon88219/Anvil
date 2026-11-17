@@ -21,6 +21,13 @@
        │   ⚒  Dev         │  └──────────────────────────────────────────────────────────────┘ │     WIDTH, one UserControl per
        └──────────────────┴───────────────────────────────────────────────────────────────────┘     page (Composites)
         ↑ Primitives/TabStrip, 220 wide, raised (its edge line is the body outline's, not its own)
+     ⭐ FIND A SETTING (2026-11-17, canvas artboards 14–15): the rail's FIRST item, above the entries:
+          [ Find a setting      🔍 ]   ← AutoSuggestBox, width = the widest rail entry + 10, left edge on the entries'
+          ⏻ General                      typing → the best 6 (name, matched word bold, over "Page › Console") + "Enter — all N";
+          ◐ Appearance                   a pick LANDS (page opens, row selected + scrolled to + accent ring flash);
+                                         Enter → the RESULTS page (Controls/SettingsSearch/SettingsSearchResults): header
+                                         "Results for “q”", page bodies + About box + Reset all hidden, NO rail entry selected.
+        Words = Services/Settings/SettingsSearch over the SettingsText catalog. Leaving: Esc, clearing it, a rail click.
      ⭐ THE JOIN (the user's pick "A", 2026-11-17): the selected rail entry has NO face or accent bar of its own (TabStrip
         JoinsBody); the body outline (PlateOutline.SetJoin, measured in UpdateRailJoin) reaches out round it, filled with
         the ROOT's Background — so it is always whatever the page sits on. 8 px fillets where it meets the body's edge; the
@@ -55,6 +62,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctl="using:Anvil.Controls.Primitives"
              xmlns:cmp="using:Anvil.Controls.Composites"
+             xmlns:settingsSearch="using:Anvil.Controls.SettingsSearch"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -140,16 +148,50 @@
 
         <!-- THE RAIL — its entries, over the join. The entries are BuildTabs'; JoinsBody = the selected one draws no face or
              bar (the join is its face). -->
-        <Border x:Name="SettingsRail" Grid.Row="1">
+        <Grid x:Name="SettingsRail" Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Find a setting -->
+                <RowDefinition Height="*"/>    <!-- the pages -->
+            </Grid.RowDefinitions>
+
+            <!-- FIND A SETTING (canvas artboards 14–15, 2026-11-17) — the rail's FIRST item, Windows Settings' way. Its width =
+                 the widest rail entry + 10 (SearchBoxWidth ← Strip.WidestRowWidth), left edge on the entries'. Typing lists
+                 SettingsSearch's best 6 (+ an "Enter — all N" line); a pick LANDS on the row, Enter shows the RESULTS page.
+                 UpdateTextOnSelect off: arrowing through the list never rewrites what you typed. Esc clears. -->
+            <AutoSuggestBox x:Name="SettingsSearchBox" Margin="6,8,0,4" HorizontalAlignment="Left"
+                            Width="{x:Bind SearchBoxWidth, Mode=OneWay}"
+                            PlaceholderText="Find a setting" QueryIcon="Find" UpdateTextOnSelect="False"
+                            TextChanged="OnSearchTextChanged" QuerySubmitted="OnSearchQuerySubmitted" PreviewKeyDown="OnSearchKeyDown">
+                <AutoSuggestBox.ItemTemplate>
+                    <DataTemplate x:DataType="settingsSearch:SettingsSearchItem">
+                        <Grid Padding="0,6">
+                            <!-- A MATCH: the name (matched word bold) over its place — nothing else (the user's call). -->
+                            <StackPanel Visibility="{x:Bind MatchVisibility}">
+                                <TextBlock Style="{StaticResource BodyTextStyle}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis">
+                                    <Run Text="{x:Bind TitleBefore}"/><Run Text="{x:Bind TitleMatch}" FontWeight="SemiBold"/><Run Text="{x:Bind TitleAfter}"/>
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource CaptionTextStyle}" TextTrimming="CharacterEllipsis"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="{x:Bind Breadcrumb}"/>
+                            </StackPanel>
+                            <!-- THE FOOTER: Enter's results page. -->
+                            <TextBlock Visibility="{x:Bind FooterVisibility}" Style="{StaticResource CaptionTextStyle}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind FooterText}"/>
+                        </Grid>
+                    </DataTemplate>
+                </AutoSuggestBox.ItemTemplate>
+            </AutoSuggestBox>
+
             <!-- ⚠️ NEVER WinUI's overlay bar (the user's hard rule): our PanelScroller, its 16 px gutter ALWAYS claimed on the
                  right — it is the rows' right margin (was 6), so the rows never slide under a bar. The JOIN runs on over
                  that gutter to meet the body. -->
-            <ctl:PanelScroller x:Name="SettingsRailScroller" Scrolled="OnRailJoinMoved">
+            <ctl:PanelScroller x:Name="SettingsRailScroller" Grid.Row="1" Scrolled="OnRailJoinMoved">
                 <ctl:TabStrip x:Name="Strip" Margin="6,8,0,8" JoinsBody="True" LabelFontSize="{StaticResource BodyLargeFontSize}" SizeChanged="OnRailJoinMoved"
+                              SuppressSelection="{x:Bind IsSearchShown, Mode=OneWay}"
+                              WidestRowChanged="OnWidestRowChanged" RowClicked="OnRailRowClicked"
                               ItemsSource="{x:Bind Tabs}"
                               SelectedIndex="{x:Bind ViewModel.SettingsTabIndex, Mode=TwoWay}"/>
             </ctl:PanelScroller>
-        </Border>
+        </Grid>
 
         <!-- The body: the sections column FILLS it (every section stretches edge to edge — option A, the user's call
              2026-11-11). The rows INSIDE a section keep their own widths. (The live map preview that split some pages
@@ -209,7 +251,8 @@
                                             ToolTipService.ToolTip="{x:Bind ResetAllToolTip, Mode=OneWay}"
                                             Click="OnResetAllClick"/>
                 </Grid>
-                <Grid x:Name="SettingsAboutBox" MinHeight="88" Margin="0,14,0,0" ColumnSpacing="16">
+                <Grid x:Name="SettingsAboutBox" MinHeight="88" Margin="0,14,0,0" ColumnSpacing="16"
+                      Visibility="{x:Bind PageOnly(IsSearchShown), Mode=OneWay}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
@@ -242,19 +285,24 @@
                  the cards keep their width and the thumb sits 4 px from the cards AND 4 px from the window edge. -->
             <ctl:PanelScroller x:Name="Body" Grid.Row="1" Margin="0,14,-12,0">
                 <Grid>
+                    <!-- FIND A SETTING's results page (Enter in the rail box). While it shows, every page body hides. -->
+                    <settingsSearch:SettingsSearchResults x:Name="SettingsSearchResultsPage"
+                                                          Visibility="{x:Bind SearchOnly(IsSearchShown), Mode=OneWay}"
+                                                          HitPicked="OnSearchHitPicked"/>
+
                     <!-- Slot 0 (SettingsTab.Map) = APPEARANCE: theme + basemap + the edge hatch (Edges merged in). -->
                     <cmp:AppearanceSettingsTab x:Name="AppearanceTab" ViewModel="{x:Bind ViewModel}"
-                                               Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 0), Mode=OneWay}"/>
+                                               Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, IsSearchShown, 0), Mode=OneWay}"/>
 
                     <!-- x:Name'd (all of them) so PersistSectionExpansion can key each page's sections by page. -->
                     <cmp:RadarSettingsTab x:Name="RadarTab" ViewModel="{x:Bind ViewModel}"
-                                          Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 1), Mode=OneWay}"/>
+                                          Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, IsSearchShown, 1), Mode=OneWay}"/>
 
                     <cmp:RangeRingSettingsTab x:Name="RangeRingTab" ViewModel="{x:Bind ViewModel}"
-                                              Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 2), Mode=OneWay}"/>
+                                              Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, IsSearchShown, 2), Mode=OneWay}"/>
 
                     <cmp:StorageSettingsTab x:Name="StorageTab" ViewModel="{x:Bind ViewModel}"
-                                            Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 3), Mode=OneWay}"/>
+                                            Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, IsSearchShown, 3), Mode=OneWay}"/>
 
                     <!-- Slot 4 (WindowMode) has NO body: retired into General. -->
 
@@ -262,10 +310,10 @@
 
                     <!-- Slot 6 (SettingsTab.Startup) = GENERAL: Startup + Units + Window (Units, WindowMode merged in). -->
                     <cmp:GeneralSettingsTab x:Name="GeneralTab" ViewModel="{x:Bind ViewModel}"
-                                            Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 6), Mode=OneWay}"/>
+                                            Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, IsSearchShown, 6), Mode=OneWay}"/>
 
                     <cmp:LiveDataSettingsTab x:Name="LiveDataTab" ViewModel="{x:Bind ViewModel.LiveData}"
-                                             Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 7), Mode=OneWay}"/>
+                                             Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, IsSearchShown, 7), Mode=OneWay}"/>
 
                     <!-- Slot 8 (Basemap) has NO body: retired into Storage (2026-11-16). -->
 
@@ -277,6 +325,7 @@
                          this body is never constructed there and its null engine VMs are never bound. -->
                     <cmp:DevSettingsTab x:Name="DevTab"
                                         x:Load="{x:Bind LoadDevTab(ViewModel.SettingsTabIndex), Mode=OneWay}"
+                                        Visibility="{x:Bind PageOnly(IsSearchShown), Mode=OneWay}"
                                         ViewModel="{x:Bind ViewModel}"
                                         SweepVm="{x:Bind SweepVm}"
                                         ValidationVm="{x:Bind ValidationVm}"

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -66,6 +67,44 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(JoinsBody), typeof(bool), typeof(TabStrip),
 				new PropertyMetadata(false, (d, _) => ((TabStrip)d).ApplySelection()));
 
+		/// <summary>
+		/// Show NO row as selected while true (the Settings window's search results own the moment) — the host's
+		/// <see cref="SelectedIndex"/> is kept, so turning it off brings the same row back.
+		/// </summary>
+		public bool SuppressSelection
+		{
+			get => (bool)GetValue(SuppressSelectionProperty);
+			set => SetValue(SuppressSelectionProperty, value);
+		}
+
+		public static readonly DependencyProperty SuppressSelectionProperty =
+			DependencyProperty.Register(nameof(SuppressSelection), typeof(bool), typeof(TabStrip),
+				new PropertyMetadata(false, (d, _) => ((TabStrip)d).ApplySelection()));
+
+		/// <summary>Raised on EVERY row click, the already-selected row included (SelectedIndex only changes on a new one).</summary>
+		public event RoutedEventHandler? RowClicked;
+
+		// ── THE WIDEST ROW (its mark + name + margins) — what the Settings search box is sized from ──
+		private readonly Dictionary<FrameworkElement, double> _rowWidths = new();
+
+		/// <summary>The widest row's content width (mark + gap + name + its 12 px margins); 0 before the rows lay out.</summary>
+		public double WidestRowWidth { get; private set; }
+
+		/// <summary>Raised when <see cref="WidestRowWidth"/> changes (a longer name, or Windows' Text size).</summary>
+		public event EventHandler? WidestRowChanged;
+
+		private void OnRowContentSizeChanged(object sender, SizeChangedEventArgs e)
+		{
+			if (sender is not FrameworkElement content) { return; }
+			_rowWidths[content] = e.NewSize.Width + content.Margin.Left + content.Margin.Right;
+			var widest = _rowWidths.Values.Max();
+			if (widest != WidestRowWidth)
+			{
+				WidestRowWidth = widest;
+				WidestRowChanged?.Invoke(this, EventArgs.Empty);
+			}
+		}
+
 		/// <summary>The rows' name size: Body 14 (the Atlas); Settings sets Body large (its BodyLargeFontSize, 2026-11-17).
 		/// The marks stay 16 (icons aren't on the type scale).</summary>
 		public double LabelFontSize
@@ -127,7 +166,7 @@ namespace Anvil.Controls.Primitives
 			{
 				entry.JoinsBody = JoinsBody;
 				entry.LabelFontSize = LabelFontSize;
-				entry.IsSelected = PageOf(entry, i) == SelectedIndex;
+				entry.IsSelected = !SuppressSelection && PageOf(entry, i) == SelectedIndex;
 				i++;
 			}
 		}
@@ -138,6 +177,7 @@ namespace Anvil.Controls.Primitives
 
 			int position = Entries.ToList().IndexOf(entry);
 			if (position >= 0) SelectedIndex = PageOf(entry, position);
+			RowClicked?.Invoke(this, e);
 
 			// ⚠️ RE-ASSERT, do not delete. The click already flipped IsChecked locally, and a OneWay binding
 			// only pushes when the SOURCE changes — so clicking the row you are already on would leave it

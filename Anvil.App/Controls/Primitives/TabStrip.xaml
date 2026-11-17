@@ -27,6 +27,9 @@
           ░╰────────────╮
           ░░ Radar      │
         The Atlas keeps bar + face (JoinsBody off).
+     ⭐ For a host's search (Settings, 2026-11-17): WidestRowWidth / WidestRowChanged = the widest row's content (mark + name +
+        margins, measured), SuppressSelection = show no row selected (SelectedIndex kept), RowClicked = every click, the
+        selected row's too.
 
      A row can be UNAVAILABLE (TabEntry.IsEnabled false) — greyed and unpickable but still IN the rail, so the
      rail neither reflows nor hides that the page exists. The host owns that flag AND the selection that goes
@@ -68,7 +71,10 @@
                               Click="OnTabClick">
                     <Grid>
                         <!-- Mark beside the name, left-aligned. -->
-                        <StackPanel Margin="12,0,12,0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <!-- Its measured width (+ margins) = this row's CONTENT width; the strip reports the widest
+                             (WidestRowWidth) — the Settings search box sizes itself from it. -->
+                        <StackPanel Margin="12,0,12,0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center"
+                                    HorizontalAlignment="Left" SizeChanged="OnRowContentSizeChanged">
                             <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                                       FontSize="16"
                                       VerticalAlignment="Center"

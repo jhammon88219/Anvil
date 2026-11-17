@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SettingsSearchResultRow — ONE match on the Settings search RESULTS page (SettingsSearchResults; canvas artboard 15):
+
+       ┌──────────────────────────────────────────────────────────────────────────────────────────┐
+       │ Time zone             Whether times across Anvil read in your computer's local time…   › │ ← name (Body) over its
+       │ Units                 (the matched About sentence / hint, query word BOLD, 2 lines max)    │   console (Caption, dim) ·
+       └──────────────────────────────────────────────────────────────────────────────────────────┘   snippet (Caption) · ›
+        200                    *                                                                24
+        HOVER = SettingsRowHoverBrush (the same lift as a setting row) · bled 8 px past the plate's padding
+
+     Click / Enter / Space raises Picked — the host (SettingsWindow) opens the row's page and lands on the row.
+     ⚠️ The bold word is three DECLARED Runs (Before · Match · After from Services/Settings/SettingsSearch), never inlines
+     built in code. (No current-value column: a row's live value isn't readable generically — the mock-up's was dropped.) -->
+<UserControl x:Class="Anvil.Controls.SettingsSearch.SettingsSearchResultRow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             IsTabStop="True" UseSystemFocusVisuals="True"
+             mc:Ignorable="d">
+
+    <Grid x:Name="SettingsSearchResultRowRoot" Margin="-8,0" Background="Transparent"
+          PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited"
+          Tapped="OnTapped">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="HoverStates">
+                <VisualState x:Name="NotHovered"/>
+                <VisualState x:Name="Hovered">
+                    <VisualState.Setters>
+                        <Setter Target="SettingsSearchResultRowLift.Opacity" Value="1"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Border x:Name="SettingsSearchResultRowLift" CornerRadius="4" Opacity="0" IsHitTestVisible="False"
+                Background="{ThemeResource SettingsRowHoverBrush}"/>
+
+        <Grid x:Name="SettingsSearchResultRowCells" Padding="8,6" ColumnSpacing="12" MinHeight="44">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="24"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Style="{StaticResource BodyTextStyle}" TextTrimming="CharacterEllipsis">
+                    <Run Text="{x:Bind Item.TitleBefore, Mode=OneWay}"/><Run Text="{x:Bind Item.TitleMatch, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="{x:Bind Item.TitleAfter, Mode=OneWay}"/>
+                </TextBlock>
+                <TextBlock Style="{StaticResource CaptionTextStyle}" TextTrimming="CharacterEllipsis"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="{x:Bind Item.Console, Mode=OneWay}"/>
+            </StackPanel>
+
+            <TextBlock Grid.Column="1" Style="{StaticResource CaptionTextStyle}" VerticalAlignment="Center"
+                       TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                <Run Text="{x:Bind Item.SnippetBefore, Mode=OneWay}"/><Run Text="{x:Bind Item.SnippetMatch, Mode=OneWay}" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/><Run Text="{x:Bind Item.SnippetAfter, Mode=OneWay}"/>
+            </TextBlock>
+
+            <TextBlock Grid.Column="2" Text="›" Style="{StaticResource BodyLargeTextStyle}" VerticalAlignment="Center"
+                       HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+        </Grid>
+    </Grid>
+</UserControl>

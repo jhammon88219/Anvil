@@ -22,10 +22,15 @@ namespace Anvil.Controls.Primitives
 	/// </summary>
 	public interface ISettingsPickableRow
 	{
+		/// <summary>Its entry in Services/Settings/SettingsText — also how "Find a setting" finds the row to land on.</summary>
+		string? AboutKey { get; }
 		string AboutTitle { get; }
 		string AboutText { get; }
 		string Default { get; }
 		bool IsSelected { get; set; }
+
+		/// <summary>The "you landed here" accent ring: on at once, held, faded out (~1.4 s) — after a search pick.</summary>
+		void Flash();
 	}
 
 	public static class SettingsRowPicking
@@ -195,6 +200,9 @@ namespace Anvil.Controls.Primitives
 
 		public Thickness TopInset(VerticalAlignment alignment) =>
 			alignment == VerticalAlignment.Top ? new Thickness(0, 6, 0, 0) : new Thickness(0);
+
+		/// <summary>The found ring (SettingsConsoleRowFoundFlash in the XAML).</summary>
+		public void Flash() => SettingsConsoleRowFoundFlash.Begin();
 
 		// ── States ──
 

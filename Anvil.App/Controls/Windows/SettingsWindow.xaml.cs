@@ -1,8 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using global::Windows.System;
 using Anvil.Controls.Primitives;
+using Anvil.Controls.SettingsSearch;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.Windows
@@ -23,10 +29,155 @@ namespace Anvil.Controls.Windows
 			// The rail's SelectedIndex is the one seam: a rail click AND MapViewModel.OpenSettings(tab) both move it.
 			Strip.RegisterPropertyChangedCallback(TabStrip.SelectedIndexProperty, (_, _) =>
 			{
+				IsSearchShown = false; // a page opened from anywhere (the rail, the top bar's menu) ends the results page
 				Body.ScrollToTop();
 				RefreshPageHeader();
 				UpdateRailJoin();
 			});
+		}
+
+		// ── FIND A SETTING (canvas artboards 14–15, 2026-11-17) ───────────────────────────────────────────────────────────
+		// The rail's box searches Services/Settings/SettingsSearch. Suggestions = the best 6 + an "Enter — all N" line; a pick
+		// LANDS on the row (its page, scrolled to, selected, flashed); Enter / the footer shows the RESULTS page (every page body
+		// hidden, no rail entry selected). Leaving: Esc, clearing the box, any rail click, a page opened from the top bar.
+
+		/// <summary>The results page is showing (the page bodies, About box and Reset all hide; no rail entry is selected).</summary>
+		public bool IsSearchShown
+		{
+			get => (bool)GetValue(IsSearchShownProperty);
+			private set => SetValue(IsSearchShownProperty, value);
+		}
+
+		public static readonly DependencyProperty IsSearchShownProperty =
+			DependencyProperty.Register(nameof(IsSearchShown), typeof(bool), typeof(SettingsWindow),
+				new PropertyMetadata(false, (d, _) => ((SettingsWindow)d).OnSearchShownChanged()));
+
+		/// <summary>The box's width: the widest rail entry + <see cref="SearchBoxExtra"/> (the user's call).</summary>
+		public double SearchBoxWidth
+		{
+			get => (double)GetValue(SearchBoxWidthProperty);
+			private set => SetValue(SearchBoxWidthProperty, value);
+		}
+
+		public static readonly DependencyProperty SearchBoxWidthProperty =
+			DependencyProperty.Register(nameof(SearchBoxWidth), typeof(double), typeof(SettingsWindow), new PropertyMetadata(160d));
+
+		private const double SearchBoxExtra = 10;
+
+		private string _searchQuery = string.Empty;
+		private int _searchCount;
+		private int _searchPages;
+
+		public Visibility PageOnly(bool searching) => searching ? Visibility.Collapsed : Visibility.Visible;
+
+		public Visibility SearchOnly(bool searching) => searching ? Visibility.Visible : Visibility.Collapsed;
+
+		private void OnWidestRowChanged(object? sender, EventArgs e) => SearchBoxWidth = Strip.WidestRowWidth + SearchBoxExtra;
+
+		private void OnSearchShownChanged()
+		{
+			Body.ScrollToTop();
+			RefreshPageHeader();
+			// The strip re-lights its row through its own binding — measure the join after it has.
+			DispatcherQueue.TryEnqueue(UpdateRailJoin);
+		}
+
+		private void OnSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+		{
+			if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) { return; }
+			var text = sender.Text.Trim();
+			if (text.Length == 0)
+			{
+				sender.ItemsSource = null;
+				IsSearchShown = false;
+				return;
+			}
+
+			var hits = Anvil.Services.SettingsSearch.Find(text);
+			var items = new List<SettingsSearchItem>();
+			items.AddRange(hits.Take(Anvil.Services.SettingsSearch.SuggestionCount).Select(SettingsSearchItem.Match));
+			if (hits.Count > 0) { items.Add(SettingsSearchItem.Footer(hits.Count)); }
+			sender.ItemsSource = items;
+
+			if (IsSearchShown) { ShowResults(text); } // the results page follows the typing once it's up
+		}
+
+		private void OnSearchQuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+		{
+			sender.IsSuggestionListOpen = false;
+			if (args.ChosenSuggestion is SettingsSearchItem { Hit: { } hit })
+			{
+				Land(hit.Key);
+			}
+			else if (sender.Text.Trim().Length > 0)
+			{
+				ShowResults(sender.Text.Trim()); // Enter, or the "all N results" line
+			}
+		}
+
+		private void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
+		{
+			if (e.Key != VirtualKey.Escape) { return; }
+			e.Handled = true;
+			SettingsSearchBox.Text = string.Empty;
+			SettingsSearchBox.ItemsSource = null;
+			SettingsSearchBox.IsSuggestionListOpen = false;
+			IsSearchShown = false;
+		}
+
+		private void OnRailRowClicked(object sender, RoutedEventArgs e) => IsSearchShown = false;
+
+		private void OnSearchHitPicked(object? sender, string key) => Land(key);
+
+		private void ShowResults(string query)
+		{
+			var hits = Anvil.Services.SettingsSearch.Find(query);
+			// One plate per page, in the RAIL's order.
+			var groups = Tabs
+				.Select(t => new SettingsSearchGroup(t.Label,
+					hits.Where(h => h.Place.Page == t.Label).Select(SettingsSearchItem.Match).ToList()))
+				.Where(g => g.Items.Count > 0)
+				.ToList();
+			_searchQuery = query;
+			_searchCount = hits.Count;
+			_searchPages = groups.Count;
+			SettingsSearchResultsPage.Show(query, groups);
+			if (IsSearchShown) { RefreshPageHeader(); } else { IsSearchShown = true; }
+		}
+
+		// Open the row's page, then find the row there by its AboutKey, select it (the About box fills), bring it into view
+		// and flash it. UpdateLayout first: the page was hidden, so its rows aren't laid out until it shows.
+		private void Land(string key)
+		{
+			if (ViewModel is null || Anvil.Services.SettingsSearch.PlaceOf(key) is not { } place) { return; }
+			var entry = Tabs.FirstOrDefault(t => t.Label == place.Page);
+			if (entry is null) { return; }
+
+			IsSearchShown = false;
+			SettingsSearchBox.IsSuggestionListOpen = false;
+			ViewModel.SettingsTabIndex = entry.PageIndex;
+			Body.UpdateLayout();
+
+			if (PageFor(entry.PageIndex) is DependencyObject page && FindRow(page, key) is { } row)
+			{
+				OnRowPicked(row);
+				if (row is UIElement element)
+				{
+					element.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.3, AnimationDesired = true });
+				}
+				row.Flash();
+			}
+		}
+
+		private static ISettingsPickableRow? FindRow(DependencyObject root, string key)
+		{
+			for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+			{
+				var child = VisualTreeHelper.GetChild(root, i);
+				if (child is ISettingsPickableRow row && row.AboutKey == key) { return row; }
+				if (FindRow(child, key) is { } found) { return found; }
+			}
+			return null;
 		}
 
 		// ── THE RAIL JOIN: the body outline reaches out round the selected rail entry (PlateOutline.SetJoin) ──────────────
@@ -37,8 +188,10 @@ namespace Anvil.Controls.Windows
 
 		private void UpdateRailJoin()
 		{
-			if (Strip.SelectedRowBounds(SettingsBodyOutline) is global::Windows.Foundation.Rect row
-				&& row.Top >= 0 && row.Bottom <= SettingsRailScroller.ActualHeight)
+			// Visible = inside the rail's scroller (the search box sits above it); the join's box = the outline's coordinates.
+			if (Strip.SelectedRowBounds(SettingsRailScroller) is global::Windows.Foundation.Rect inRail
+				&& inRail.Top >= 0 && inRail.Bottom <= SettingsRailScroller.ActualHeight
+				&& Strip.SelectedRowBounds(SettingsBodyOutline) is global::Windows.Foundation.Rect row)
 			{
 				SettingsBodyOutline.SetJoin(row.Left, row.Top, row.Bottom);
 			}
@@ -70,6 +223,14 @@ namespace Anvil.Controls.Windows
 		private void RefreshPageHeader()
 		{
 			if (ViewModel is null) { return; }
+			if (IsSearchShown)
+			{
+				PageTitle = $"Results for “{_searchQuery}”";
+				PageDescription = _searchCount == 0 ? "No settings match"
+					: $"{_searchCount} {(_searchCount == 1 ? "setting" : "settings")} on {_searchPages} {(_searchPages == 1 ? "page" : "pages")}";
+				HasResetAll = Visibility.Collapsed;
+				return;
+			}
 			var page = ViewModel.SettingsTabIndex;
 			var entry = System.Linq.Enumerable.FirstOrDefault(Tabs, t => t.PageIndex == page);
 			PageTitle = entry?.Label ?? string.Empty;
@@ -298,9 +459,9 @@ namespace Anvil.Controls.Windows
 			return tabs;
 		}
 
-		/// <summary>Which tab body shows: visible when the strip is on <paramref name="mine"/>.</summary>
-		public Visibility TabVisibility(int selected, int mine) =>
-			selected == mine ? Visibility.Visible : Visibility.Collapsed;
+		/// <summary>Which tab body shows: visible when the strip is on <paramref name="mine"/> and no search results show.</summary>
+		public Visibility TabVisibility(int selected, bool searching, int mine) =>
+			selected == mine && !searching ? Visibility.Visible : Visibility.Collapsed;
 
 		/// <summary>
 		/// Whether to CONSTRUCT the dev tab's body at all. Hard false in Release — the tab is not in the strip
