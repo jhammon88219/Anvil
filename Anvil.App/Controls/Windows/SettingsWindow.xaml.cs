@@ -18,6 +18,10 @@ namespace Anvil.Controls.Windows
 		{
 			Tabs = BuildTabs();
 			InitializeComponent();
+			// Every page lives in the ONE Body scroller (Visibility switches them), so a new page would open at the
+			// last page's offset — scrolled to the bottom if you'd scrolled there. A page always opens at its top.
+			// The rail's SelectedIndex is the one seam: a rail click AND MapViewModel.OpenSettings(tab) both move it.
+			Strip.RegisterPropertyChangedCallback(TabStrip.SelectedIndexProperty, (_, _) => Body.ScrollToTop());
 		}
 
 		// ── THE BAND's about-Anvil facts ──────────────────────────────────────────────────────────────

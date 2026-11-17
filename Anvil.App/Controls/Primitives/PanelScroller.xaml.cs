@@ -168,6 +168,10 @@ namespace Anvil.Controls.Primitives
 			return null;
 		}
 
+		/// <summary>Jump to the top, no animation — for a host that swaps what the body shows (Settings' page switch:
+		/// every page shares ONE scroller, so the last page's offset would otherwise carry over).</summary>
+		public void ScrollToTop() => _viewer?.ChangeView(null, 0, null, disableAnimation: true);
+
 		// ── Geometry: viewer → thumb ──
 
 		private double Scrollable => _viewer is null ? 0 : Math.Max(0, _viewer.ExtentHeight - _viewer.ViewportHeight);
