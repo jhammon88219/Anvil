@@ -210,8 +210,8 @@
                                                                                                     the title's capitals
                    ABOUT · LOAD HOME SITE ON LAUNCH                                     ← Overline; the SELECTED row
                    When Anvil opens, it starts the live radar loop for …                ← Body large 16/22, 3 max, FIXED 88 px box
-                   … your home site is set in the Radar Atlas.               DEFAULT    ← DEFAULT + value pinned BOTTOM-right
-                                                                              Off          (clear of the Reset all key above)
+                   … your home site is set in the Radar Atlas.                          ← no DEFAULT here (2026-11-17): it is the
+                                                                                           plate's DEFAULT well, in the row itself
                    ──────────────────────────────────────────────────────────────────── hairline; the consoles scroll under it
                  Sizes are TYPE-SCALE roles (Styles.xaml): title Page title, description Body large, captions Overline.
                  ⚠️ The About box is ONE fixed height (Overline 16 + 6 + three Body-large 22 px lines = 88) whatever is selected, or nothing
@@ -251,12 +251,9 @@
                                             ToolTipService.ToolTip="{x:Bind ResetAllToolTip, Mode=OneWay}"
                                             Click="OnResetAllClick"/>
                 </Grid>
-                <Grid x:Name="SettingsAboutBox" MinHeight="88" Margin="0,14,0,0" ColumnSpacing="16"
+                <!-- No DEFAULT here (artboard 18, 2026-11-17): the selected row shows its own, in its plate's DEFAULT well. -->
+                <Grid x:Name="SettingsAboutBox" MinHeight="88" Margin="0,14,0,0"
                       Visibility="{x:Bind PageOnly(IsSearchShown), Mode=OneWay}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
-                    </Grid.ColumnDefinitions>
                     <StackPanel>
                         <TextBlock x:Name="SettingsAboutCaption" FontSize="{StaticResource OverlineFontSize}" CharacterSpacing="{StaticResource OverlineCharacterSpacing}" LineHeight="{StaticResource OverlineLineHeight}"
                                    LineStackingStrategy="BlockLineHeight" TextTrimming="CharacterEllipsis"
@@ -265,14 +262,6 @@
                                    FontSize="{StaticResource BodyLargeFontSize}" LineHeight="{StaticResource BodyLargeLineHeight}" LineStackingStrategy="BlockLineHeight"
                                    TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind AboutText, Mode=OneWay}"/>
-                    </StackPanel>
-                    <!-- BOTTOM-right of the box (2026-11-17): at the top it sat right under the title line's Reset all key. -->
-                    <StackPanel x:Name="SettingsAboutDefault" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                Visibility="{x:Bind HasAboutDefault, Mode=OneWay}">
-                        <TextBlock Text="DEFAULT" FontSize="{StaticResource OverlineFontSize}" CharacterSpacing="{StaticResource OverlineCharacterSpacing}" LineHeight="{StaticResource OverlineLineHeight}" LineStackingStrategy="BlockLineHeight"
-                                   HorizontalAlignment="Right" Foreground="{ThemeResource SettingsCautionForegroundBrush}"/>
-                        <TextBlock Margin="0,6,0,0" FontSize="{StaticResource BodyLargeFontSize}" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
-                                   MaxLines="2" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind AboutDefault, Mode=OneWay}"/>
                     </StackPanel>
                 </Grid>
             </StackPanel>

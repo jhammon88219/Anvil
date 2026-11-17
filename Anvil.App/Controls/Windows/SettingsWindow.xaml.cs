@@ -284,15 +284,12 @@ namespace Anvil.Controls.Windows
 			{
 				AboutCaption = ("About · " + row.AboutTitle).ToUpperInvariant();
 				AboutText = row.AboutText;
-				AboutDefault = row.Default;
 			}
 			else
 			{
 				AboutCaption = "ABOUT";
 				AboutText = Anvil.Services.SettingsText.NothingSelected;
-				AboutDefault = string.Empty;
 			}
-			HasAboutDefault = string.IsNullOrEmpty(AboutDefault) ? Visibility.Collapsed : Visibility.Visible;
 
 			// The title line's Reset all names the SHOWN page and calls ITS reset (which asks first). Dev has none.
 			var shown = PageFor(page);
@@ -346,14 +343,6 @@ namespace Anvil.Controls.Windows
 		public static readonly DependencyProperty AboutTextProperty =
 			DependencyProperty.Register(nameof(AboutText), typeof(string), typeof(SettingsWindow),
 				new PropertyMetadata(Anvil.Services.SettingsText.NothingSelected));
-
-		public string AboutDefault { get => (string)GetValue(AboutDefaultProperty); private set => SetValue(AboutDefaultProperty, value); }
-		public static readonly DependencyProperty AboutDefaultProperty =
-			DependencyProperty.Register(nameof(AboutDefault), typeof(string), typeof(SettingsWindow), new PropertyMetadata(string.Empty));
-
-		public Visibility HasAboutDefault { get => (Visibility)GetValue(HasAboutDefaultProperty); private set => SetValue(HasAboutDefaultProperty, value); }
-		public static readonly DependencyProperty HasAboutDefaultProperty =
-			DependencyProperty.Register(nameof(HasAboutDefault), typeof(Visibility), typeof(SettingsWindow), new PropertyMetadata(Visibility.Collapsed));
 
 		// ── THE BAND's about-Anvil facts ──────────────────────────────────────────────────────────────
 		/// <summary>The installed package's version ("1.0.0.0"), or "—" when there's no package identity.</summary>

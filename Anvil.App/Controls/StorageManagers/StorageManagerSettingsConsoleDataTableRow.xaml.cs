@@ -57,8 +57,6 @@ namespace Anvil.Controls.StorageManagers
 
 		public string AboutText => SettingsText.Get(AboutKey)?.About ?? string.Empty;
 
-		public string Default => Item?.DefaultText ?? string.Empty;
-
 		/// <summary>The found ring: the pulses, or a still ring while Windows' Animation effects are off.</summary>
 		public void Flash() => (SettingsRowPicking.AnimationsOn ? DataTableRowFoundFlash : DataTableRowFoundHold).Begin();
 

@@ -6,8 +6,9 @@
        ┌─────────────────────────────────────────────────────────────────────────────┐
        │ Units     [Restore defaults]                                        DEFAULT  │ ← ONE title row (General B, 2026-11-16):
        │ Unit set  [US|Metric|Forecaster|Custom]                              Custom  │   title (28 SemiBold, line 34) in the
-       │ …                                                                       …    │   LABEL column (≥ 96) · HeaderContent
-       └─────────────────────────────────────────────────────────────────────────────┘   on the CONTROL column's left edge, so
+       │ …                                                                 ▒▒  …  ▒▒ │   LABEL column (≥ 96) · HeaderContent
+       └─────────────────────────────────────────────────────────────────────▀▀▀▀▀▀▀─┘   on the CONTROL column's left edge, so
+        ▒ = the DEFAULT WELL (amber wash, inset 6, radius 4) behind the column, title row to last row
         face CardBackgroundFillColorDefaultBrush · hairline SectionBorderBrush           it lines up with the control below ·
         radius 6 · padding 14,12,14,14                                                    DEFAULT far right (caution amber)
 
@@ -26,6 +27,15 @@
     <Border x:Name="SettingsConsolePlateSurface" CornerRadius="6" BorderThickness="1" Padding="14,12,14,14"
             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
             BorderBrush="{ThemeResource SectionBorderBrush}">
+        <Grid>
+        <!-- THE DEFAULT WELL (artboard 18, 2026-11-17): the DEFAULT column's own area — a rounded well inset 6 px from the
+             plate's top / right / bottom edge, a faint wash of the caution amber, no line. Negative margins reach out of the
+             plate's padding (14,12,14,14 → 6 left on each side). Width = the column (150) + 8 each side, so its edges match
+             the row lifts' (a row bleeds 8 past the padding). Only on plates with a DEFAULT column (ShowDefaultHeader). -->
+        <Border x:Name="SettingsConsolePlateDefaultWell" HorizontalAlignment="Right" Width="{StaticResource SettingsDefaultWellWidth}"
+                Margin="0,-6,-8,-8" CornerRadius="4" IsHitTestVisible="False"
+                Background="{ThemeResource SettingsDefaultWellBrush}"
+                Visibility="{x:Bind Show(ShowDefaultHeader), Mode=OneWay}"/>
         <StackPanel>
             <Grid x:Name="SettingsConsolePlateTitleLine" ColumnSpacing="12" Margin="0,0,0,12">
                 <Grid.ColumnDefinitions>
@@ -47,5 +57,6 @@
 
             <ContentPresenter x:Name="SettingsConsolePlateBody" Content="{x:Bind Body, Mode=OneWay}"/>
         </StackPanel>
+        </Grid>
     </Border>
 </UserControl>

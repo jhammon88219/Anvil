@@ -26,10 +26,9 @@ namespace Anvil.Controls.Primitives
 		string? AboutKey { get; }
 		string AboutTitle { get; }
 		string AboutText { get; }
-		string Default { get; }
 		bool IsSelected { get; set; }
 
-		/// <summary>The "you landed here" accent ring: on at once, held, faded out (~1.4 s) — after a search pick.</summary>
+		/// <summary>The "you landed here" accent ring: two pulses then a slow fade (~2 s) — after a search pick.</summary>
 		void Flash();
 	}
 

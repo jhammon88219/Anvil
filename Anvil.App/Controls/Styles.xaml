@@ -118,6 +118,10 @@
                  SELECTED (stays lifted; the page's About box shows it). Translucent so they sit on any plate face. -->
             <SolidColorBrush x:Key="SettingsRowHoverBrush" Color="#0FFFFFFF"/>
             <SolidColorBrush x:Key="SettingsRowSelectedBrush" Color="#1CFFFFFF"/>
+            <!-- THE DEFAULT WELL on every Settings plate (artboard 18, 2026-11-17): a very faint wash of the caution amber behind
+                 the DEFAULT column, and the column's values in a pale amber — "the defaults" at a glance. -->
+            <SolidColorBrush x:Key="SettingsDefaultWellBrush" Color="#FF1A160E"/>
+            <SolidColorBrush x:Key="SettingsDefaultValueForegroundBrush" Color="#FFD9C8A4"/>
 
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
@@ -162,6 +166,8 @@
             <SolidColorBrush x:Key="SegmentLockedSelectedBrush" Color="#FFD6D6D6"/>
             <SolidColorBrush x:Key="SettingsRowHoverBrush" Color="#0A000000"/>
             <SolidColorBrush x:Key="SettingsRowSelectedBrush" Color="#16000000"/>
+            <SolidColorBrush x:Key="SettingsDefaultWellBrush" Color="#FFFBF3E2"/>
+            <SolidColorBrush x:Key="SettingsDefaultValueForegroundBrush" Color="#FF6B4E1A"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
@@ -203,6 +209,8 @@
             <SolidColorBrush x:Key="SegmentLockedSelectedBrush" Color="{ThemeResource SystemColorGrayTextColor}"/>
             <SolidColorBrush x:Key="SettingsRowHoverBrush" Color="Transparent"/>
             <SolidColorBrush x:Key="SettingsRowSelectedBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+            <SolidColorBrush x:Key="SettingsDefaultWellBrush" Color="Transparent"/>
+            <SolidColorBrush x:Key="SettingsDefaultValueForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
@@ -358,7 +366,7 @@
         <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="HorizontalAlignment" Value="Right"/>
-        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+        <Setter Property="Foreground" Value="{ThemeResource SettingsDefaultValueForegroundBrush}"/>
     </Style>
     <!-- THE ROWS every console holds (docs/ui-patterns.md "The row"): a StackPanel of Primitives/SettingsConsoleRow, each
          Label · Control · Hint (*) · Default on these widths (the row's own grid uses them; so does the Storage table's
@@ -370,6 +378,8 @@
     <GridLength x:Key="SettingsLabelColumnWidth">96</GridLength>
     <GridLength x:Key="SettingsControlColumnWidth">420</GridLength>
     <GridLength x:Key="SettingsDefaultColumnWidth">150</GridLength>
+    <!-- The plate's DEFAULT WELL: the column + 8 each side (a row's bleed), so it lines up with the row lifts. Keep = column + 16. -->
+    <x:Double x:Key="SettingsDefaultWellWidth">166</x:Double>
     <x:Double x:Key="SettingsGroupBreakSpace">12</x:Double>
     <Style x:Key="SettingsConsoleRowsStyle" TargetType="StackPanel">
         <Setter Property="Spacing" Value="2"/>
