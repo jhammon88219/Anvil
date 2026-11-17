@@ -170,8 +170,47 @@ namespace Anvil.Controls.Windows
 				{
 					element.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.3, AnimationDesired = true });
 				}
-				row.Flash();
+				FlashWhenSettled(row);
 			}
+		}
+
+		// THE FLASH WAITS FOR THE SCROLL (2026-11-17: started at once, much of it played while the page was still gliding to
+		// the row). It starts on the first scroll-settled with the row fully in view — or after FlashFallback if no scroll comes
+		// (the row was already in view, so nothing moves).
+		private static readonly TimeSpan FlashFallback = TimeSpan.FromMilliseconds(500);
+		private ISettingsPickableRow? _pendingFlash;
+		private Microsoft.UI.Dispatching.DispatcherQueueTimer? _flashTimer;
+
+		private void FlashWhenSettled(ISettingsPickableRow row)
+		{
+			_pendingFlash = row;
+			if (_flashTimer is null)
+			{
+				_flashTimer = DispatcherQueue.CreateTimer();
+				_flashTimer.IsRepeating = false;
+				_flashTimer.Tick += (_, _) => FlushFlash();
+			}
+			_flashTimer.Interval = FlashFallback;
+			_flashTimer.Start();
+		}
+
+		private void OnBodyScrollSettled(object? sender, EventArgs e)
+		{
+			if (_pendingFlash is FrameworkElement row && IsFullyInBody(row)) { FlushFlash(); }
+		}
+
+		private bool IsFullyInBody(FrameworkElement row)
+		{
+			var box = row.TransformToVisual(Body).TransformBounds(new global::Windows.Foundation.Rect(0, 0, row.ActualWidth, row.ActualHeight));
+			return box.Top >= 0 && box.Bottom <= Body.ActualHeight;
+		}
+
+		private void FlushFlash()
+		{
+			_flashTimer?.Stop();
+			var row = _pendingFlash;
+			_pendingFlash = null;
+			row?.Flash();
 		}
 
 		private static ISettingsPickableRow? FindRow(DependencyObject root, string key)

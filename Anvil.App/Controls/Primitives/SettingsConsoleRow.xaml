@@ -9,7 +9,8 @@
         SELECTED = SettingsRowSelectedBrush (the lift ALONE — no accent tick: it read as a plain ListView, the user's call
                    2026-11-17); the page's About box shows this row
                    (picked by a click ANYWHERE on the row, its control included, or by keyboard focus moving into it)
-        FOUND    = an AccentFillColorDefaultBrush ring, on at once then faded (~1.4 s) when "Find a setting" lands here
+        FOUND    = an AccentFillColorDefaultBrush ring when "Find a setting" lands here, once the scroll to it settles: two
+                   pulses then a slow fade (~2 s); held still 1.5 s when Windows' Animation effects are off
 
      The words: Hint = the explicit Hint (a hint that follows state) else the catalog's (Services/Settings/SettingsText by
      AboutKey); the About box reads the catalog by AboutKey. HintContent / DefaultContent take a custom cell instead.
@@ -27,12 +28,22 @@
     <Grid x:Name="SettingsConsoleRowRoot" Margin="-8,0" Background="Transparent"
           PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
         <Grid.Resources>
-            <!-- FOUND: "Find a setting" landed here — the accent ring on at once, held, then faded (Flash()). -->
+            <!-- FOUND: "Find a setting" landed here (Flash(), started once the scroll to the row has SETTLED). Two pulses then
+                 a slow fade, ~2 s (2026-11-17: one quiet 1.4 s ring was easy to miss). With Windows' Animation effects off:
+                 the ring simply holds 1.5 s (…FoundHold). -->
             <Storyboard x:Name="SettingsConsoleRowFoundFlash">
                 <DoubleAnimationUsingKeyFrames Storyboard.TargetName="SettingsConsoleRowFoundRing" Storyboard.TargetProperty="Opacity">
                     <DiscreteDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
-                    <DiscreteDoubleKeyFrame KeyTime="0:0:0.6" Value="1"/>
-                    <LinearDoubleKeyFrame KeyTime="0:0:1.4" Value="0"/>
+                    <LinearDoubleKeyFrame KeyTime="0:0:0.25" Value="0.3"/>
+                    <LinearDoubleKeyFrame KeyTime="0:0:0.5" Value="1"/>
+                    <DiscreteDoubleKeyFrame KeyTime="0:0:1.0" Value="1"/>
+                    <LinearDoubleKeyFrame KeyTime="0:0:2.0" Value="0"/>
+                </DoubleAnimationUsingKeyFrames>
+            </Storyboard>
+            <Storyboard x:Name="SettingsConsoleRowFoundHold">
+                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="SettingsConsoleRowFoundRing" Storyboard.TargetProperty="Opacity">
+                    <DiscreteDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+                    <DiscreteDoubleKeyFrame KeyTime="0:0:1.5" Value="0"/>
                 </DoubleAnimationUsingKeyFrames>
             </Storyboard>
         </Grid.Resources>

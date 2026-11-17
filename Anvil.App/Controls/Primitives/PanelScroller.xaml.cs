@@ -179,10 +179,15 @@ namespace Anvil.Controls.Primitives
 		/// <summary>The content moved (any scroll) — for a host that draws something tied to a row inside (Settings' rail join).</summary>
 		public event EventHandler? Scrolled;
 
+		/// <summary>A scroll FINISHED (the last ViewChanged of a move, animated or not) — Settings' search waits for it to flash
+		/// the row it scrolled to.</summary>
+		public event EventHandler? ScrollSettled;
+
 		private void OnViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
 		{
 			UpdateThumb();
 			Scrolled?.Invoke(this, EventArgs.Empty);
+			if (!e.IsIntermediate) { ScrollSettled?.Invoke(this, EventArgs.Empty); }
 		}
 
 		private void OnGeometryChanged(object sender, SizeChangedEventArgs e) => UpdateThumb();

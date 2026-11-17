@@ -283,7 +283,7 @@
                  ⚠️ NEVER WinUI's overlay bar (the user's hard rule): Primitives/PanelScroller, its 16 px gutter ALWAYS claimed
                  (a lane of its own, never over the cards). Margin right -12 bleeds it into BodyHost's 16 px right margin, so
                  the cards keep their width and the thumb sits 4 px from the cards AND 4 px from the window edge. -->
-            <ctl:PanelScroller x:Name="Body" Grid.Row="1" Margin="0,14,-12,0">
+            <ctl:PanelScroller x:Name="Body" Grid.Row="1" Margin="0,14,-12,0" ScrollSettled="OnBodyScrollSettled">
                 <Grid>
                     <!-- FIND A SETTING's results page (Enter in the rail box). While it shows, every page body hides. -->
                     <settingsSearch:SettingsSearchResults x:Name="SettingsSearchResultsPage"

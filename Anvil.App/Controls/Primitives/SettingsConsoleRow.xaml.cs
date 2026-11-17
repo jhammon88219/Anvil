@@ -35,6 +35,9 @@ namespace Anvil.Controls.Primitives
 
 	public static class SettingsRowPicking
 	{
+		/// <summary>Windows' Settings → Accessibility → Visual effects → Animation effects (read at each flash).</summary>
+		public static bool AnimationsOn => new global::Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
+
 		/// <summary>Walk up to the <see cref="ISettingsRowHost"/> and report <paramref name="row"/> picked.</summary>
 		public static void Pick(FrameworkElement row)
 		{
@@ -201,8 +204,8 @@ namespace Anvil.Controls.Primitives
 		public Thickness TopInset(VerticalAlignment alignment) =>
 			alignment == VerticalAlignment.Top ? new Thickness(0, 6, 0, 0) : new Thickness(0);
 
-		/// <summary>The found ring (SettingsConsoleRowFoundFlash in the XAML).</summary>
-		public void Flash() => SettingsConsoleRowFoundFlash.Begin();
+		/// <summary>The found ring: the pulses, or a still ring while Windows' Animation effects are off.</summary>
+		public void Flash() => (SettingsRowPicking.AnimationsOn ? SettingsConsoleRowFoundFlash : SettingsConsoleRowFoundHold).Begin();
 
 		// ── States ──
 

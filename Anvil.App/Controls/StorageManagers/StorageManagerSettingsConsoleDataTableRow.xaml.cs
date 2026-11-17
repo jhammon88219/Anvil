@@ -59,8 +59,8 @@ namespace Anvil.Controls.StorageManagers
 
 		public string Default => Item?.DefaultText ?? string.Empty;
 
-		/// <summary>The found ring (DataTableRowFoundFlash in the XAML).</summary>
-		public void Flash() => DataTableRowFoundFlash.Begin();
+		/// <summary>The found ring: the pulses, or a still ring while Windows' Animation effects are off.</summary>
+		public void Flash() => (SettingsRowPicking.AnimationsOn ? DataTableRowFoundFlash : DataTableRowFoundHold).Begin();
 
 		private bool _hovered;
 
