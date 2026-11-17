@@ -6,7 +6,8 @@
        │ Label 96   │ Control ≤ 420 (the row's content)        │ Hint *               │ Default 150 │ ← one row, bled 8 px past
        └──────────────────────────────────────────────────────────────────────────────────────────┘   the plate's padding each side
         HOVER  = SettingsRowHoverBrush: follow the row across to its hint and default
-        SELECTED = SettingsRowSelectedBrush + a 3 px accent TICK on the left; the page's About box shows this row
+        SELECTED = SettingsRowSelectedBrush (the lift ALONE — no accent tick: it read as a plain ListView, the user's call
+                   2026-11-17); the page's About box shows this row
                    (picked by a click ANYWHERE on the row, its control included, or by keyboard focus moving into it)
 
      The words: Hint = the explicit Hint (a hint that follows state) else the catalog's (Services/Settings/SettingsText by
@@ -38,7 +39,6 @@
                 <VisualState x:Name="Selected">
                     <VisualState.Setters>
                         <Setter Target="SettingsConsoleRowSelectedLift.Opacity" Value="1"/>
-                        <Setter Target="SettingsConsoleRowSelectedTick.Opacity" Value="1"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -57,8 +57,6 @@
                 Background="{ThemeResource SettingsRowHoverBrush}"/>
         <Border x:Name="SettingsConsoleRowSelectedLift" CornerRadius="4" Opacity="0" IsHitTestVisible="False"
                 Background="{ThemeResource SettingsRowSelectedBrush}"/>
-        <Border x:Name="SettingsConsoleRowSelectedTick" Width="3" HorizontalAlignment="Left" Margin="0,8" CornerRadius="1.5"
-                Opacity="0" IsHitTestVisible="False" Background="{ThemeResource AccentFillColorDefaultBrush}"/>
 
         <Grid x:Name="SettingsConsoleRowCells" Padding="8,4" ColumnSpacing="12" MinHeight="40">
             <Grid.ColumnDefinitions>
