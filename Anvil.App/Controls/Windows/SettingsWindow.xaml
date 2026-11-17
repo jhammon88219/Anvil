@@ -166,8 +166,10 @@
                                                                                                     title's baseline, trims ·
                                                                                                     the caution key, centred on
                                                                                                     the title's capitals
-                   ABOUT · LOAD HOME SITE ON LAUNCH                         DEFAULT     ← 13; the SELECTED row
-                   When Anvil opens, it starts the live radar loop for …     Off        ← 15 / 22 lines, 3 max, FIXED 90 px box
+                   ABOUT · LOAD HOME SITE ON LAUNCH                                     ← 13; the SELECTED row
+                   When Anvil opens, it starts the live radar loop for …                ← 15 / 22 lines, 3 max, FIXED 90 px box
+                   … your home site is set in the Radar Atlas.               DEFAULT    ← DEFAULT + value pinned BOTTOM-right
+                                                                              Off          (clear of the Reset all key above)
                    ──────────────────────────────────────────────────────────────────── hairline; the consoles scroll under it
                  ⚠️ The About box is ONE fixed height (caption 18 + 6 + three 22 px lines) whatever is selected, or nothing
                  (SettingsText.NothingSelected), so picking a row never moves the page. Its words are the catalog's
@@ -220,7 +222,8 @@
                                    TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind AboutText, Mode=OneWay}"/>
                     </StackPanel>
-                    <StackPanel x:Name="SettingsAboutDefault" Grid.Column="1" HorizontalAlignment="Right"
+                    <!-- BOTTOM-right of the box (2026-11-17): at the top it sat right under the title line's Reset all key. -->
+                    <StackPanel x:Name="SettingsAboutDefault" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                 Visibility="{x:Bind HasAboutDefault, Mode=OneWay}">
                         <TextBlock Text="DEFAULT" FontSize="13" CharacterSpacing="60" LineHeight="18" LineStackingStrategy="BlockLineHeight"
                                    HorizontalAlignment="Right" Foreground="{ThemeResource SettingsCautionForegroundBrush}"/>
