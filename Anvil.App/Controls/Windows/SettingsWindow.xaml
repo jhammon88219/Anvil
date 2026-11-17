@@ -217,8 +217,9 @@
                  ⚠️ The About box is ONE fixed height (Overline 16 + 6 + three Body-large 22 px lines = 88) whatever is selected, or nothing
                  (SettingsText.NothingSelected), so picking a row never moves the page. Its words are the catalog's
                  (Services/Settings/SettingsText); the selection is kept PER PAGE (SettingsWindow.OnRowPicked).
+                 Spacing: title line · 22 · About box (88) · 6 · hairline (the box rests near the line).
                  Right margin 4 = the cards' right edge (the scroller below bleeds -12 into BodyHost's 16). -->
-            <StackPanel x:Name="SettingsPageHeader" Margin="0,0,4,14">
+            <StackPanel x:Name="SettingsPageHeader" Margin="0,0,4,6">
                 <!-- THE TITLE LINE (artboard 11, 2026-11-17): title · description · Reset all.
                      ⚠️ CENTRING: both texts use TextLineBounds="Tight" — a TextBlock's box is then the CAP HEIGHT to the BASELINE,
                      with no line-gap padding above or descender room below. So:
@@ -251,8 +252,9 @@
                                             ToolTipService.ToolTip="{x:Bind ResetAllToolTip, Mode=OneWay}"
                                             Click="OnResetAllClick"/>
                 </Grid>
-                <!-- No DEFAULT here (artboard 18, 2026-11-17): the selected row shows its own, in its plate's DEFAULT well. -->
-                <Grid x:Name="SettingsAboutBox" MinHeight="88" Margin="0,14,0,0"
+                <!-- No DEFAULT here (artboard 18, 2026-11-17): the selected row shows its own, in its plate's DEFAULT well.
+                     Sits LOW (2026-11-17): 22 above, 6 to the hairline (was 14 / 14) — the header's height is unchanged. -->
+                <Grid x:Name="SettingsAboutBox" MinHeight="88" Margin="0,22,0,0"
                       Visibility="{x:Bind PageOnly(IsSearchShown), Mode=OneWay}">
                     <StackPanel>
                         <TextBlock x:Name="SettingsAboutCaption" FontSize="{StaticResource OverlineFontSize}" CharacterSpacing="{StaticResource OverlineCharacterSpacing}" LineHeight="{StaticResource OverlineLineHeight}"
