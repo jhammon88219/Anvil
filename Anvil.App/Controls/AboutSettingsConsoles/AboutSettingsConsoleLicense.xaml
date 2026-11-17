@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AboutSettingsConsoleLicense — Settings → About → License (artboard 22): the license, the source, where to report.
+
+       ┌ License ──────────────────────────────────────────────────┐
+       │ License            AGPL-3.0                     [Read it] │
+       │                    Use, change and share Anvil freely; …  │   ← quiet line under it
+       │ Source             github.com/jhammon88219/Anvil   [Open] │
+       │ Report a problem   GitHub issues                   [Open] │
+       └───────────────────────────────────────────────────────────┘
+     Links = AboutAnvil's URLs, opened in the user's browser. -->
+<UserControl x:Class="Anvil.Controls.AboutSettingsConsoles.AboutSettingsConsoleLicense"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:local="using:Anvil.Controls.AboutSettingsConsoles"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <prim:SettingsConsolePlate x:Name="AboutSettingsConsoleLicensePlate" Title="License">
+        <StackPanel>
+            <local:AboutSettingsConsoleInfoRow x:Name="AboutSettingsConsoleLicenseLicense" Label="License" Value="AGPL-3.0">
+                <local:AboutSettingsConsoleInfoRow.Action>
+                    <Button Content="Read it" Click="OnLicenseClick" ToolTipService.ToolTip="Opens the license text on GitHub"/>
+                </local:AboutSettingsConsoleInfoRow.Action>
+            </local:AboutSettingsConsoleInfoRow>
+            <TextBlock x:Name="AboutSettingsConsoleLicenseMeaning" Margin="172,0,0,8" Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="Use, change and share Anvil freely; anything built from it must be released under the same license."/>
+            <local:AboutSettingsConsoleInfoRow x:Name="AboutSettingsConsoleLicenseSource" Label="Source" Value="github.com/jhammon88219/Anvil" IsQuiet="True">
+                <local:AboutSettingsConsoleInfoRow.Action>
+                    <Button Content="Open" Click="OnSourceClick" ToolTipService.ToolTip="Opens Anvil's source code on GitHub"/>
+                </local:AboutSettingsConsoleInfoRow.Action>
+            </local:AboutSettingsConsoleInfoRow>
+            <local:AboutSettingsConsoleInfoRow x:Name="AboutSettingsConsoleLicenseIssues" Label="Report a problem" Value="GitHub issues" IsQuiet="True">
+                <local:AboutSettingsConsoleInfoRow.Action>
+                    <Button Content="Open" Click="OnIssuesClick" ToolTipService.ToolTip="Opens Anvil's issue list on GitHub"/>
+                </local:AboutSettingsConsoleInfoRow.Action>
+            </local:AboutSettingsConsoleInfoRow>
+        </StackPanel>
+    </prim:SettingsConsolePlate>
+</UserControl>

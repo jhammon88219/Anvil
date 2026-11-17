@@ -522,12 +522,17 @@
                                                           Click="OnSettingsPageClick">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xEDA2;"/></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuAboutItem" Text="About" Tag="11"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 11), Mode=OneWay}"
+                                                          Click="OnSettingsPageClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE946;"/></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
                                     <!-- (Retired 2026-11-16, no items: Tag 10 Edges → Appearance; Tags 4 Window Mode + 9 Units → General.) -->
                                     <MenuFlyoutSeparator Visibility="{x:Bind DevOnly}"/>
-                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuDevItem" Text="Dev" Tag="11"
+                                    <ToggleMenuFlyoutItem x:Name="SettingsMenuDevItem" Text="Dev" Tag="12"
                                                           KeyboardAcceleratorTextOverride="Debug only"
                                                           Visibility="{x:Bind DevOnly}"
-                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 11), Mode=OneWay}"
+                                                          IsChecked="{x:Bind IsWindowPage(ViewModel.IsSettingsWindowOpen, ViewModel.SettingsTabIndex, 12), Mode=OneWay}"
                                                           Click="OnSettingsPageClick">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE912;"/></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>

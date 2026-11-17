@@ -260,7 +260,7 @@
                 <!-- No DEFAULT here (artboard 18, 2026-11-17): the selected row shows its own, in its plate's DEFAULT well.
                      Sits LOW (2026-11-17): 22 above, 6 to the hairline (was 14 / 14) — the header's height is unchanged. -->
                 <Grid x:Name="SettingsAboutBox" MinHeight="88" Margin="0,22,0,0"
-                      Visibility="{x:Bind PageOnly(IsSearchShown), Mode=OneWay}">
+                      Visibility="{x:Bind HasAboutBox, Mode=OneWay}">
                     <StackPanel>
                         <TextBlock x:Name="SettingsAboutCaption" FontSize="{StaticResource OverlineFontSize}" CharacterSpacing="{StaticResource OverlineCharacterSpacing}" LineHeight="{StaticResource OverlineLineHeight}"
                                    LineStackingStrategy="BlockLineHeight" TextTrimming="CharacterEllipsis"
@@ -316,6 +316,10 @@
                     <!-- Slot 9 (Units) has NO body: retired into General. -->
 
                     <!-- Slot 10 (Edges) has NO body: retired into Appearance; SettingsTabIndex never lands on it. -->
+
+                    <!-- Slot 11 (SettingsTab.About, 2026-11-17): facts, not settings — no Reset all, no About box. -->
+                    <cmp:AboutSettingsTab x:Name="AboutTab"
+                                          Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, IsSearchShown, 11), Mode=OneWay}"/>
 
                     <!-- ⚠️ x:Load, not Visibility — see the header. LoadDevTab is hard-false in Release, so
                          this body is never constructed there and its null engine VMs are never bound. -->

@@ -273,9 +273,12 @@ namespace Anvil.Controls.Windows
 				PageDescription = _searchCount == 0 ? "No settings match"
 					: $"{_searchCount} {(_searchCount == 1 ? "setting" : "settings")} on {_searchPages} {(_searchPages == 1 ? "page" : "pages")}";
 				HasResetAll = Visibility.Collapsed;
+				HasAboutBox = Visibility.Collapsed;
 				return;
 			}
 			var page = ViewModel.SettingsTabIndex;
+			// About (facts, no rows to pick) and Dev (expanders) have no About box.
+			HasAboutBox = page is (int)SettingsTab.About or (int)SettingsTab.Dev ? Visibility.Collapsed : Visibility.Visible;
 			var entry = System.Linq.Enumerable.FirstOrDefault(Tabs, t => t.PageIndex == page);
 			PageTitle = entry?.Label ?? string.Empty;
 			PageDescription = entry?.Tooltip ?? string.Empty;
@@ -324,6 +327,11 @@ namespace Anvil.Controls.Windows
 		public static readonly DependencyProperty ResetAllToolTipProperty =
 			DependencyProperty.Register(nameof(ResetAllToolTip), typeof(string), typeof(SettingsWindow), new PropertyMetadata(string.Empty));
 
+		/// <summary>The header's About box: hidden on the search results page, About and Dev (no rows to pick there).</summary>
+		public Visibility HasAboutBox { get => (Visibility)GetValue(HasAboutBoxProperty); private set => SetValue(HasAboutBoxProperty, value); }
+		public static readonly DependencyProperty HasAboutBoxProperty =
+			DependencyProperty.Register(nameof(HasAboutBox), typeof(Visibility), typeof(SettingsWindow), new PropertyMetadata(Visibility.Visible));
+
 		public Visibility HasResetAll { get => (Visibility)GetValue(HasResetAllProperty); private set => SetValue(HasResetAllProperty, value); }
 		public static readonly DependencyProperty HasResetAllProperty =
 			DependencyProperty.Register(nameof(HasResetAll), typeof(Visibility), typeof(SettingsWindow), new PropertyMetadata(Visibility.Collapsed));
@@ -347,28 +355,10 @@ namespace Anvil.Controls.Windows
 
 		// ── THE BAND's about-Anvil facts ──────────────────────────────────────────────────────────────
 		/// <summary>The installed package's version ("1.0.0.0"), or "—" when there's no package identity.</summary>
-		public string AppVersion { get; } = ReadVersion();
+		public string AppVersion => AboutSettingsConsoles.AboutAnvil.Version;
 
 		/// <summary>"Debug" or "Release" — which build is running.</summary>
-#if DEBUG
-		public string BuildKind => "Debug";
-#else
-		public string BuildKind => "Release";
-#endif
-
-		private static string ReadVersion()
-		{
-			try
-			{
-				// ⚠️ global:: — inside Anvil.Controls.Windows, a bare Windows.* resolves to this namespace.
-				var v = global::Windows.ApplicationModel.Package.Current.Id.Version;
-				return $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
-			}
-			catch (InvalidOperationException)
-			{
-				return "—"; // run without package identity
-			}
-		}
+		public string BuildKind => AboutSettingsConsoles.AboutAnvil.BuildKind;
 
 		/// <summary>The strip's tabs, in <see cref="SettingsTab"/> order. Built once per window instance.</summary>
 		public ObservableCollection<TabEntry> Tabs { get; }
@@ -482,6 +472,8 @@ namespace Anvil.Controls.Windows
 				new() { PageIndex = (int)SettingsTab.RangeRing, Glyph = "\uE81D", Label = "Rings & Ruler", Tooltip = "Which range rings are drawn, how each looks, the distance labels and the range ruler" },
 				new() { PageIndex = (int)SettingsTab.LiveData, Glyph = "\uE701", Label = "Live Data", Tooltip = "Where live updates come from (IEM, NOAA Weather Wire or polling), the polling intervals and the connection" },
 				new() { PageIndex = (int)SettingsTab.Storage, Glyph = "\uEDA2", Label = "Storage", Tooltip = "What Anvil keeps on disk and its limits, your map files, an offline map, and the online map" },
+				// E946 info \u2014 NOT verified. Eyeball it on first run.
+				new() { PageIndex = (int)SettingsTab.About, Glyph = "\uE946", Label = "About", Tooltip = "What Anvil is, where its data comes from, and what it's built with" },
 			};
 
 #if DEBUG

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AboutSettingsConsoleData — Settings → About → Data (artboard 22): where every feed comes from, one quiet line each,
+     then the not-affiliated line.
+
+       ┌ Data ──────────────────────────────────────────────────────────────┐
+       │ Radar                NEXRAD Level II · Unidata's buckets on AWS     │
+       │ Outlooks · reports   NOAA/NWS Storm Prediction Center               │
+       │ …                                                                   │
+       │ Anvil is independent: not affiliated with … NOAA, the NWS, or …    │
+       └─────────────────────────────────────────────────────────────────────┘
+     ⚠️ A NEW FEED adds its line here (and README.md's Data sources table). -->
+<UserControl x:Class="Anvil.Controls.AboutSettingsConsoles.AboutSettingsConsoleData"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:local="using:Anvil.Controls.AboutSettingsConsoles"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <prim:SettingsConsolePlate x:Name="AboutSettingsConsoleDataPlate" Title="Data">
+        <StackPanel>
+            <local:AboutSettingsConsoleInfoRow Label="Radar" IsQuiet="True" Value="NEXRAD Level II · Unidata's archive and chunks buckets on AWS"/>
+            <local:AboutSettingsConsoleInfoRow Label="Outlooks · reports" IsQuiet="True" Value="NOAA/NWS Storm Prediction Center"/>
+            <local:AboutSettingsConsoleInfoRow Label="Warnings · watches" IsQuiet="True" Value="NWS alerts (api.weather.gov) and NWS map services"/>
+            <local:AboutSettingsConsoleInfoRow Label="Past alerts · cells · live" IsQuiet="True" Value="Iowa Environmental Mesonet"/>
+            <local:AboutSettingsConsoleInfoRow Label="Tropical · models" IsQuiet="True" Value="National Hurricane Center · NOAA HRRR on AWS"/>
+            <local:AboutSettingsConsoleInfoRow Label="Place search" IsQuiet="True" Value="GeoNames (CC BY 4.0) · OpenStreetMap Nominatim"/>
+            <local:AboutSettingsConsoleInfoRow Label="Map" IsQuiet="True" Value="Protomaps · © OpenStreetMap contributors"/>
+            <TextBlock x:Name="AboutSettingsConsoleDataIndependent" Margin="0,8,0,0" Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                       Text="Anvil is independent: not affiliated with, endorsed by, or supported by NOAA, the National Weather Service, or Unidata."/>
+        </StackPanel>
+    </prim:SettingsConsolePlate>
+</UserControl>

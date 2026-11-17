@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AboutSettingsConsoleAnvil — Settings → About's first plate (artboard 22): what Anvil is, in the README's words.
+
+       ┌ Anvil ───────────────────────────────────────────────────────────────────────────┐
+       │ A severe-weather workstation for Windows.                         ← Body large   │
+       │ It decodes NEXRAD Level II radar itself, live or replayed …       ← Body, grey   │
+       │ ┌ Not for operational use. Rely on official NWS products … ┐      ← caution amber │
+       └──────────────────────────────────────────────────────────────────────────────────┘
+     ⚠️ Keep the words in step with README.md ("What it does" + the operational-use line). -->
+<UserControl x:Class="Anvil.Controls.AboutSettingsConsoles.AboutSettingsConsoleAnvil"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <prim:SettingsConsolePlate x:Name="AboutSettingsConsoleAnvilPlate" Title="Anvil">
+        <StackPanel Spacing="4">
+            <TextBlock x:Name="AboutSettingsConsoleAnvilTagline" Style="{StaticResource BodyLargeTextStyle}" TextWrapping="Wrap"
+                       Text="A severe-weather workstation for Windows."/>
+            <TextBlock x:Name="AboutSettingsConsoleAnvilSummary" Style="{StaticResource BodyTextStyle}" TextWrapping="Wrap" MaxWidth="900"
+                       HorizontalAlignment="Left" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="It decodes NEXRAD Level II radar itself, live or replayed from the archive, and draws it over a local map with SPC outlooks, watches, warnings and storm reports on top."/>
+            <Border x:Name="AboutSettingsConsoleAnvilCaution" Margin="0,8,0,0" HorizontalAlignment="Left" Padding="10,6"
+                    CornerRadius="4" BorderThickness="1"
+                    Background="{ThemeResource SettingsCautionBackgroundBrush}" BorderBrush="{ThemeResource SettingsCautionBorderBrush}">
+                <TextBlock Style="{StaticResource BodyStrongTextStyle}" TextWrapping="Wrap"
+                           Foreground="{ThemeResource SettingsCautionForegroundBrush}"
+                           Text="Not for operational use. Rely on official NWS products for any safety-of-life decision."/>
+            </Border>
+        </StackPanel>
+    </prim:SettingsConsolePlate>
+</UserControl>

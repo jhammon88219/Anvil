@@ -30,7 +30,7 @@ namespace Anvil.ViewModels
 	/// (<c>TabEntry.IsHidden</c>); <see cref="MapViewModel.SettingsTabIndex"/> sends it to the page that absorbed it.
 	/// <c>Map</c> is shown as "Appearance" (<c>Edges</c> retired into it); <c>Startup</c> is shown as "General" (<c>Units</c> and
 	/// <c>WindowMode</c> retired into it) — 2026-11-16. The rail's DISPLAY order is its own (<c>TabEntry.PageIndex</c>).</summary>
-	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Startup, LiveData, Basemap, Units, Edges, Dev }
+	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Startup, LiveData, Basemap, Units, Edges, About, Dev }
 
 	/// <summary>
 	/// View model for the NON-radar map concerns: selectable basemap styles + current selection,
@@ -1739,9 +1739,9 @@ namespace Anvil.ViewModels
 		/// Basemap. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
 		/// selecting a tab that does not exist in a shipped build.</summary>
 #if DEBUG
-		public const int SettingsTabCount = 12;
+		public const int SettingsTabCount = 13; // + About (2026-11-17), before Dev
 #else
-		public const int SettingsTabCount = 11;
+		public const int SettingsTabCount = 12;
 #endif
 
 		private int _settingsTabIndex;
