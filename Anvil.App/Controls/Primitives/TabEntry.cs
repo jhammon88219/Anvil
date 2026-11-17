@@ -51,6 +51,15 @@ namespace Anvil.Controls.Primitives
 			set => SetProperty(ref _isEnabled, value);
 		}
 
+		private bool _joinsBody;
+		/// <summary>The strip's <see cref="TabStrip.JoinsBody"/>, copied onto every row so the item template can read it.
+		/// Written by the strip only.</summary>
+		public bool JoinsBody
+		{
+			get => _joinsBody;
+			set => SetProperty(ref _joinsBody, value);
+		}
+
 		private bool _isSelected;
 		/// <summary>Whether this is the rail's current row. Written by the strip only.</summary>
 		public bool IsSelected

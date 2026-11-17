@@ -4,6 +4,8 @@ using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Media;
+using Windows.Foundation;
 
 namespace Anvil.Controls.Primitives
 {
@@ -49,9 +51,55 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(SelectedIndex), typeof(int), typeof(TabStrip),
 				new PropertyMetadata(0, (d, _) => ((TabStrip)d).ApplySelection()));
 
+		/// <summary>
+		/// The selected row draws NO face and NO accent bar of its own: the host's body reaches out around it
+		/// (PlateOutline's JOIN, the Settings window — the user's pick 2026-11-17), so the page's ground IS its face. The
+		/// host measures the row with <see cref="SelectedRowBounds"/>.
+		/// </summary>
+		public bool JoinsBody
+		{
+			get => (bool)GetValue(JoinsBodyProperty);
+			set => SetValue(JoinsBodyProperty, value);
+		}
+
+		public static readonly DependencyProperty JoinsBodyProperty =
+			DependencyProperty.Register(nameof(JoinsBody), typeof(bool), typeof(TabStrip),
+				new PropertyMetadata(false, (d, _) => ((TabStrip)d).ApplySelection()));
+
+		/// <summary>
+		/// The selected row's button box in <paramref name="relativeTo"/>'s coordinates, or null while nothing is selected or
+		/// its row isn't built yet.
+		/// </summary>
+		public Rect? SelectedRowBounds(UIElement relativeTo)
+		{
+			int position = Entries.ToList().FindIndex(e => e.IsSelected);
+			if (position < 0 || Host.ContainerFromIndex(position) is not DependencyObject container) { return null; }
+			var button = FindButton(container);
+			if (button is null || button.ActualHeight <= 0) { return null; }
+			return button.TransformToVisual(relativeTo).TransformBounds(new Rect(0, 0, button.ActualWidth, button.ActualHeight));
+		}
+
+		private static ToggleButton? FindButton(DependencyObject root)
+		{
+			for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+			{
+				var child = VisualTreeHelper.GetChild(root, i);
+				if (child is ToggleButton button) { return button; }
+				if (FindButton(child) is ToggleButton found) { return found; }
+			}
+			return null;
+		}
+
 		/// <summary>Bool → Visibility for the item template. A static so a DataTemplate can call it (x:Bind
 		/// inside a template resolves against the ENTRY, so an instance method here is out of reach).</summary>
 		public static Visibility Show(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
+
+		/// <summary>The accent bar: the selected row only, and never while it joins the body.</summary>
+		public static Visibility ShowBar(bool selected, bool joinsBody) => selected && !joinsBody ? Visibility.Visible : Visibility.Collapsed;
+
+		/// <summary>The row's look (a Style is safe to read in C#; a theme BRUSH would not be).</summary>
+		public static Style RowStyle(bool joinsBody) =>
+			(Style)Application.Current.Resources[joinsBody ? "NavRailJoinedTabStyle" : "NavRailTabStyle"];
 
 		private IEnumerable<TabEntry> Entries =>
 			ItemsSource?.OfType<TabEntry>() ?? Enumerable.Empty<TabEntry>();
@@ -65,6 +113,7 @@ namespace Anvil.Controls.Primitives
 			int i = 0;
 			foreach (var entry in Entries)
 			{
+				entry.JoinsBody = JoinsBody;
 				entry.IsSelected = PageOf(entry, i) == SelectedIndex;
 				i++;
 			}

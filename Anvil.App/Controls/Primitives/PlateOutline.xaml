@@ -32,6 +32,20 @@
          ░░░░░│  body (ground)
          rail │
 
+     ⭐ THE JOIN (inset corner, 2026-11-17 — the user's pick "A"): the host's SELECTED rail entry is cut from the body's
+     own ground. SetJoin(left, top, bottom) (the host measures the entry); the line runs ROUND it, 8 px fillets where it
+     meets the body's edge, 4 px corners on its far end; filled with JoinFill = whatever paints the body (bound by the host).
+     Next to the top it becomes ONE S-curve into the body's top edge (the first entry):
+
+         a middle entry                              the first entry (S-curve)
+         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░                ░░░░░░░░░░░░░░░╭──────────
+         ░░ General    ░╭────────────                ░╭─────────────╯
+         ░╭────────────╯   body                      ░│ General          body
+         ░│ Appearance                               ░╰─────────────╮
+         ░╰────────────╮                             ░░ Appearance  │
+         ░░ Radar      │                             ░░ Radar       │
+      Three Paths, one silhouette: PlateOutlineWedge (raised) · PlateOutlineJoin (JoinFill) · PlateOutlineFace (the line, last).
+
      Host contract: stretch it over the plate's whole rect, BEHIND the content. TabLeft/TabWidth/TabHeight = the tab's
      box in this control's own coordinates (0 width = no tab).
      ============================================================================ -->
@@ -75,6 +89,11 @@
             <Path x:Name="PlateOutlineShadowRing4" Stroke="Black" StrokeThickness="8" StrokeLineJoin="Round" Opacity="0.16"/>
             <Path x:Name="PlateOutlineShadowRing2" Stroke="Black" StrokeThickness="4" StrokeLineJoin="Round" Opacity="0.22"/>
         </Canvas>
+
+        <!-- INSET CORNER only (empty otherwise): the raised wedge outside the corner curve, then the JOIN filled with the
+             body's ground (JoinFill, the host's brush). No strokes — the line is PlateOutlineFace's, drawn last, over both. -->
+        <Path x:Name="PlateOutlineWedge" Fill="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+        <Path x:Name="PlateOutlineJoin" Fill="{x:Bind JoinFill, Mode=OneWay}"/>
 
         <!-- THE FACE + THE HAIRLINE — one Path. StrokeThickness is set in code to one screen pixel. -->
         <Path x:Name="PlateOutlineFace"

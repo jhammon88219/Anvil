@@ -176,7 +176,14 @@ namespace Anvil.Controls.Primitives
 
 		private double Scrollable => _viewer is null ? 0 : Math.Max(0, _viewer.ExtentHeight - _viewer.ViewportHeight);
 
-		private void OnViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) => UpdateThumb();
+		/// <summary>The content moved (any scroll) — for a host that draws something tied to a row inside (Settings' rail join).</summary>
+		public event EventHandler? Scrolled;
+
+		private void OnViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
+		{
+			UpdateThumb();
+			Scrolled?.Invoke(this, EventArgs.Empty);
+		}
 
 		private void OnGeometryChanged(object sender, SizeChangedEventArgs e) => UpdateThumb();
 

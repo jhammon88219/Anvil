@@ -8,9 +8,12 @@
        │ [logo] Anvil Settings ←35→ VERSION │ BUILD   LICENSE   SOURCE    ░░░ lock pin ─ □ ✕ ░│ ← THE BAND (raised):
        │ (slot)                     1.0.0.0 │ Debug   AGPL-3.0  GitHub    ░ reserved 220 px ░ │   about-Anvil facts,
        │░░░░░░░░░░░░░░░░░░╭───────────────────────────────────────────────────────────────────┤   label OVER value
-       │   ⏻  General     │  (first in the rail — page 6, the old Startup slot)
-       │▌▓ ◐ Appearance ▓▓│  ┌ Theme ───────────────────────────────────────────────────────┐ │   ← band + rail = ONE grey L;
-       │   ◎  Radar       │  │ …                                                    DEFAULT │ │     the only line = the BODY's
+       │   ⏻  General    ░│  (first in the rail — page 6, the old Startup slot)
+       │╭─────────────────╯                                                                    │   ← THE JOIN: the selected entry
+       ││  ◐ Appearance       ┌ Theme ───────────────────────────────────────────────────────┐ │     is cut from the page's own
+       │╰─────────────────╮  │ …                                                    DEFAULT │ │     ground, the line runs round it
+       │   ◎  Radar       │  │ …                                                            │ │   ← band + rail = ONE grey L;
+       │                  │  │ …                                                            │ │     the only line = the BODY's
        │   ⊙  Radar Range │  └──────────────────────────────────────────────────────────────┘ │     outline (left + top, 10 px
        │   ▤  Storage     │     12 px of the darker ground between sections                    │     inside curve) = PlateOutline
        │   …              │  ┌ Edges  [Restore defaults] ──────────────────────────────────┐ │     IsInsetCorner
@@ -18,6 +21,10 @@
        │   ⚒  Dev         │  └──────────────────────────────────────────────────────────────┘ │     WIDTH, one UserControl per
        └──────────────────┴───────────────────────────────────────────────────────────────────┘     page (Composites)
         ↑ Primitives/TabStrip, 220 wide, raised (its edge line is the body outline's, not its own)
+     ⭐ THE JOIN (the user's pick "A", 2026-11-17): the selected rail entry has NO face or accent bar of its own (TabStrip
+        JoinsBody); the body outline (PlateOutline.SetJoin, measured in UpdateRailJoin) reaches out round it, filled with
+        the ROOT's Background — so it is always whatever the page sits on. 8 px fillets where it meets the body's edge; the
+        first entry's top becomes one S-curve into the body's top. Layer order: rail face → outline + join → rail entries.
      ⭐ SECTIONS (2026-11-16, page by page): each section is its OWN named control on a Primitives/SettingsConsolePlate
         (titled card, never collapses), 12 apart — Appearance + Storage so far; the rest still use SettingsExpander until
         redone (Dev keeps its expanders). The rail's DISPLAY order is free (each TabEntry names its page by PageIndex);
@@ -53,7 +60,9 @@
              mc:Ignorable="d">
 
     <!-- Dark surface fills the whole window. -->
-    <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
+    <!-- ⚠️ This Background IS the page ground: the body outline's JOIN binds to it, so the selected rail entry always wears
+         whatever the page sits on. Change the ground HERE and the join follows. -->
+    <Grid x:Name="SettingsWindowRoot" Background="{ThemeResource OverlayBarSurfaceBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- the title band -->
             <RowDefinition Height="*"/>    <!-- rail | body -->
@@ -114,24 +123,33 @@
             </Grid>
         </Border>
 
-        <!-- THE RAIL — raised, NO line of its own (see the body outline). The entries are BuildTabs'. -->
-        <Border x:Name="SettingsRail" Grid.Row="1"
-                Background="{ThemeResource OverlayBarSurfaceRaisedBrush}">
+        <!-- THE RAIL'S FACE — raised, NO line of its own (see the body outline). Its own element, UNDER the body outline,
+             because the outline's JOIN paints over the rail (the selected entry) and the entries must paint over the join. -->
+        <Border x:Name="SettingsRailFace" Grid.Row="1" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+
+        <!-- THE BODY OUTLINE — Primitives/PlateOutline, inset-corner mode: the hairline up the body's left edge, round a 10 px
+             curve, along its top; the raised wedge outside the curve, so the band's grey flows into the rail's with no line
+             between them. ⭐ THE JOIN (the user's pick "A", 2026-11-17): the body reaches out over the rail round the
+             SELECTED entry, filled with the page's ground (JoinFill = the root's Background) and the hairline runs round it —
+             the page flows into its entry. Its box comes from code (UpdateRailJoin: the entry's measured bounds). Behind the
+             body, never hit-testable. Rounded chrome = one outline (docs/bugs.md S30/S31) — never Borders meeting at a corner. -->
+        <ctl:PlateOutline x:Name="SettingsBodyOutline" Grid.Row="1" Grid.Column="1"
+                          IsInsetCorner="True" IsRaised="True" ShowShadow="False" IsHitTestVisible="False"
+                          JoinFill="{x:Bind SettingsWindowRoot.Background, Mode=OneWay}"
+                          SizeChanged="OnRailJoinMoved"/>
+
+        <!-- THE RAIL — its entries, over the join. The entries are BuildTabs'; JoinsBody = the selected one draws no face or
+             bar (the join is its face). -->
+        <Border x:Name="SettingsRail" Grid.Row="1">
             <!-- ⚠️ NEVER WinUI's overlay bar (the user's hard rule): our PanelScroller, its 16 px gutter ALWAYS claimed on the
-                 right — it is the rows' right margin (was 6), so the rows never slide under a bar. -->
-            <ctl:PanelScroller x:Name="SettingsRailScroller">
-                <ctl:TabStrip x:Name="Strip" Margin="6,8,0,8"
+                 right — it is the rows' right margin (was 6), so the rows never slide under a bar. The JOIN runs on over
+                 that gutter to meet the body. -->
+            <ctl:PanelScroller x:Name="SettingsRailScroller" Scrolled="OnRailJoinMoved">
+                <ctl:TabStrip x:Name="Strip" Margin="6,8,0,8" JoinsBody="True" SizeChanged="OnRailJoinMoved"
                               ItemsSource="{x:Bind Tabs}"
                               SelectedIndex="{x:Bind ViewModel.SettingsTabIndex, Mode=TwoWay}"/>
             </ctl:PanelScroller>
         </Border>
-
-        <!-- THE BODY OUTLINE — ONE Path (Primitives/PlateOutline, inset-corner mode): the hairline up the body's left edge,
-             round a 10 px curve, along its top; the raised wedge outside the curve, so the band's grey flows into the
-             rail's with no line between them. Behind the body, never hit-testable. Rounded chrome = one outline
-             (docs/bugs.md S30/S31) — never two Borders meeting at the corner. -->
-        <ctl:PlateOutline x:Name="SettingsBodyOutline" Grid.Row="1" Grid.Column="1"
-                          IsInsetCorner="True" IsRaised="True" ShowShadow="False" IsHitTestVisible="False"/>
 
         <!-- The body: the sections column FILLS it (every section stretches edge to edge — option A, the user's call
              2026-11-11). The rows INSIDE a section keep their own widths. (The live map preview that split some pages

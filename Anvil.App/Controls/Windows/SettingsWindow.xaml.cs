@@ -25,7 +25,27 @@ namespace Anvil.Controls.Windows
 			{
 				Body.ScrollToTop();
 				RefreshPageHeader();
+				UpdateRailJoin();
 			});
+		}
+
+		// ── THE RAIL JOIN: the body outline reaches out round the selected rail entry (PlateOutline.SetJoin) ──────────────
+		// WHY CODE: the join's box is the entry's MEASURED position (computed geometry); the shapes are declared in
+		// PlateOutline.xaml. Re-measured when the selection, the rail's layout, its scroll or the body's size changes. An entry
+		// scrolled even partly out of the rail drops the join (it would run over the band).
+		private void OnRailJoinMoved(object sender, object e) => UpdateRailJoin();
+
+		private void UpdateRailJoin()
+		{
+			if (Strip.SelectedRowBounds(SettingsBodyOutline) is global::Windows.Foundation.Rect row
+				&& row.Top >= 0 && row.Bottom <= SettingsRailScroller.ActualHeight)
+			{
+				SettingsBodyOutline.SetJoin(row.Left, row.Top, row.Bottom);
+			}
+			else
+			{
+				SettingsBodyOutline.ClearJoin();
+			}
 		}
 
 		// ── THE PAGE HEADER: title, description, and the About box for the page's SELECTED row ─────────────────────────

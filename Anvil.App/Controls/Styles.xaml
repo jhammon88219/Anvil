@@ -763,6 +763,84 @@
         </Setter>
     </Style>
 
+    <!-- NavRailTabStyle's twin for a TabStrip with JoinsBody (the Settings window, 2026-11-17): identical but SELECTED draws
+         NO face — the host's body outline (PlateOutline's JOIN) reaches out round the row in the page's own ground, and
+         that IS the face. Selected = primary text only; hover / press lift only an UNSELECTED row (a lift on the join
+         would cover the page's ground). Kept beside its twin so a change to one is seen against the other. -->
+    <Style x:Key="NavRailJoinedTabStyle" TargetType="ToggleButton">
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Checked">
+                                    <VisualState.Setters>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedDisabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+
+                        <Border x:Name="Surface"
+                                Background="Transparent"
+                                CornerRadius="{TemplateBinding CornerRadius}"/>
+
+                        <ContentPresenter x:Name="Content"
+                                          Padding="{TemplateBinding Padding}"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- A panel window's caption-band toggle — PinToggle + LockToggle. Glyph only: NO fill and NO border in
          any state but hover. OFF = a dim (tertiary) glyph, ON = the plain primary glyph — no accent, on purpose:
          both default ON, so the "on" look is the one you see all day and must not shout. Hover lays the faint

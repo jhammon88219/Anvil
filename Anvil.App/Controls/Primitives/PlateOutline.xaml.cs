@@ -104,6 +104,47 @@ namespace Anvil.Controls.Primitives
 		/// <summary>The inset corner's radius.</summary>
 		private const double InsetCornerRadius = 10;
 
+		// ── THE JOIN (inset corner only, 2026-11-17): the host's SELECTED rail entry cut from the body's own ground ──────
+		/// <summary>The fillet where the join's top / bottom edge meets the body's left edge.</summary>
+		private const double JoinFillet = 8;
+
+		/// <summary>The join's own outer corners (= a rail row's CornerRadius).</summary>
+		private const double JoinCorner = 4;
+
+		private double _joinLeft;
+		private double _joinTop;
+		private double _joinBottom;
+
+		/// <summary>
+		/// The body's ground, which the JOIN is filled with — bind it to whatever paints the body (the Settings window binds
+		/// its root's Background), so the selected rail entry always takes the page's ground, never a colour of its own.
+		/// </summary>
+		public Brush? JoinFill
+		{
+			get => (Brush?)GetValue(JoinFillProperty);
+			set => SetValue(JoinFillProperty, value);
+		}
+
+		public static readonly DependencyProperty JoinFillProperty =
+			DependencyProperty.Register(nameof(JoinFill), typeof(Brush), typeof(PlateOutline), new PropertyMetadata(null));
+
+		/// <summary>
+		/// INSET CORNER: the body reaches out over the rail around the box <paramref name="left"/> (negative — left of the
+		/// body's edge) · <paramref name="top"/> · <paramref name="bottom"/>, in this control's coordinates, and the hairline
+		/// runs ROUND it. The host measures the selected entry and calls this (computed geometry — see the XAML header).
+		/// </summary>
+		public void SetJoin(double left, double top, double bottom)
+		{
+			if (left == _joinLeft && top == _joinTop && bottom == _joinBottom) { return; }
+			(_joinLeft, _joinTop, _joinBottom) = (left, top, bottom);
+			Rebuild();
+		}
+
+		/// <summary>No join: the plain inset corner.</summary>
+		public void ClearJoin() => SetJoin(0, 0, 0);
+
+		private bool HasJoin => IsInsetCorner && _joinLeft < -2 * JoinCorner && _joinBottom - _joinTop >= 2 * JoinCorner;
+
 		/// <summary>Raised face (the pane selectors, the radar console) rather than the ground face.</summary>
 		public bool IsRaised
 		{
@@ -185,6 +226,8 @@ namespace Anvil.Controls.Primitives
 			PlateOutlineShadowRing6.Data = BuildOutline(width, height, scale);
 			PlateOutlineShadowRing8.Data = BuildOutline(width, height, scale);
 			PlateOutlineShadowRing10.Data = BuildOutline(width, height, scale);
+			PlateOutlineWedge.Data = IsInsetCorner ? BuildInsetWedge(scale) : null;
+			PlateOutlineJoin.Data = HasJoin ? BuildJoinFill(scale) : null;
 		}
 
 		// The silhouette, clockwise from the top-left. Every straight run sits on the CENTRE of a screen pixel (edges
@@ -270,44 +313,120 @@ namespace Anvil.Controls.Primitives
 			return geometry;
 		}
 
-		// INSET CORNER: two figures in ONE geometry, so one Path's Fill + Stroke draw both with no seam.
-		//   1. the WEDGE — the corner point to the curve, FILLED (raised grey); its edges lie exactly on the line below,
-		//      so stroking it adds nothing new;
-		//   2. the LINE — open, unfilled: up the left edge from the bottom, round the curve, along the top to the right.
-		// Every straight run sits on a pixel centre, like the plate's.
-		private static PathGeometry BuildInsetCorner(double width, double height, double scale)
+		// INSET CORNER — three Paths share ONE silhouette (each built here, so they meet exactly):
+		//   PlateOutlineFace  = the LINE (open, unfilled): up the body's left edge, round the JOIN if there is one, round the
+		//                       10 px corner, along the top to the right;
+		//   PlateOutlineWedge = the raised fill outside the corner curve (band + rail read as one grey L) — no stroke;
+		//   PlateOutlineJoin  = the join's fill (JoinFill = the body's ground) — no stroke.
+		// When the join's top fillet would run into the corner curve (the FIRST rail entry), the two become ONE S-curve
+		// from the join's top edge to the body's top edge. Every straight run sits on a pixel centre, like the plate's.
+		private readonly record struct InsetFrame(double Left, double Top, double Right, double Bottom, double Half,
+			double JoinLeft, double JoinTop, double JoinBottom, bool MeetsTop);
+
+		private InsetFrame Frame(double scale)
 		{
 			double half = 0.5 / scale;
 			double Snap(double value) => Math.Round(value * scale) / scale;
-			double left = half;
-			double top = half;
-			double right = Snap(width);
-			double bottom = Snap(height);
+			double joinTop = Snap(_joinTop) + half;
+			return new InsetFrame(half, half, Snap(ActualWidth), Snap(ActualHeight), half,
+				Snap(_joinLeft) + half, joinTop, Snap(_joinBottom) - half,
+				MeetsTop: joinTop - JoinFillet < half + InsetCornerRadius);
+		}
+
+		private PathGeometry BuildInsetCorner(double width, double height, double scale)
+		{
+			_ = (width, height);
+			var f = Frame(scale);
 			double r = InsetCornerRadius;
+			var line = new PathFigure { StartPoint = new Point(f.Left, f.Bottom), IsClosed = false, IsFilled = false };
 
-			var wedge = new PathFigure { StartPoint = new Point(left, top), IsClosed = true, IsFilled = true };
-			wedge.Segments.Add(new LineSegment { Point = new Point(left + r, top) });
-			wedge.Segments.Add(new ArcSegment
+			if (HasJoin)
 			{
-				Point = new Point(left, top + r),
-				Size = new Size(r, r),
-				SweepDirection = SweepDirection.Counterclockwise,
-			});
-
-			var line = new PathFigure { StartPoint = new Point(left, bottom), IsClosed = false, IsFilled = false };
-			line.Segments.Add(new LineSegment { Point = new Point(left, top + r) });
-			line.Segments.Add(new ArcSegment
+				line.Segments.Add(new LineSegment { Point = new Point(f.Left, f.JoinBottom + JoinFillet) });
+				AddJoinRun(line, f);
+			}
+			if (!HasJoin || !f.MeetsTop)
 			{
-				Point = new Point(left + r, top),
-				Size = new Size(r, r),
-				SweepDirection = SweepDirection.Clockwise,
-			});
-			line.Segments.Add(new LineSegment { Point = new Point(right, top) });
+				line.Segments.Add(new LineSegment { Point = new Point(f.Left, f.Top + r) });
+				line.Segments.Add(new ArcSegment { Point = new Point(f.Left + r, f.Top), Size = new Size(r, r), SweepDirection = SweepDirection.Clockwise });
+			}
+			line.Segments.Add(new LineSegment { Point = new Point(f.Right, f.Top) });
 
 			var geometry = new PathGeometry();
-			geometry.Figures.Add(wedge);
 			geometry.Figures.Add(line);
 			return geometry;
+		}
+
+		// The raised fill outside the corner. With the S-curve it reaches left over the rail (the rail's own grey, so unseen).
+		private PathGeometry BuildInsetWedge(double scale)
+		{
+			var f = Frame(scale);
+			double r = InsetCornerRadius;
+			PathFigure wedge;
+			if (HasJoin && f.MeetsTop)
+			{
+				wedge = new PathFigure { StartPoint = new Point(f.Left - JoinFillet, f.Top), IsClosed = true, IsFilled = true };
+				wedge.Segments.Add(new LineSegment { Point = new Point(f.Left + r, f.Top) });
+				wedge.Segments.Add(new BezierSegment
+				{
+					Point1 = new Point(f.Left, f.Top),
+					Point2 = new Point(f.Left, f.JoinTop),
+					Point3 = new Point(f.Left - JoinFillet, f.JoinTop),
+				});
+			}
+			else
+			{
+				wedge = new PathFigure { StartPoint = new Point(f.Left, f.Top), IsClosed = true, IsFilled = true };
+				wedge.Segments.Add(new LineSegment { Point = new Point(f.Left + r, f.Top) });
+				wedge.Segments.Add(new ArcSegment { Point = new Point(f.Left, f.Top + r), Size = new Size(r, r), SweepDirection = SweepDirection.Counterclockwise });
+			}
+			var geometry = new PathGeometry();
+			geometry.Figures.Add(wedge);
+			return geometry;
+		}
+
+		// The join's fill: the same run as the line, closed back along the body's edge (inside the body = its ground anyway).
+		private PathGeometry BuildJoinFill(double scale)
+		{
+			var f = Frame(scale);
+			var fill = new PathFigure { StartPoint = new Point(f.Left, f.JoinBottom + JoinFillet), IsClosed = true, IsFilled = true };
+			AddJoinRun(fill, f);
+			if (f.MeetsTop)
+			{
+				fill.Segments.Add(new LineSegment { Point = new Point(f.Left + InsetCornerRadius, f.JoinBottom + JoinFillet) });
+			}
+			var geometry = new PathGeometry();
+			geometry.Figures.Add(fill);
+			return geometry;
+		}
+
+		// From (body edge, under the join) round the join to the body: bottom fillet, the join's bottom, its rounded left
+		// end, its top, then the top fillet (ends on the body's edge) — or, when it meets the top, the S-curve (ends on the
+		// body's top edge, past the corner).
+		private static void AddJoinRun(PathFigure figure, InsetFrame f)
+		{
+			double fl = JoinFillet;
+			double c = JoinCorner;
+			var segments = figure.Segments;
+			segments.Add(new ArcSegment { Point = new Point(f.Left - fl, f.JoinBottom), Size = new Size(fl, fl), SweepDirection = SweepDirection.Counterclockwise });
+			segments.Add(new LineSegment { Point = new Point(f.JoinLeft + c, f.JoinBottom) });
+			segments.Add(new ArcSegment { Point = new Point(f.JoinLeft, f.JoinBottom - c), Size = new Size(c, c), SweepDirection = SweepDirection.Clockwise });
+			segments.Add(new LineSegment { Point = new Point(f.JoinLeft, f.JoinTop + c) });
+			segments.Add(new ArcSegment { Point = new Point(f.JoinLeft + c, f.JoinTop), Size = new Size(c, c), SweepDirection = SweepDirection.Clockwise });
+			segments.Add(new LineSegment { Point = new Point(f.Left - fl, f.JoinTop) });
+			if (f.MeetsTop)
+			{
+				segments.Add(new BezierSegment
+				{
+					Point1 = new Point(f.Left, f.JoinTop),
+					Point2 = new Point(f.Left, f.Top),
+					Point3 = new Point(f.Left + InsetCornerRadius, f.Top),
+				});
+			}
+			else
+			{
+				segments.Add(new ArcSegment { Point = new Point(f.Left, f.JoinTop - fl), Size = new Size(fl, fl), SweepDirection = SweepDirection.Counterclockwise });
+			}
 		}
 	}
 }
