@@ -8,7 +8,7 @@ namespace Anvil.Controls.Composites
 	/// Settings → Live Data (see the XAML header): Source, Weather Wire account, Polling and Connection — each its own section
 	/// control — over <see cref="LiveDataViewModel"/>.
 	/// </summary>
-	public sealed partial class LiveDataSettingsTab : UserControl
+	public sealed partial class LiveDataSettingsTab : UserControl, Primitives.ISettingsPage
 	{
 		public LiveDataSettingsTab()
 		{
@@ -25,7 +25,9 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(LiveDataViewModel), typeof(LiveDataSettingsTab), new PropertyMetadata(null));
 
-		private async void OnResetAll(object sender, RoutedEventArgs e)
+		public string ResetAllToolTip => "Source and every polling interval back to their DEFAULT columns (asks first). Your Weather Wire account is kept";
+
+		public async void ResetAll()
 		{
 			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Reset all Live Data settings?",
 				"The source and every polling interval go back to their defaults — the DEFAULT column on this page. Your NOAA Weather " +

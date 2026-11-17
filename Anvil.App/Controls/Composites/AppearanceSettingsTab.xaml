@@ -9,7 +9,7 @@
        ┌ Edges  [Restore defaults] ────────────────────────────────────────── DEFAULT ┐
        │ Pattern · Style · Line colour · 4 sliders · panes' edges                  …   │  AppearanceSettingsConsoleEdges
        └─────────────────────────────────────────────────────────────────────────────────┘
-       [                 Reset all Appearance settings  (caution amber)                  ]  Primitives/CautionResetButton
+       (Reset all Appearance settings = the window's page header, beside the title — this page's ResetAll, ISettingsPage)
 
      ⚠️ Every reset ASKS first (Dialogs/ConfirmResetDialog) — Reset all here (MapViewModel.ResetAppearance), and each section's
      Restore defaults.
@@ -31,9 +31,5 @@
         <appearanceSettingsConsoles:AppearanceSettingsConsoleTheme x:Name="AppearanceSettingsConsoleTheme"
                                                                    ViewModel="{x:Bind ViewModel}"/>
         <appearanceSettingsConsoles:AppearanceSettingsConsoleEdges x:Name="AppearanceSettingsConsoleEdges"
-                                                                   ViewModel="{x:Bind ViewModel.EdgeHatch}"/>
-        <prim:CautionResetButton x:Name="AppearanceSettingsResetAllButton"
-                                 Text="Reset all Appearance settings" Click="OnResetAll"
-                                 ToolTipService.ToolTip="Theme and Edges back to their DEFAULT columns (asks first)"/>
-    </StackPanel>
+                                                                   ViewModel="{x:Bind ViewModel.EdgeHatch}"/>    </StackPanel>
 </UserControl>

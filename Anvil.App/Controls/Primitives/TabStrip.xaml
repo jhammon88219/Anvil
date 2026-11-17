@@ -74,7 +74,7 @@
                                       VerticalAlignment="Center"
                                       Glyph="{x:Bind Glyph}"/>
                             <TextBlock Text="{x:Bind Label}"
-                                       FontSize="13"
+                                       FontSize="{x:Bind LabelFontSize, Mode=OneWay}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"/>
                         </StackPanel>

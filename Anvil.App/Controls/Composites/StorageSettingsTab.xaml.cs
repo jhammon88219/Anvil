@@ -8,7 +8,7 @@ namespace Anvil.Controls.Composites
 	/// Settings → Storage (see the XAML header): On disk, Map, Offline map and Online map — each its own section control — over
 	/// the coordinator <see cref="MapViewModel"/> (<see cref="MapViewModel.Storage"/> + <see cref="MapViewModel.BasemapSetup"/>).
 	/// </summary>
-	public sealed partial class StorageSettingsTab : UserControl
+	public sealed partial class StorageSettingsTab : UserControl, Primitives.ISettingsPage
 	{
 		public StorageSettingsTab()
 		{
@@ -28,7 +28,9 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(StorageSettingsTab), new PropertyMetadata(null));
 
-		private async void OnResetAll(object sender, RoutedEventArgs e)
+		public string ResetAllToolTip => "Every limit and the Offline map choices back to their DEFAULT columns (asks first). No map file is deleted";
+
+		public async void ResetAll()
 		{
 			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Reset all Storage settings?",
 				"Every Max size and Keep for, and the Offline map's area, detail and folder, go back to their defaults — the DEFAULT " +

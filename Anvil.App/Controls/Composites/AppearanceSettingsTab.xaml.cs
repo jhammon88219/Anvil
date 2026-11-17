@@ -5,7 +5,7 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>Settings → Appearance (see the XAML header): the Theme and Edges sections.</summary>
-	public sealed partial class AppearanceSettingsTab : UserControl
+	public sealed partial class AppearanceSettingsTab : UserControl, Primitives.ISettingsPage
 	{
 		public AppearanceSettingsTab()
 		{
@@ -22,7 +22,9 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(AppearanceSettingsTab), new PropertyMetadata(null));
 
-		private async void OnResetAll(object sender, RoutedEventArgs e)
+		public string ResetAllToolTip => "Theme and Edges back to their DEFAULT columns (asks first)";
+
+		public async void ResetAll()
 		{
 			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Reset all Appearance settings?",
 				"Theme and Edges go back to their defaults — the DEFAULT column on this page. This can't be undone."))

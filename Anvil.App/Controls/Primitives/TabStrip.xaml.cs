@@ -66,6 +66,17 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(JoinsBody), typeof(bool), typeof(TabStrip),
 				new PropertyMetadata(false, (d, _) => ((TabStrip)d).ApplySelection()));
 
+		/// <summary>The rows' name size: 13 (the Atlas); Settings sets 15 (2026-11-17). The marks stay 16.</summary>
+		public double LabelFontSize
+		{
+			get => (double)GetValue(LabelFontSizeProperty);
+			set => SetValue(LabelFontSizeProperty, value);
+		}
+
+		public static readonly DependencyProperty LabelFontSizeProperty =
+			DependencyProperty.Register(nameof(LabelFontSize), typeof(double), typeof(TabStrip),
+				new PropertyMetadata(13d, (d, _) => ((TabStrip)d).ApplySelection()));
+
 		/// <summary>
 		/// The selected row's button box in <paramref name="relativeTo"/>'s coordinates, or null while nothing is selected or
 		/// its row isn't built yet.
@@ -114,6 +125,7 @@ namespace Anvil.Controls.Primitives
 			foreach (var entry in Entries)
 			{
 				entry.JoinsBody = JoinsBody;
+				entry.LabelFontSize = LabelFontSize;
 				entry.IsSelected = PageOf(entry, i) == SelectedIndex;
 				i++;
 			}

@@ -13,7 +13,7 @@
        ┌ Window  [Restore defaults (greyed)] ──────────────────────── DEFAULT ┐  GeneralSettingsConsoleWindow
        │ Monitors (greyed)                                                    │
        └──────────────────────────────────────────────────────────────────────┘
-       [              Reset all General settings  (caution amber)            ]  Primitives/CautionResetButton
+       (Reset all General settings = the window's page header, beside the title — this page's ResetAll, ISettingsPage)
 
      ⚠️ Every reset ASKS first (Dialogs/ConfirmResetDialog) — Reset all here, and each section's Restore defaults.
      ⚠️ Every launch preference lives in Startup — a new one is a row there, not a new page. The HOME SITE shows here ONLY
@@ -31,9 +31,5 @@
     <StackPanel Spacing="12" VerticalAlignment="Top">
         <generalSettingsConsoles:GeneralSettingsConsoleStartup x:Name="GeneralSettingsConsoleStartup" ViewModel="{x:Bind ViewModel}"/>
         <generalSettingsConsoles:GeneralSettingsConsoleUnits x:Name="GeneralSettingsConsoleUnits" ViewModel="{x:Bind ViewModel}"/>
-        <generalSettingsConsoles:GeneralSettingsConsoleWindow x:Name="GeneralSettingsConsoleWindow" ViewModel="{x:Bind ViewModel}"/>
-        <prim:CautionResetButton x:Name="GeneralSettingsResetAllButton"
-                                 Text="Reset all General settings" Click="OnResetAll"
-                                 ToolTipService.ToolTip="Startup, Units and Window back to their DEFAULT columns (asks first)"/>
-    </StackPanel>
+        <generalSettingsConsoles:GeneralSettingsConsoleWindow x:Name="GeneralSettingsConsoleWindow" ViewModel="{x:Bind ViewModel}"/>    </StackPanel>
 </UserControl>

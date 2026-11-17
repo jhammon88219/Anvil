@@ -60,6 +60,14 @@ namespace Anvil.Controls.Primitives
 			set => SetProperty(ref _joinsBody, value);
 		}
 
+		private double _labelFontSize = 13;
+		/// <summary>The strip's <see cref="TabStrip.LabelFontSize"/>, copied onto every row. Written by the strip only.</summary>
+		public double LabelFontSize
+		{
+			get => _labelFontSize;
+			set => SetProperty(ref _labelFontSize, value);
+		}
+
 		private bool _isSelected;
 		/// <summary>Whether this is the rail's current row. Written by the strip only.</summary>
 		public bool IsSelected

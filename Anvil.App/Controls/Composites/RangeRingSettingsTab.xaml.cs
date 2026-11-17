@@ -9,7 +9,7 @@ namespace Anvil.Controls.Composites
 	/// the ruler — each its own section control — over the coordinator <see cref="MapViewModel"/>; the state lives on
 	/// <see cref="RadarViewModel.RangeRings"/>.
 	/// </summary>
-	public sealed partial class RangeRingSettingsTab : UserControl
+	public sealed partial class RangeRingSettingsTab : UserControl, Primitives.ISettingsPage
 	{
 		public RangeRingSettingsTab()
 		{
@@ -26,7 +26,9 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(RangeRingSettingsTab), new PropertyMetadata(null));
 
-		private async void OnResetAll(object sender, RoutedEventArgs e)
+		public string ResetAllToolTip => "Every Rings & Ruler card back to its DEFAULT column (asks first)";
+
+		public async void ResetAll()
 		{
 			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Reset all Rings & Ruler settings?",
 				"Which rings are drawn, every ring's look, the distance labels and the ruler go back to their defaults — the DEFAULT " +

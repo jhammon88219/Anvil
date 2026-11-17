@@ -7,8 +7,8 @@
        disabled  [        Reset all General settings        ]   stock disabled grey
 
      The look is Styles.xaml CautionResetButtonStyle (its OWN template, so hover/pressed never drop to the stock grey/white);
-     Dialogs/ConfirmResetDialog's Reset key wears the same style. Height 36; the HOST sets the width (a page's Reset all
-     stretches full width under its cards).
+     Dialogs/ConfirmResetDialog's Reset key wears the same style. Height 36, 16 px each side; the HOST sets the width (a page's
+     Reset all = content width at the right end of the Settings window's title line, 2026-11-17).
      ⚠️ It only RAISES Click — the host asks first (ConfirmResetDialog) and resets. Never reset straight from a click. -->
 <UserControl x:Class="Anvil.Controls.Primitives.CautionResetButton"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -18,7 +18,7 @@
              mc:Ignorable="d">
 
     <Button x:Name="CautionResetButtonKey" Style="{StaticResource CautionResetButtonStyle}"
-            Height="36" HorizontalAlignment="Stretch"
+            Height="36" Padding="16,5,16,6" HorizontalAlignment="Stretch"
             Content="{x:Bind Text, Mode=OneWay}"
             Click="OnKeyClick"/>
 </UserControl>

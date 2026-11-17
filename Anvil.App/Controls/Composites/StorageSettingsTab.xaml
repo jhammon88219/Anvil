@@ -16,7 +16,7 @@
        ┌ Online map ────────────────────────────────────────────────────────── ┐  …ConsoleOnlineMap
        │ Map key · Test · Use online map                                        │
        └────────────────────────────────────────────────────────────────────────┘
-       [                  Reset all Storage settings  (caution amber)            ]  Primitives/CautionResetButton
+       (Reset all Storage settings = the window's page header, beside the title — this page's ResetAll, ISettingsPage)
 
      ⚠️ Every reset ASKS first. Reset all = every limit + the Offline map choices; it deletes no map file and keeps the map key.
      ⚠️ The sizes are only re-measured when this page becomes VISIBLE (MapViewModel.RefreshForSettingsTab) — it walks several
@@ -38,9 +38,5 @@
                                                       ViewModel="{x:Bind ViewModel.Storage, Mode=OneWay}"/>
         <storageSettingsConsoles:StorageSettingsConsoleMap x:Name="StorageSettingsConsoleMap" ViewModel="{x:Bind ViewModel.BasemapSetup}"/>
         <storageSettingsConsoles:StorageSettingsConsoleOfflineMap x:Name="StorageSettingsConsoleOfflineMap" ViewModel="{x:Bind ViewModel.BasemapSetup}"/>
-        <storageSettingsConsoles:StorageSettingsConsoleOnlineMap x:Name="StorageSettingsConsoleOnlineMap" ViewModel="{x:Bind ViewModel.BasemapSetup}"/>
-        <prim:CautionResetButton x:Name="StorageResetAllButton"
-                                 Text="Reset all Storage settings" Click="OnResetAll"
-                                 ToolTipService.ToolTip="Every limit and the Offline map choices back to their DEFAULT columns (asks first). No map file is deleted"/>
-    </StackPanel>
+        <storageSettingsConsoles:StorageSettingsConsoleOnlineMap x:Name="StorageSettingsConsoleOnlineMap" ViewModel="{x:Bind ViewModel.BasemapSetup}"/>    </StackPanel>
 </UserControl>

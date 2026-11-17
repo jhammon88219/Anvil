@@ -5,7 +5,7 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>Settings → General (see the XAML header): the Startup, Units and Window sections.</summary>
-	public sealed partial class GeneralSettingsTab : UserControl
+	public sealed partial class GeneralSettingsTab : UserControl, Primitives.ISettingsPage
 	{
 		public GeneralSettingsTab()
 		{
@@ -22,7 +22,9 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(GeneralSettingsTab), new PropertyMetadata(null));
 
-		private async void OnResetAll(object sender, RoutedEventArgs e)
+		public string ResetAllToolTip => "Startup, Units and Window back to their DEFAULT columns (asks first)";
+
+		public async void ResetAll()
 		{
 			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Reset all General settings?",
 				"Startup, Units and Window go back to their defaults — the DEFAULT column on this page. Your home site is cleared. " +

@@ -16,7 +16,7 @@
        ┌ Connection ────────────────────────────────────────────────────────── ┐  LiveDataSettingsConsoleConnection (read-only)
        │ Status · Last product · Missed                                         │
        └────────────────────────────────────────────────────────────────────────┘
-       [                Reset all Live Data settings  (caution amber)            ]  Primitives/CautionResetButton
+       (Reset all Live Data settings = the window's page header, beside the title — this page's ResetAll, ISettingsPage)
 
      ⚠️ Every reset ASKS first (Dialogs/ConfirmResetDialog). Reset all = Source + Polling; the Weather Wire account is KEPT.
      ⚠️ Wording lives in LiveDataViewModel / Models.LiveFeedKinds, not here (docs/live-data.md). -->
@@ -33,9 +33,5 @@
         <liveDataSettingsConsoles:LiveDataSettingsConsoleSource x:Name="LiveDataSettingsConsoleSource" ViewModel="{x:Bind ViewModel}"/>
         <liveDataSettingsConsoles:LiveDataSettingsConsoleWeatherWire x:Name="LiveDataSettingsConsoleWeatherWire" ViewModel="{x:Bind ViewModel}"/>
         <liveDataSettingsConsoles:LiveDataSettingsConsolePolling x:Name="LiveDataSettingsConsolePolling" ViewModel="{x:Bind ViewModel}"/>
-        <liveDataSettingsConsoles:LiveDataSettingsConsoleConnection x:Name="LiveDataSettingsConsoleConnection" ViewModel="{x:Bind ViewModel}"/>
-        <prim:CautionResetButton x:Name="LiveDataResetAllButton"
-                                 Text="Reset all Live Data settings" Click="OnResetAll"
-                                 ToolTipService.ToolTip="Source and every polling interval back to their DEFAULT columns (asks first). Your Weather Wire account is kept"/>
-    </StackPanel>
+        <liveDataSettingsConsoles:LiveDataSettingsConsoleConnection x:Name="LiveDataSettingsConsoleConnection" ViewModel="{x:Bind ViewModel}"/>    </StackPanel>
 </UserControl>

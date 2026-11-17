@@ -18,7 +18,7 @@
        ┌ Hatch scrubber  [Restore defaults] ───────────────────────── DEFAULT ┐  RadarSettingsConsoleHatchScrubber
        │ Line colour · spacing · weight · opacity (greyed unless Style = Hatch) │
        └────────────────────────────────────────────────────────────────────────┘
-       [                  Reset all Radar settings  (caution amber)              ]  Primitives/CautionResetButton
+       (Reset all Radar settings = the window's page header, beside the title — this page's ResetAll, ISettingsPage)
 
      ⚠️ Every reset ASKS first (Dialogs/ConfirmResetDialog). The resets live on MapViewModel (ResetLivePolling …), not on
      RadarViewModel — its live-poll members are the sealed engine's; the page only calls their public setters.
@@ -40,9 +40,5 @@
         <radarSettingsConsoles:RadarSettingsConsoleMemory x:Name="RadarSettingsConsoleMemory" ViewModel="{x:Bind ViewModel}"/>
         <radarSettingsConsoles:RadarSettingsConsoleSiteKeys x:Name="RadarSettingsConsoleSiteKeys" ViewModel="{x:Bind ViewModel}"/>
         <radarSettingsConsoles:RadarSettingsConsoleScrubber x:Name="RadarSettingsConsoleScrubber" ViewModel="{x:Bind ViewModel}"/>
-        <radarSettingsConsoles:RadarSettingsConsoleHatchScrubber x:Name="RadarSettingsConsoleHatchScrubber" ViewModel="{x:Bind ViewModel}"/>
-        <prim:CautionResetButton x:Name="RadarSettingsResetAllButton"
-                                 Text="Reset all Radar settings" Click="OnResetAll"
-                                 ToolTipService.ToolTip="Every Radar section back to its DEFAULT column (asks first)"/>
-    </StackPanel>
+        <radarSettingsConsoles:RadarSettingsConsoleHatchScrubber x:Name="RadarSettingsConsoleHatchScrubber" ViewModel="{x:Bind ViewModel}"/>    </StackPanel>
 </UserControl>

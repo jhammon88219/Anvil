@@ -88,7 +88,42 @@ namespace Anvil.Controls.Windows
 				AboutDefault = string.Empty;
 			}
 			HasAboutDefault = string.IsNullOrEmpty(AboutDefault) ? Visibility.Collapsed : Visibility.Visible;
+
+			// The title line's Reset all names the SHOWN page and calls ITS reset (which asks first). Dev has none.
+			var shown = PageFor(page);
+			ResetAllText = entry is null ? string.Empty : $"Reset all {entry.Label} settings";
+			ResetAllToolTip = shown?.ResetAllToolTip ?? string.Empty;
+			HasResetAll = shown is null ? Visibility.Collapsed : Visibility.Visible;
 		}
+
+		/// <summary>The body for a page slot (the SettingsTab ordinal), or null for one with nothing to reset (Dev).</summary>
+		private ISettingsPage? PageFor(int page) => (SettingsTab)page switch
+		{
+			SettingsTab.Startup => GeneralTab,
+			SettingsTab.Map => AppearanceTab,
+			SettingsTab.Radar => RadarTab,
+			SettingsTab.RangeRing => RangeRingTab,
+			SettingsTab.LiveData => LiveDataTab,
+			SettingsTab.Storage => StorageTab,
+			_ => null,
+		};
+
+		private void OnResetAllClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is not null) { PageFor(ViewModel.SettingsTabIndex)?.ResetAll(); }
+		}
+
+		public string ResetAllText { get => (string)GetValue(ResetAllTextProperty); private set => SetValue(ResetAllTextProperty, value); }
+		public static readonly DependencyProperty ResetAllTextProperty =
+			DependencyProperty.Register(nameof(ResetAllText), typeof(string), typeof(SettingsWindow), new PropertyMetadata(string.Empty));
+
+		public string ResetAllToolTip { get => (string)GetValue(ResetAllToolTipProperty); private set => SetValue(ResetAllToolTipProperty, value); }
+		public static readonly DependencyProperty ResetAllToolTipProperty =
+			DependencyProperty.Register(nameof(ResetAllToolTip), typeof(string), typeof(SettingsWindow), new PropertyMetadata(string.Empty));
+
+		public Visibility HasResetAll { get => (Visibility)GetValue(HasResetAllProperty); private set => SetValue(HasResetAllProperty, value); }
+		public static readonly DependencyProperty HasResetAllProperty =
+			DependencyProperty.Register(nameof(HasResetAll), typeof(Visibility), typeof(SettingsWindow), new PropertyMetadata(Visibility.Collapsed));
 
 		public string PageTitle { get => (string)GetValue(PageTitleProperty); private set => SetValue(PageTitleProperty, value); }
 		public static readonly DependencyProperty PageTitleProperty =

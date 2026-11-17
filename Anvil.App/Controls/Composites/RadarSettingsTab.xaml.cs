@@ -8,7 +8,7 @@ namespace Anvil.Controls.Composites
 	/// Settings → Radar (see the XAML header): Live polling, Memory, Site keys, Scrubber and Hatch scrubber — each its own
 	/// section control — over the coordinator <see cref="MapViewModel"/>.
 	/// </summary>
-	public sealed partial class RadarSettingsTab : UserControl
+	public sealed partial class RadarSettingsTab : UserControl, Primitives.ISettingsPage
 	{
 		public RadarSettingsTab()
 		{
@@ -25,7 +25,9 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(RadarSettingsTab), new PropertyMetadata(null));
 
-		private async void OnResetAll(object sender, RoutedEventArgs e)
+		public string ResetAllToolTip => "Every Radar section back to its DEFAULT column (asks first)";
+
+		public async void ResetAll()
 		{
 			if (ViewModel is { } vm && await Anvil.Dialogs.ConfirmResetDialog.ConfirmAsync(this, "Reset all Radar settings?",
 				"Live polling, Memory, Site keys, Scrubber and Hatch scrubber go back to their defaults — the DEFAULT column on this " +

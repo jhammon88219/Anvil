@@ -18,7 +18,7 @@
        ┌ Ruler  [Restore defaults] ────────────────────────────────── DEFAULT ┐  RingsSettingsConsoleRuler (Range ruler + Knobs)
        │ Ruler from · Knob size                                                 │
        └────────────────────────────────────────────────────────────────────────┘
-       [              Reset all Rings & Ruler settings  (caution amber)          ]  Primitives/CautionResetButton
+       (Reset all Rings & Ruler settings = the window's page header, beside the title — this page's ResetAll, ISettingsPage)
 
      ⚠️ Every reset ASKS first (Dialogs/ConfirmResetDialog). The old single "Restore default look" (looks only) became a
      Restore defaults per card + Reset all. Everything applies LIVE to the main map and persists by itself.
@@ -53,9 +53,5 @@
 
         <ringsSettingsConsoles:RingsSettingsConsoleLabels x:Name="RingsSettingsConsoleLabels" ViewModel="{x:Bind ViewModel}"/>
         <ringsSettingsConsoles:RingsSettingsConsoleRuler x:Name="RingsSettingsConsoleRuler" ViewModel="{x:Bind ViewModel}"/>
-
-        <prim:CautionResetButton x:Name="RingsSettingsResetAllButton"
-                                 Text="Reset all Rings &amp; Ruler settings" Click="OnResetAll"
-                                 ToolTipService.ToolTip="Every Rings &amp; Ruler card back to its DEFAULT column (asks first)"/>
     </StackPanel>
 </UserControl>
