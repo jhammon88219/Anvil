@@ -90,7 +90,7 @@ namespace Anvil.Controls.RadarSettingsConsoles
 			DotMatrixPreview.CurrentIndex = index;
 			HatchPreview.Segments = segments;
 			HatchPreview.CurrentIndex = index;
-			PreviewNote.Text = live ? "The loop on the map" : "A sample loop until one loads";
+			ScrubberPreviewRow.Hint = Anvil.Services.SettingsText.ChoiceOf("scrubber.preview", live ? 0 : 1);
 		}
 
 		private static ObservableCollection<RadarFrameSegment> BuildSample()

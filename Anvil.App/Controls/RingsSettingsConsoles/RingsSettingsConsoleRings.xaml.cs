@@ -23,7 +23,7 @@ namespace Anvil.Controls.RingsSettingsConsoles
 				new PropertyMetadata(null));
 
 		/// <summary>Spacing's hint — what Auto does, or (greyed) what turns the row on.</summary>
-		public string SpacingHint(bool distanceRingsOn) => distanceRingsOn ? "Auto suits the radar's reach" : "Turn on Distance rings first";
+		public string SpacingHint(bool distanceRingsOn) => Anvil.Services.SettingsText.HintFor("rings.spacing", distanceRingsOn);
 
 		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
 		{

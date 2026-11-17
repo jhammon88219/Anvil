@@ -13,6 +13,8 @@
                   [Add a map file…]                                212.3 GB free
        96         420 + hint (a file row spans both)
 
+     ⚠️ Every row is a Primitives/SettingsConsoleRow (lifts; words = Services/Settings/SettingsText by AboutKey); the file list
+     spans to the row's end (ControlSpan 3) and the last-action message is an inert row.
      ⚠️ Every choice here is drawn AT ONCE (Use, a delete — MainWindow re-points the map). A delete Windows refuses (the file still
      open) finishes at the next launch (AppSettings.BasemapPendingDeletes). Added files stay where they are
      (AppSettings.BasemapAddedFiles). The SAME file list sizes On disk's Maps row (BasemapSetupViewModel.MapFilePaths). -->
@@ -82,39 +84,31 @@
     </UserControl.Resources>
 
     <prim:SettingsConsolePlate x:Name="StorageSettingsConsoleMapPlate" Title="Map">
-        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
-                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- in use -->
-                <RowDefinition Height="Auto"/> <!-- files -->
-                <RowDefinition Height="Auto"/> <!-- add + free -->
-                <RowDefinition Height="Auto"/> <!-- message -->
-            </Grid.RowDefinitions>
+        <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
+            <prim:SettingsConsoleRow Label="In use" AboutKey="map.inUse" ControlSpan="2">
+                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{x:Bind ViewModel.InUseText, Mode=OneWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="In use"/>
-            <TextBlock Grid.Column="1" Grid.ColumnSpan="2" VerticalAlignment="Center" TextWrapping="Wrap"
-                       Text="{x:Bind ViewModel.InUseText, Mode=OneWay}"/>
+            <!-- The file list runs to the row's end; its label sits on the first file's line. -->
+            <prim:SettingsConsoleRow Label="Files" AboutKey="map.files" ControlSpan="3" TextVerticalAlignment="Top">
+                <StackPanel>
+                    <ItemsControl x:Name="MapFileRows" IsTabStop="False" ItemsSource="{x:Bind ViewModel.Files}" ItemTemplate="{StaticResource MapFileRowTemplate}"/>
+                    <TextBlock Margin="0,8,0,0" Style="{StaticResource SettingsConsoleHintTextStyle}"
+                               Visibility="{x:Bind ViewModel.HasNoFiles, Mode=OneWay}"
+                               Text="No map files yet. Download one below, or add one you have."/>
+                </StackPanel>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="1" Margin="0,10,0,0" Text="Files"/>
-            <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3">
-                <ItemsControl x:Name="MapFileRows" IsTabStop="False" ItemsSource="{x:Bind ViewModel.Files}" ItemTemplate="{StaticResource MapFileRowTemplate}"/>
-                <TextBlock Margin="0,8,0,0" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                           Visibility="{x:Bind ViewModel.HasNoFiles, Mode=OneWay}"
-                           Text="No map files yet. Download one below, or add one you have."/>
-            </StackPanel>
+            <prim:SettingsConsoleRow AboutKey="map.add" Hint="{x:Bind ViewModel.FreeSpaceText, Mode=OneWay}">
+                <Button x:Name="AddMapFileButton" HorizontalAlignment="Left" Content="Add a map file…" Click="OnAddFileClick"/>
+            </prim:SettingsConsoleRow>
 
-            <Button x:Name="AddMapFileButton" Grid.Row="2" Grid.Column="1" Content="Add a map file…" Click="OnAddFileClick"/>
-            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.FreeSpaceText, Mode=OneWay}"/>
-
-            <!-- What the last Add / Delete did (a refused file says why). -->
-            <TextBlock Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" FontSize="12" TextWrapping="Wrap"
-                       Text="{x:Bind ViewModel.FilesMessage, Mode=OneWay}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-        </Grid>
+            <!-- What the last Add / Delete did (a refused file says why). An INERT row (no AboutKey). -->
+            <prim:SettingsConsoleRow ControlSpan="2">
+                <TextBlock FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                           Text="{x:Bind ViewModel.FilesMessage, Mode=OneWay}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </prim:SettingsConsoleRow>
+        </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>

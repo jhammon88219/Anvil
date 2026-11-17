@@ -37,11 +37,11 @@
     <StackPanel Spacing="12" VerticalAlignment="Top">
         <ringsSettingsConsoles:RingsSettingsConsoleRings x:Name="RingsSettingsConsoleRings" ViewModel="{x:Bind ViewModel}"/>
 
-        <!-- ⚠️ This ring's colour is AppSettings.ScopeColor — the range ruler wears it too. -->
+        <!-- ⚠️ This ring's color is AppSettings.ScopeColor — the range ruler wears it too (its ColorKey's hint says so). -->
         <ringsSettingsConsoles:RingsSettingsConsoleRingStyle x:Name="RingsSettingsConsoleRingStyleReflectivity"
                                                              Title="Reflectivity reach"
                                                              Ring="{x:Bind ViewModel.Radar.RangeRings.Outline}"
-                                                             ColorHint="The range ruler wears it too"/>
+                                                             ColorKey="ring.color.refl"/>
         <ringsSettingsConsoles:RingsSettingsConsoleRingStyle x:Name="RingsSettingsConsoleRingStyleVelocity"
                                                              Title="Velocity reach"
                                                              Ring="{x:Bind ViewModel.Radar.RangeRings.Velocity}"/>
@@ -49,7 +49,7 @@
                                                              Title="Distance rings"
                                                              Ring="{x:Bind ViewModel.Radar.RangeRings.Distance}"
                                                              IsEditable="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}"
-                                                             LockedHint="Turn on Distance rings first"/>
+                                                             ColorKey="ring.color.distance"/>
 
         <ringsSettingsConsoles:RingsSettingsConsoleLabels x:Name="RingsSettingsConsoleLabels" ViewModel="{x:Bind ViewModel}"/>
         <ringsSettingsConsoles:RingsSettingsConsoleRuler x:Name="RingsSettingsConsoleRuler" ViewModel="{x:Bind ViewModel}"/>

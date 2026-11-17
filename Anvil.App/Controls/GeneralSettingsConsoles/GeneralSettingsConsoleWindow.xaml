@@ -3,10 +3,10 @@
      Primitives/SettingsConsolePlate. General B (2026-11-16).
 
        Window     [Restore defaults]  ← greyed                                                     DEFAULT
-       Monitors   [▒Single monitor▒| Multi-monitor ]  ← the WHOLE picker greyed (pick = lifted grey)   Single monitor
-       96         420                                                                       150, right
+       Monitors   [▒Single monitor▒| Multi-monitor ]  ← the WHOLE picker greyed   Not implemented yet   Single monitor
+       96         420                                                             hint      150, right
 
-     ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's — every General section uses the same.
+     ⚠️ A Primitives/SettingsConsoleRow (lifts; words = Services/Settings/SettingsText "window.monitors"); its label dims.
      ⚠️ THE BONES, NOT THE FEATURE: MapViewModel.MonitorMode is what WindowManager reads at each point where the two modes
      would differ (grep "MONITOR MODE"); every one runs the single-monitor rule today. Enabling the picker + Restore defaults
      (MapViewModel.IsMultiMonitorModeBuilt / CanResetWindow) is the LAST step of building multi-monitor, not the first. -->
@@ -24,23 +24,14 @@
                     IsEnabled="{x:Bind ViewModel.CanResetWindow}"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
-                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
-            </Grid.ColumnDefinitions>
-
-            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Monitors"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            <prim:SegmentedPicker x:Name="MonitorModePicker" Grid.Column="1" IsEnabled="False"
-                                  ItemsSource="{x:Bind ViewModel.MonitorModeLabels}"
-                                  SelectedIndex="{x:Bind ViewModel.MonitorModeIndex, Mode=TwoWay}"
-                                  ToolTipService.ToolTip="Multi-monitor is coming — it needs a second screen to build and test"/>
-            <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Not implemented yet"/>
-            <TextBlock Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
-                       Text="{x:Bind ViewModel.DefaultMonitorModeText}"/>
-        </Grid>
+        <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
+            <prim:SettingsConsoleRow Label="Monitors" AboutKey="window.monitors" IsLabelDimmed="True"
+                                     Default="{x:Bind ViewModel.DefaultMonitorModeText}">
+                <prim:SegmentedPicker x:Name="MonitorModePicker" IsEnabled="False"
+                                      ItemsSource="{x:Bind ViewModel.MonitorModeLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.MonitorModeIndex, Mode=TwoWay}"
+                                      ToolTipService.ToolTip="Multi-monitor is coming — it needs a second screen to build and test"/>
+            </prim:SettingsConsoleRow>
+        </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>

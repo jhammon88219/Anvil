@@ -12,7 +12,7 @@ namespace Anvil.Controls.Windows
 	/// <see cref="WindowManager"/> and driven by <see cref="MapViewModel.IsSettingsWindowOpen"/>. Its tabs
 	/// replaced three separate windows — App Settings, Map Controls and Dev Tools.
 	/// </summary>
-	public sealed partial class SettingsWindow : UserControl
+	public sealed partial class SettingsWindow : UserControl, ISettingsRowHost
 	{
 		public SettingsWindow()
 		{
@@ -21,8 +21,79 @@ namespace Anvil.Controls.Windows
 			// Every page lives in the ONE Body scroller (Visibility switches them), so a new page would open at the
 			// last page's offset — scrolled to the bottom if you'd scrolled there. A page always opens at its top.
 			// The rail's SelectedIndex is the one seam: a rail click AND MapViewModel.OpenSettings(tab) both move it.
-			Strip.RegisterPropertyChangedCallback(TabStrip.SelectedIndexProperty, (_, _) => Body.ScrollToTop());
+			Strip.RegisterPropertyChangedCallback(TabStrip.SelectedIndexProperty, (_, _) =>
+			{
+				Body.ScrollToTop();
+				RefreshPageHeader();
+			});
 		}
+
+		// ── THE PAGE HEADER: title, description, and the About box for the page's SELECTED row ─────────────────────────
+		// The selection is kept PER PAGE (a page you come back to still shows the row you picked there). Rows report a pick
+		// through ISettingsRowHost (a click anywhere on the row, or keyboard focus moving into it).
+		private readonly System.Collections.Generic.Dictionary<int, SettingsConsoleRow> _selectedRowByPage = new();
+
+		public void OnRowPicked(SettingsConsoleRow row)
+		{
+			if (ViewModel is null) { return; }
+			var page = ViewModel.SettingsTabIndex;
+			if (_selectedRowByPage.TryGetValue(page, out var previous))
+			{
+				if (ReferenceEquals(previous, row)) { return; }
+				previous.IsSelected = false;
+			}
+			_selectedRowByPage[page] = row;
+			row.IsSelected = true;
+			RefreshPageHeader();
+		}
+
+		private void RefreshPageHeader()
+		{
+			if (ViewModel is null) { return; }
+			var page = ViewModel.SettingsTabIndex;
+			var entry = System.Linq.Enumerable.FirstOrDefault(Tabs, t => t.PageIndex == page);
+			PageTitle = entry?.Label ?? string.Empty;
+			PageDescription = entry?.Tooltip ?? string.Empty;
+
+			if (_selectedRowByPage.TryGetValue(page, out var row))
+			{
+				AboutCaption = ("About · " + row.AboutTitle).ToUpperInvariant();
+				AboutText = row.AboutText;
+				AboutDefault = row.Default;
+			}
+			else
+			{
+				AboutCaption = "ABOUT";
+				AboutText = Anvil.Services.SettingsText.NothingSelected;
+				AboutDefault = string.Empty;
+			}
+			HasAboutDefault = string.IsNullOrEmpty(AboutDefault) ? Visibility.Collapsed : Visibility.Visible;
+		}
+
+		public string PageTitle { get => (string)GetValue(PageTitleProperty); private set => SetValue(PageTitleProperty, value); }
+		public static readonly DependencyProperty PageTitleProperty =
+			DependencyProperty.Register(nameof(PageTitle), typeof(string), typeof(SettingsWindow), new PropertyMetadata(string.Empty));
+
+		public string PageDescription { get => (string)GetValue(PageDescriptionProperty); private set => SetValue(PageDescriptionProperty, value); }
+		public static readonly DependencyProperty PageDescriptionProperty =
+			DependencyProperty.Register(nameof(PageDescription), typeof(string), typeof(SettingsWindow), new PropertyMetadata(string.Empty));
+
+		public string AboutCaption { get => (string)GetValue(AboutCaptionProperty); private set => SetValue(AboutCaptionProperty, value); }
+		public static readonly DependencyProperty AboutCaptionProperty =
+			DependencyProperty.Register(nameof(AboutCaption), typeof(string), typeof(SettingsWindow), new PropertyMetadata("ABOUT"));
+
+		public string AboutText { get => (string)GetValue(AboutTextProperty); private set => SetValue(AboutTextProperty, value); }
+		public static readonly DependencyProperty AboutTextProperty =
+			DependencyProperty.Register(nameof(AboutText), typeof(string), typeof(SettingsWindow),
+				new PropertyMetadata(Anvil.Services.SettingsText.NothingSelected));
+
+		public string AboutDefault { get => (string)GetValue(AboutDefaultProperty); private set => SetValue(AboutDefaultProperty, value); }
+		public static readonly DependencyProperty AboutDefaultProperty =
+			DependencyProperty.Register(nameof(AboutDefault), typeof(string), typeof(SettingsWindow), new PropertyMetadata(string.Empty));
+
+		public Visibility HasAboutDefault { get => (Visibility)GetValue(HasAboutDefaultProperty); private set => SetValue(HasAboutDefaultProperty, value); }
+		public static readonly DependencyProperty HasAboutDefaultProperty =
+			DependencyProperty.Register(nameof(HasAboutDefault), typeof(Visibility), typeof(SettingsWindow), new PropertyMetadata(Visibility.Collapsed));
 
 		// ── THE BAND's about-Anvil facts ──────────────────────────────────────────────────────────────
 		/// <summary>The installed package's version ("1.0.0.0"), or "—" when there's no package identity.</summary>
@@ -63,8 +134,12 @@ namespace Anvil.Controls.Windows
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(SettingsWindow),
 				new PropertyMetadata(null, OnViewModelChanged));
 
-		private static void OnViewModelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
-			((SettingsWindow)d).PersistSectionExpansion();
+		private static void OnViewModelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+		{
+			var window = (SettingsWindow)d;
+			window.PersistSectionExpansion();
+			window.RefreshPageHeader();
+		}
 
 		// ── Section open/closed, PERSISTED (AppSettings.SectionExpanded, keys "settings/<tab>/<header>") ──
 		// The temporal panes' seam (DragMoveLayerExpander.PersistExpansion, here SettingsExpander's twin), one window prefix PER TAB: "Home site" is a

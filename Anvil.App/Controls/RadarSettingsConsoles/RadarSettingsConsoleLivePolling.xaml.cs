@@ -23,10 +23,10 @@ namespace Anvil.Controls.RadarSettingsConsoles
 				new PropertyMetadata(null));
 
 		/// <summary>The mode's hint — what it checks on, in one line.</summary>
-		public string ModeHint(bool fixedTime) => fixedTime ? "On a steady timer" : "On the radar's own scan plan";
+		public string ModeHint(bool fixedTime) => Anvil.Services.SettingsText.ChoiceOf("poll.check", fixedTime ? 1 : 0);
 
 		/// <summary>The interval's hint — what it is, or (greyed) what turns it on.</summary>
-		public string EveryHint(bool fixedTime) => fixedTime ? "Seconds between checks for a new scan" : "Only with Fixed time";
+		public string EveryHint(bool fixedTime) => Anvil.Services.SettingsText.HintFor("poll.every", fixedTime);
 
 		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
 		{

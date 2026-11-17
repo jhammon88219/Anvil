@@ -23,7 +23,10 @@ namespace Anvil.Controls.LiveDataSettingsConsoles
 				new PropertyMetadata(null));
 
 		/// <summary>The account's last message, or why the card is greyed.</summary>
-		public string AccountHint(bool isNwws, string message) => isNwws ? message : "Only with NOAA Weather Wire";
+		/// <summary>Test connection: only with Weather Wire picked AND an account to test.</summary>
+		public bool TestEnabled(bool isNwws, bool canTest) => isNwws && canTest;
+
+		public string AccountHint(bool isNwws, string message) => isNwws ? message : Anvil.Services.SettingsText.HintOffOf("wire.account");
 
 		// The password goes straight to the VM, never through a binding.
 		private void OnPasswordChanged(object sender, RoutedEventArgs e) => ViewModel?.SetPendingPassword(NwwsPasswordBox.Password);

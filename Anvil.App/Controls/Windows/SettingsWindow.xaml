@@ -23,6 +23,8 @@
         redone (Dev keeps its expanders). The rail's DISPLAY order is free (each TabEntry names its page by PageIndex);
         a MERGED page keeps its enum slot but has no rail entry: Edges → Appearance; Units + Window Mode → General.
         (The live map preview beside Map + Range Ring was removed 2026-11-16.)
+     ⭐ THE BODY opens with a PINNED page header (title · description · a FIXED-height About box for the selected
+        Primitives/SettingsConsoleRow, 2026-11-17); the consoles scroll under it. This window is the rows' ISettingsRowHost.
 
      The top bar's Settings menu lists the SAME pages (MainWindow.xaml's SETTINGS MENU, one declared item per
      page, Tag = its index) — clicking one opens this window on it.
@@ -135,11 +137,57 @@
              2026-11-11). The rows INSIDE a section keep their own widths. (The live map preview that split some pages
              half-and-half was removed 2026-11-16.) -->
         <Grid x:Name="BodyHost" Grid.Row="1" Grid.Column="1" Margin="24,18,16,14">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- the page header (pinned) -->
+                <RowDefinition Height="*"/>    <!-- the consoles (scroll) -->
+            </Grid.RowDefinitions>
+
+            <!-- THE PAGE HEADER (Option B, the user's pick 2026-11-17) — PINNED above the scrolling consoles:
+                   General                                                              ← the rail entry's name, 34 SemiBold
+                   How Anvil starts and your home site, the units …                     ← the rail entry's tooltip, one line
+                   ABOUT · LOAD HOME SITE ON LAUNCH                         DEFAULT     ← the SELECTED row (SettingsConsoleRow)
+                   When Anvil opens, it starts the live radar loop for …     Off        ← 3 lines max, FIXED 84 px box
+                   ──────────────────────────────────────────────────────────────────── hairline; the consoles scroll under it
+                 ⚠️ The About box is ONE fixed height (caption 16 + 6 + three 20 px lines) whatever is selected, or nothing
+                 ("Select a setting to read more about it"), so picking a row never moves the page. Its words are the catalog's
+                 (Services/Settings/SettingsText); the selection is kept PER PAGE (SettingsWindow.OnRowPicked).
+                 Right margin 4 = the cards' right edge (the scroller below bleeds -12 into BodyHost's 16). -->
+            <StackPanel x:Name="SettingsPageHeader" Margin="0,0,4,14">
+                <TextBlock x:Name="SettingsPageTitle" FontSize="34" FontWeight="SemiBold" LineHeight="40"
+                           LineStackingStrategy="BlockLineHeight" Text="{x:Bind PageTitle, Mode=OneWay}"/>
+                <TextBlock x:Name="SettingsPageDescription" Margin="0,2,0,0" FontSize="13" TextTrimming="CharacterEllipsis"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="{x:Bind PageDescription, Mode=OneWay}"/>
+                <Grid x:Name="SettingsAboutBox" Height="84" Margin="0,14,0,0" ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock x:Name="SettingsAboutCaption" FontSize="11" CharacterSpacing="80" LineHeight="16"
+                                   LineStackingStrategy="BlockLineHeight" TextTrimming="CharacterEllipsis"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="{x:Bind AboutCaption, Mode=OneWay}"/>
+                        <TextBlock x:Name="SettingsAboutText" Margin="0,6,0,0" MaxWidth="720" HorizontalAlignment="Left"
+                                   FontSize="13" LineHeight="20" LineStackingStrategy="BlockLineHeight"
+                                   TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind AboutText, Mode=OneWay}"/>
+                    </StackPanel>
+                    <StackPanel x:Name="SettingsAboutDefault" Grid.Column="1" HorizontalAlignment="Right"
+                                Visibility="{x:Bind HasAboutDefault, Mode=OneWay}">
+                        <TextBlock Text="DEFAULT" FontSize="11" CharacterSpacing="60" LineHeight="16" LineStackingStrategy="BlockLineHeight"
+                                   HorizontalAlignment="Right" Foreground="{ThemeResource SettingsCautionForegroundBrush}"/>
+                        <TextBlock Margin="0,6,0,0" FontSize="13" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                                   MaxLines="2" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind AboutDefault, Mode=OneWay}"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+            <Border x:Name="SettingsPageHeaderRule" Height="1" VerticalAlignment="Bottom" Margin="0,0,4,0" IsHitTestVisible="False"
+                    Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
             <!-- Bodies. Exactly one is visible; the rest keep their state because they stay loaded.
                  ⚠️ NEVER WinUI's overlay bar (the user's hard rule): Primitives/PanelScroller, its 16 px gutter ALWAYS claimed
                  (a lane of its own, never over the cards). Margin right -12 bleeds it into BodyHost's 16 px right margin, so
                  the cards keep their width and the thumb sits 4 px from the cards AND 4 px from the window edge. -->
-            <ctl:PanelScroller x:Name="Body" Margin="0,0,-12,0">
+            <ctl:PanelScroller x:Name="Body" Grid.Row="1" Margin="0,14,-12,0">
                 <Grid>
                     <!-- Slot 0 (SettingsTab.Map) = APPEARANCE: theme + basemap + the edge hatch (Edges merged in). -->
                     <cmp:AppearanceSettingsTab x:Name="AppearanceTab" ViewModel="{x:Bind ViewModel}"

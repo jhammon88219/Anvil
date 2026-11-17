@@ -6,9 +6,11 @@
        Status        ● IEM · connected since 11:02:14 AM
        Last product  12:04:31 PM · Severe thunderstorm warning, OUN
        Missed        None this session
-       96            the rest of the row
+       96            the rest of the row (Control + Hint columns)
 
-     ⚠️ The status dot's colours are DATA literals (code-behind), like the activity rows' — never a theme brush in C#. -->
+     ⚠️ Every row is a Primitives/SettingsConsoleRow (lifts; its About = Services/Settings/SettingsText by AboutKey); the value
+     sits in the Control column and may wrap. ⚠️ The status dot's colors are DATA literals (code-behind), like the activity
+     rows' — never a theme brush in C#. -->
 <UserControl x:Class="Anvil.Controls.LiveDataSettingsConsoles.LiveDataSettingsConsoleConnection"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -18,29 +20,23 @@
              mc:Ignorable="d">
 
     <prim:SettingsConsolePlate x:Name="LiveDataSettingsConsoleConnectionPlate" Title="Connection">
-        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+        <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
+            <prim:SettingsConsoleRow Label="Status" AboutKey="conn.status">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{x:Bind StateBrush(ViewModel.LinkState), Mode=OneWay}"/>
+                    <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" TextWrapping="Wrap" VerticalAlignment="Center"
+                               Style="{StaticResource TabularNumberTextStyle}"/>
+                </StackPanel>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Status"/>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{x:Bind StateBrush(ViewModel.LinkState), Mode=OneWay}"/>
-                <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" TextWrapping="Wrap" Style="{StaticResource TabularNumberTextStyle}"/>
-            </StackPanel>
+            <prim:SettingsConsoleRow Label="Last product" AboutKey="conn.last">
+                <TextBlock Text="{x:Bind ViewModel.LastProductText, Mode=OneWay}" TextWrapping="Wrap" VerticalAlignment="Center"
+                           Style="{StaticResource TabularNumberTextStyle}"/>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Last product"/>
-            <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.LastProductText, Mode=OneWay}" TextWrapping="Wrap"
-                       Style="{StaticResource TabularNumberTextStyle}"/>
-
-            <TextBlock Grid.Row="2" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Missed"/>
-            <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.MissedText, Mode=OneWay}" TextWrapping="Wrap"/>
-        </Grid>
+            <prim:SettingsConsoleRow Label="Missed" AboutKey="conn.missed">
+                <TextBlock Text="{x:Bind ViewModel.MissedText, Mode=OneWay}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+            </prim:SettingsConsoleRow>
+        </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>

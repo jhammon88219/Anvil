@@ -24,7 +24,7 @@ namespace Anvil.Controls.RingsSettingsConsoles
 				new PropertyMetadata(null));
 
 		/// <summary>The Colour hint, or why the card is greyed.</summary>
-		public string LockedOr(bool distanceRingsOn, string hint) => distanceRingsOn ? hint : "Turn on Distance rings first";
+		public string LockedOr(bool distanceRingsOn, string key) => Anvil.Services.SettingsText.HintFor(key, distanceRingsOn);
 
 		public string Pct(double value) => $"{value:0}%";
 		public string Px(double value) => value.ToString("0.0", CultureInfo.CurrentCulture) + " px";

@@ -26,7 +26,7 @@ namespace Anvil.Controls.RadarSettingsConsoles
 		public Visibility Hidden(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
 
 		/// <summary>Line color's hint — what "A" is, or (greyed) what turns the row on.</summary>
-		public string ColorHint(bool isHatch) => isHatch ? "A = your Windows accent color" : "Only with the Hatch style";
+		public string ColorHint(bool isHatch) => Anvil.Services.SettingsText.HintFor("hatch.color", isHatch);
 
 		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
 		{

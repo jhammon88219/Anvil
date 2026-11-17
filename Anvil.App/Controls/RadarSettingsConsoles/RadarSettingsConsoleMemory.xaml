@@ -8,9 +8,10 @@
                                                             High — over half your RAM …  ← CAUTION, only High / Low
        96             420 (slider * · value 56)             hint (one line)                         150, right
 
-     ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's. PERSISTED (AppSettings.RadarMemoryGb; null = a quarter of RAM); it
-     sizes the PastCast frame cap at each Load, NowCast is untouched. The caution line is its own TextBlock in the caution
-     brush (never a brush in C#). The frame counts are WORST case: every pane a different dual-pol product. -->
+     ⚠️ Every row is a Primitives/SettingsConsoleRow (lifts; words = Services/Settings/SettingsText by AboutKey); the frame
+     counts are the budget row's HintContent (data, not wording). PERSISTED (AppSettings.RadarMemoryGb; null = a quarter of
+     RAM); it sizes the PastCast frame cap at each Load, NowCast is untouched. The caution line is its own TextBlock in the
+     caution brush (never a brush in C#), under the rows. The frame counts are WORST case: every pane a different product. -->
 <UserControl x:Class="Anvil.Controls.RadarSettingsConsoles.RadarSettingsConsoleMemory"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -26,47 +27,39 @@
                     ToolTipService.ToolTip="Back to the recommended quarter of your RAM (asks first)"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
-                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+        <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
+            <prim:SettingsConsoleRow Label="This PC" AboutKey="memory.ram">
+                <TextBlock VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
+                           Text="{x:Bind ViewModel.Radar.Memory.RamText}"/>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="This PC"/>
-            <TextBlock Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
-                       Text="{x:Bind ViewModel.Radar.Memory.RamText}"/>
+            <prim:SettingsConsoleRow Label="Radar may use" AboutKey="memory.budget" Default="{x:Bind ViewModel.DefaultRadarMemoryText}">
+                <prim:SettingsConsoleRow.HintContent>
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center"
+                                ToolTipService.ToolTip="The longest PastCast loop this allows, with every pane a different dual-pol product. NowCast loops always fit.">
+                        <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.Radar.Memory.OnePaneText, Mode=OneWay}"/>
+                        <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.Radar.Memory.TwoPaneText, Mode=OneWay}"/>
+                        <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.Radar.Memory.FourPaneText, Mode=OneWay}"/>
+                    </StackPanel>
+                </prim:SettingsConsoleRow.HintContent>
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
+                    <Slider x:Name="RadarMemorySlider" VerticalAlignment="Center"
+                            Minimum="{x:Bind ViewModel.Radar.Memory.MinGb}" Maximum="{x:Bind ViewModel.Radar.Memory.MaxGb}"
+                            StepFrequency="0.5" SmallChange="0.5" LargeChange="1" IsThumbToolTipEnabled="False"
+                            Value="{x:Bind ViewModel.Radar.Memory.BudgetGb, Mode=TwoWay}"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
+                               Style="{StaticResource TabularNumberTextStyle}"
+                               Text="{x:Bind ViewModel.Radar.Memory.BudgetText, Mode=OneWay}"/>
+                </Grid>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Radar may use"/>
-            <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="12">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
-                <Slider x:Name="RadarMemorySlider" VerticalAlignment="Center"
-                        Minimum="{x:Bind ViewModel.Radar.Memory.MinGb}" Maximum="{x:Bind ViewModel.Radar.Memory.MaxGb}"
-                        StepFrequency="0.5" SmallChange="0.5" LargeChange="1" IsThumbToolTipEnabled="False"
-                        Value="{x:Bind ViewModel.Radar.Memory.BudgetGb, Mode=TwoWay}"/>
-                <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
-                           Style="{StaticResource TabularNumberTextStyle}"
-                           Text="{x:Bind ViewModel.Radar.Memory.BudgetText, Mode=OneWay}"/>
-            </Grid>
-            <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center"
-                        ToolTipService.ToolTip="The longest PastCast loop this allows, with every pane a different dual-pol product. NowCast loops always fit.">
-                <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.Radar.Memory.OnePaneText, Mode=OneWay}"/>
-                <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.Radar.Memory.TwoPaneText, Mode=OneWay}"/>
-                <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.Radar.Memory.FourPaneText, Mode=OneWay}"/>
-            </StackPanel>
-            <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultRadarMemoryText}"/>
-
-            <!-- Only while High (over half of RAM) or Low (4-pane loops on the frame floor): the caution line, in the HINT column. -->
-            <TextBlock Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" TextWrapping="Wrap" FontSize="12"
+            <!-- Only while High (over half of RAM) or Low (4-pane loops on the frame floor): the caution line, starting at the HINT
+                 column (96 + 12 + 420 + 12 = 540 in from the rows' left edge). -->
+            <TextBlock Margin="540,0,0,4" TextWrapping="Wrap" FontSize="12"
                        Foreground="{ThemeResource SettingsCautionForegroundBrush}"
                        Visibility="{x:Bind Shown(ViewModel.Radar.Memory.IsWarning), Mode=OneWay}"
                        Text="{x:Bind ViewModel.Radar.Memory.NoteText, Mode=OneWay}"/>
-        </Grid>
+        </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>

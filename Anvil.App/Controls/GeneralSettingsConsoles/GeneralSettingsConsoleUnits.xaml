@@ -4,7 +4,7 @@
      (every C# readout) and the page (js/units.js). General B (2026-11-16).
 
        Units        [Restore defaults]                                                             DEFAULT
-       Unit set     [ US | Metric | Forecaster | Custom ]                                           Custom
+       Unit set     [ US | Metric | Forecaster | Custom ]          Use Anvil's presets or choose Custom   Custom
        Clock        [  12-hour  |  24-hour  ]                      5:04 PM                         12-hour
        Time zone    [   Local   |    UTC    ]                      5:04 PM CST                       Local
        Date         [Written|Month first|Day first|ISO]            Sun Nov 16, 2026                Written
@@ -13,12 +13,12 @@
        Height       [ km | kft | ft ]                              44.0 kft                            kft
        Hail size    [ in | cm ]                                    1.75 in                              in
        Coordinates  [ Decimal | Deg · min · sec ]                  35.333° N, 97.278° W            Decimal
-       96           420 — EVERY picker fills it, segments equal    hint = the RESULT only          150, right
+       96           420 — EVERY picker fills it, segments equal    hint = the RESULT (a live sample) 150, right
 
-     ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's — every General section uses the same. Change them together.
+     ⚠️ Every row is a Primitives/SettingsConsoleRow (lifts; words = Services/Settings/SettingsText by AboutKey). The sample
+     hints are DATA (MapViewModel.*Sample), passed as the row's Hint.
      ⚠️ UNIT SET: a preset (US / Metric / Forecaster) writes its whole set and LOCKS the pickers below (greyed, the pick a lifted
      grey — never the accent); Custom frees them and brings back your last custom picks (MapViewModel.UnitSetIndex).
-     ⚠️ Names on the buttons, the RESULT in the hint — never the result on a button.
      ⚠️ 12-hour greys while UTC (UTC is always "17:04Z").
      ⚠️ No temperature / rainfall row: nothing in the app shows either yet (parked). -->
 <UserControl x:Class="Anvil.Controls.GeneralSettingsConsoles.GeneralSettingsConsoleUnits"
@@ -35,97 +35,77 @@
                     ToolTipService.ToolTip="Put every unit back to the DEFAULT column (asks first)"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
-                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+        <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
+            <prim:SettingsConsoleRow Label="Unit set" AboutKey="units.set" Default="{x:Bind ViewModel.DefaultUnitSetText}">
+                <prim:SegmentedPicker x:Name="UnitsSetPicker"
+                                      ItemsSource="{x:Bind ViewModel.UnitSetLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.UnitSetIndex, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="0" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Unit set"/>
-            <prim:SegmentedPicker x:Name="UnitsSetPicker" Grid.Row="0" Grid.Column="1"
-                                  ItemsSource="{x:Bind ViewModel.UnitSetLabels}"
-                                  SelectedIndex="{x:Bind ViewModel.UnitSetIndex, Mode=TwoWay}"
-                                  ToolTipService.ToolTip="US · Metric · Forecaster fix every unit below; Custom lets you pick each one"/>
-            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Use Anvil's presets or choose Custom"/>
-            <TextBlock Grid.Row="0" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultUnitSetText}"/>
+            <prim:SettingsConsoleRow Label="Clock" AboutKey="units.clock" Hint="{x:Bind ViewModel.ClockSample, Mode=OneWay}"
+                                     Default="{x:Bind ViewModel.DefaultClockText}">
+                <prim:SegmentedPicker x:Name="UnitsClockPicker"
+                                      IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
+                                      ItemsSource="{x:Bind ViewModel.ClockFormatLabels}"
+                                      DisabledIndex="{x:Bind ViewModel.ClockFormatDisabledIndex, Mode=OneWay}"
+                                      SelectedIndex="{x:Bind ViewModel.ClockFormatIndex, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Clock"/>
-            <prim:SegmentedPicker x:Name="UnitsClockPicker" Grid.Row="1" Grid.Column="1"
-                                  IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
-                                  ItemsSource="{x:Bind ViewModel.ClockFormatLabels}"
-                                  DisabledIndex="{x:Bind ViewModel.ClockFormatDisabledIndex, Mode=OneWay}"
-                                  SelectedIndex="{x:Bind ViewModel.ClockFormatIndex, Mode=TwoWay}"/>
-            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.ClockSample, Mode=OneWay}"/>
-            <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultClockText}"/>
+            <prim:SettingsConsoleRow Label="Time zone" AboutKey="units.zone" Hint="{x:Bind ViewModel.TimeZoneSample, Mode=OneWay}"
+                                     Default="{x:Bind ViewModel.DefaultTimeZoneText}">
+                <prim:SegmentedPicker x:Name="UnitsTimeZonePicker"
+                                      IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
+                                      ItemsSource="{x:Bind ViewModel.TimeZoneLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.TimeZoneIndex, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="2" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Time zone"/>
-            <prim:SegmentedPicker x:Name="UnitsTimeZonePicker" Grid.Row="2" Grid.Column="1"
-                                  IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
-                                  ItemsSource="{x:Bind ViewModel.TimeZoneLabels}"
-                                  SelectedIndex="{x:Bind ViewModel.TimeZoneIndex, Mode=TwoWay}"/>
-            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.TimeZoneSample, Mode=OneWay}"/>
-            <TextBlock Grid.Row="2" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultTimeZoneText}"/>
+            <prim:SettingsConsoleRow Label="Date" AboutKey="units.date" Hint="{x:Bind ViewModel.DateSample, Mode=OneWay}"
+                                     Default="{x:Bind ViewModel.DefaultDateText}">
+                <prim:SegmentedPicker x:Name="UnitsDatePicker"
+                                      IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
+                                      ItemsSource="{x:Bind ViewModel.DateFormatLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.DateFormatIndex, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="3" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Date"/>
-            <prim:SegmentedPicker x:Name="UnitsDatePicker" Grid.Row="3" Grid.Column="1"
-                                  IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
-                                  ItemsSource="{x:Bind ViewModel.DateFormatLabels}"
-                                  SelectedIndex="{x:Bind ViewModel.DateFormatIndex, Mode=TwoWay}"/>
-            <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.DateSample, Mode=OneWay}"/>
-            <TextBlock Grid.Row="3" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultDateText}"/>
+            <prim:SettingsConsoleRow Label="Distance" AboutKey="units.distance" Hint="{x:Bind ViewModel.DistanceSample, Mode=OneWay}"
+                                     Default="{x:Bind ViewModel.DefaultDistanceText}">
+                <prim:SegmentedPicker x:Name="UnitsDistancePicker"
+                                      IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
+                                      ItemsSource="{x:Bind ViewModel.DistanceUnitLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.DistanceUnitIndex, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="4" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Distance"/>
-            <prim:SegmentedPicker x:Name="UnitsDistancePicker" Grid.Row="4" Grid.Column="1"
-                                  IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
-                                  ItemsSource="{x:Bind ViewModel.DistanceUnitLabels}"
-                                  SelectedIndex="{x:Bind ViewModel.DistanceUnitIndex, Mode=TwoWay}"/>
-            <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.DistanceSample, Mode=OneWay}"/>
-            <TextBlock Grid.Row="4" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultDistanceText}"/>
+            <prim:SettingsConsoleRow Label="Speed" AboutKey="units.speed" Hint="{x:Bind ViewModel.SpeedSample, Mode=OneWay}"
+                                     Default="{x:Bind ViewModel.DefaultSpeedText}">
+                <prim:SegmentedPicker x:Name="UnitsSpeedPicker"
+                                      IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
+                                      ItemsSource="{x:Bind ViewModel.SpeedUnitLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.SpeedUnitIndex, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="5" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Speed"/>
-            <prim:SegmentedPicker x:Name="UnitsSpeedPicker" Grid.Row="5" Grid.Column="1"
-                                  IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
-                                  ItemsSource="{x:Bind ViewModel.SpeedUnitLabels}"
-                                  SelectedIndex="{x:Bind ViewModel.SpeedUnitIndex, Mode=TwoWay}"/>
-            <TextBlock Grid.Row="5" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.SpeedSample, Mode=OneWay}"/>
-            <TextBlock Grid.Row="5" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultSpeedText}"/>
+            <prim:SettingsConsoleRow Label="Height" AboutKey="units.height" Hint="{x:Bind ViewModel.HeightSample, Mode=OneWay}"
+                                     Default="{x:Bind ViewModel.DefaultHeightText}">
+                <prim:SegmentedPicker x:Name="UnitsHeightPicker"
+                                      IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
+                                      ItemsSource="{x:Bind ViewModel.HeightUnitLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.HeightUnitIndex, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="6" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Height"/>
-            <prim:SegmentedPicker x:Name="UnitsHeightPicker" Grid.Row="6" Grid.Column="1"
-                                  IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
-                                  ItemsSource="{x:Bind ViewModel.HeightUnitLabels}"
-                                  SelectedIndex="{x:Bind ViewModel.HeightUnitIndex, Mode=TwoWay}"/>
-            <TextBlock Grid.Row="6" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.HeightSample, Mode=OneWay}"/>
-            <TextBlock Grid.Row="6" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultHeightText}"/>
+            <prim:SettingsConsoleRow Label="Hail size" AboutKey="units.hail" Hint="{x:Bind ViewModel.HailSample, Mode=OneWay}"
+                                     Default="{x:Bind ViewModel.DefaultHailText}">
+                <prim:SegmentedPicker x:Name="UnitsHailPicker"
+                                      IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
+                                      ItemsSource="{x:Bind ViewModel.HailUnitLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.HailUnitIndex, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="7" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Hail size"/>
-            <prim:SegmentedPicker x:Name="UnitsHailPicker" Grid.Row="7" Grid.Column="1"
-                                  IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
-                                  ItemsSource="{x:Bind ViewModel.HailUnitLabels}"
-                                  SelectedIndex="{x:Bind ViewModel.HailUnitIndex, Mode=TwoWay}"/>
-            <TextBlock Grid.Row="7" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.HailSample, Mode=OneWay}"/>
-            <TextBlock Grid.Row="7" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultHailText}"/>
-
-            <TextBlock Grid.Row="8" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Coordinates"/>
-            <prim:SegmentedPicker x:Name="UnitsCoordinatesPicker" Grid.Row="8" Grid.Column="1"
-                                  IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
-                                  ItemsSource="{x:Bind ViewModel.CoordinateFormatLabels}"
-                                  SelectedIndex="{x:Bind ViewModel.CoordinateFormatIndex, Mode=TwoWay}"/>
-            <TextBlock Grid.Row="8" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.CoordinateSample, Mode=OneWay}"/>
-            <TextBlock Grid.Row="8" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultCoordinateText}"/>
-        </Grid>
+            <prim:SettingsConsoleRow Label="Coordinates" AboutKey="units.coords" Hint="{x:Bind ViewModel.CoordinateSample, Mode=OneWay}"
+                                     Default="{x:Bind ViewModel.DefaultCoordinateText}">
+                <prim:SegmentedPicker x:Name="UnitsCoordinatesPicker"
+                                      IsEnabled="{x:Bind ViewModel.AreUnitsCustom, Mode=OneWay}"
+                                      ItemsSource="{x:Bind ViewModel.CoordinateFormatLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.CoordinateFormatIndex, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
+        </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>

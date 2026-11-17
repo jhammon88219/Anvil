@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SettingsConsoleRow — ONE setting on a console (docs/ui-patterns.md "The row"): Label · Control · Hint · Default, on the
+     shared column widths, with the two LIFTS the user asked for (2026-11-17):
+
+       ┌──────────────────────────────────────────────────────────────────────────────────────────┐
+       │ Label 96   │ Control ≤ 420 (the row's content)        │ Hint *               │ Default 150 │ ← one row, bled 8 px past
+       └──────────────────────────────────────────────────────────────────────────────────────────┘   the plate's padding each side
+        HOVER  = SettingsRowHoverBrush: follow the row across to its hint and default
+        SELECTED = SettingsRowSelectedBrush + a 3 px accent TICK on the left; the page's About box shows this row
+                   (picked by a click ANYWHERE on the row, its control included, or by keyboard focus moving into it)
+
+     The words: Hint = the explicit Hint (a hint that follows state) else the catalog's (Services/Settings/SettingsText by
+     AboutKey); the About box reads the catalog by AboutKey. HintContent / DefaultContent take a custom cell instead.
+     ⚠️ The lifts are drawn by Borders whose OPACITY the states set — the brushes are ThemeResources here, never resolved in C#.
+     ⚠️ The row never moves layout on hover/select (no size change), and selecting never scrolls.
+     ⚠️ A row with NO AboutKey is INERT (no lifts, never picked) — a status line laid on the grid (download progress, a message).
+     ControlSpan lets a wide control (a file list, a progress bar) run on over the Hint / Default columns. -->
+<UserControl x:Class="Anvil.Controls.Primitives.SettingsConsoleRow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid x:Name="SettingsConsoleRowRoot" Margin="-8,0" Background="Transparent"
+          PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="HoverStates">
+                <VisualState x:Name="NotHovered"/>
+                <VisualState x:Name="Hovered">
+                    <VisualState.Setters>
+                        <Setter Target="SettingsConsoleRowHoverLift.Opacity" Value="1"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <VisualStateGroup x:Name="SelectionStates">
+                <VisualState x:Name="Unselected"/>
+                <VisualState x:Name="Selected">
+                    <VisualState.Setters>
+                        <Setter Target="SettingsConsoleRowSelectedLift.Opacity" Value="1"/>
+                        <Setter Target="SettingsConsoleRowSelectedTick.Opacity" Value="1"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <!-- A row whose setting can't be used yet (Monitors) dims its label too. -->
+            <VisualStateGroup x:Name="LabelStates">
+                <VisualState x:Name="LabelNormal"/>
+                <VisualState x:Name="LabelDimmed">
+                    <VisualState.Setters>
+                        <Setter Target="SettingsConsoleRowLabel.Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Border x:Name="SettingsConsoleRowHoverLift" CornerRadius="4" Opacity="0" IsHitTestVisible="False"
+                Background="{ThemeResource SettingsRowHoverBrush}"/>
+        <Border x:Name="SettingsConsoleRowSelectedLift" CornerRadius="4" Opacity="0" IsHitTestVisible="False"
+                Background="{ThemeResource SettingsRowSelectedBrush}"/>
+        <Border x:Name="SettingsConsoleRowSelectedTick" Width="3" HorizontalAlignment="Left" Margin="0,8" CornerRadius="1.5"
+                Opacity="0" IsHitTestVisible="False" Background="{ThemeResource AccentFillColorDefaultBrush}"/>
+
+        <Grid x:Name="SettingsConsoleRowCells" Padding="8,4" ColumnSpacing="12" MinHeight="40">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock x:Name="SettingsConsoleRowLabel" Style="{StaticResource SettingsConsoleLabelTextStyle}"
+                       VerticalAlignment="{x:Bind TextVerticalAlignment, Mode=OneWay}"
+                       Margin="{x:Bind TopInset(TextVerticalAlignment), Mode=OneWay}"
+                       Text="{x:Bind Label, Mode=OneWay}"/>
+
+            <ContentPresenter x:Name="SettingsConsoleRowControl" Grid.Column="1"
+                              Grid.ColumnSpan="{x:Bind ControlSpan, Mode=OneWay}"
+                              HorizontalContentAlignment="Stretch" VerticalAlignment="Center"
+                              Content="{x:Bind ControlContent, Mode=OneWay}"/>
+
+            <TextBlock x:Name="SettingsConsoleRowHint" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
+                       Grid.ColumnSpan="{x:Bind HintSpan(HintSpansDefault), Mode=OneWay}"
+                       VerticalAlignment="{x:Bind TextVerticalAlignment, Mode=OneWay}"
+                       Margin="{x:Bind TopInset(TextVerticalAlignment), Mode=OneWay}"
+                       Text="{x:Bind HintText(Hint, AboutKey), Mode=OneWay}"/>
+            <ContentPresenter x:Name="SettingsConsoleRowHintContent" Grid.Column="2" VerticalAlignment="Center"
+                              Content="{x:Bind HintContent, Mode=OneWay}"/>
+
+            <TextBlock x:Name="SettingsConsoleRowDefault" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
+                       VerticalAlignment="{x:Bind TextVerticalAlignment, Mode=OneWay}"
+                       Margin="{x:Bind TopInset(TextVerticalAlignment), Mode=OneWay}"
+                       Visibility="{x:Bind NoContent(DefaultContent), Mode=OneWay}"
+                       Text="{x:Bind Default, Mode=OneWay}"/>
+            <ContentPresenter x:Name="SettingsConsoleRowDefaultContent" Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center"
+                              Content="{x:Bind DefaultContent, Mode=OneWay}"/>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -18,42 +18,36 @@
              mc:Ignorable="d">
 
     <prim:SettingsConsolePlate x:Name="StorageSettingsConsoleOnlineMapPlate" Title="Online map">
-        <!-- RowSpacing 6, not the shared 10: row 1 is the key's MESSAGE line, which belongs to the row above. -->
-        <Grid Style="{StaticResource SettingsConsoleRowsStyle}" RowSpacing="6">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
-                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+        <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
+            <prim:SettingsConsoleRow Label="Map key" AboutKey="online.key">
+                <prim:SettingsConsoleRow.HintContent>
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Free for personal use ·"/>
+                        <HyperlinkButton Content="Get a free key at protomaps.com" Padding="0" FontSize="12"
+                                         NavigateUri="https://protomaps.com/account"/>
+                    </StackPanel>
+                </prim:SettingsConsoleRow.HintContent>
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="OnlineMapKeyTextBox" PlaceholderText="a1b2c3d4e5f6…"
+                             Text="{x:Bind ViewModel.MapKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Button x:Name="OnlineMapTestKeyButton" Grid.Column="1" Content="Test" Click="{x:Bind ViewModel.TestKey}"
+                            IsEnabled="{x:Bind ViewModel.CanTestKey, Mode=OneWay}"/>
+                    <Button x:Name="OnlineMapUseButton" Grid.Column="2" Content="Use online map" Click="{x:Bind ViewModel.UseOnlineMap}"
+                            IsEnabled="{x:Bind ViewModel.CanTestKey, Mode=OneWay}"/>
+                </Grid>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Map key"/>
-            <Grid Grid.Column="1" ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBox x:Name="OnlineMapKeyTextBox" PlaceholderText="a1b2c3d4e5f6…"
-                         Text="{x:Bind ViewModel.MapKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                <Button x:Name="OnlineMapTestKeyButton" Grid.Column="1" Content="Test" Click="{x:Bind ViewModel.TestKey}"
-                        IsEnabled="{x:Bind ViewModel.CanTestKey, Mode=OneWay}"/>
-                <Button x:Name="OnlineMapUseButton" Grid.Column="2" Content="Use online map" Click="{x:Bind ViewModel.UseOnlineMap}"
-                        IsEnabled="{x:Bind ViewModel.CanTestKey, Mode=OneWay}"/>
-            </Grid>
-            <StackPanel Grid.Column="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Free for personal use ·"/>
-                <HyperlinkButton Content="Get a free key at protomaps.com" Padding="0" FontSize="12"
-                                 NavigateUri="https://protomaps.com/account"/>
-            </StackPanel>
-
-            <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" FontSize="12" TextWrapping="Wrap"
-                       Text="{x:Bind ViewModel.KeyMessage, Mode=OneWay}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-        </Grid>
+            <!-- The key's last message: an INERT row (no AboutKey) that belongs to the row above. -->
+            <prim:SettingsConsoleRow ControlSpan="2">
+                <TextBlock FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                           Text="{x:Bind ViewModel.KeyMessage, Mode=OneWay}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </prim:SettingsConsoleRow>
+        </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>

@@ -6,10 +6,11 @@
        User name  [firstname.lastname                     ]   From the NWS · one computer at a time
        Password   [Saved — type to replace                ]   Kept in Windows Credential Manager
                   [Save account] [Test connection]             Signed in. The account works.   ← the account message
-       96         420                                          hint (one line)
+       96         420                                          hint (one line; the message runs on into Default)
 
-     ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's. GREYED (IsEnabled) unless the source is NOAA Weather Wire — pick it, then
-     sign in. An account is YOURS: no DEFAULT, no Restore defaults, and Reset all keeps it.
+     ⚠️ Every row is a Primitives/SettingsConsoleRow (lifts; words = Services/Settings/SettingsText by AboutKey). GREYED unless the
+     source is NOAA Weather Wire — each CONTROL greys (not the rows), so a greyed row can still be picked to read its About.
+     An account is YOURS: no DEFAULT, no Restore defaults, and Reset all keeps it.
      ⚠️ The password lives ONLY in Credential Manager (ICredentialStore), never AppSettings: the PasswordBox hands it to the VM
      from code-behind (SetPendingPassword), never through a binding. NWWS-OI is untested live (no account yet). -->
 <UserControl x:Class="Anvil.Controls.LiveDataSettingsConsoles.LiveDataSettingsConsoleWeatherWire"
@@ -21,41 +22,31 @@
              mc:Ignorable="d">
 
     <prim:SettingsConsolePlate x:Name="LiveDataSettingsConsoleWeatherWirePlate" Title="Weather Wire account">
-        <ContentControl HorizontalContentAlignment="Stretch" IsTabStop="False" IsEnabled="{x:Bind ViewModel.IsNwws, Mode=OneWay}">
-            <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
-                    <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="User name"/>
-                <TextBox x:Name="NwwsUsernameTextBox" Grid.Column="1" PlaceholderText="firstname.lastname"
+        <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
+            <prim:SettingsConsoleRow Label="User name" AboutKey="wire.user">
+                <TextBox x:Name="NwwsUsernameTextBox" PlaceholderText="firstname.lastname"
+                         IsEnabled="{x:Bind ViewModel.IsNwws, Mode=OneWay}"
                          Text="{x:Bind ViewModel.NwwsUsername, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="From the NWS · one computer at a time"/>
+            </prim:SettingsConsoleRow>
 
-                <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Password"/>
-                <PasswordBox x:Name="NwwsPasswordBox" Grid.Row="1" Grid.Column="1"
+            <prim:SettingsConsoleRow Label="Password" AboutKey="wire.password">
+                <PasswordBox x:Name="NwwsPasswordBox"
+                             IsEnabled="{x:Bind ViewModel.IsNwws, Mode=OneWay}"
                              PlaceholderText="{x:Bind ViewModel.PasswordPlaceholder, Mode=OneWay}"
                              PasswordChanged="OnPasswordChanged"/>
-                <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Kept in Windows Credential Manager"/>
+            </prim:SettingsConsoleRow>
 
-                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <prim:SettingsConsoleRow AboutKey="wire.account" HintSpansDefault="True"
+                                     Hint="{x:Bind AccountHint(ViewModel.IsNwws, ViewModel.AccountMessage), Mode=OneWay}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button x:Name="NwwsSaveAccountButton" Content="Save account" Click="OnSaveAccountClick"
+                            IsEnabled="{x:Bind ViewModel.IsNwws, Mode=OneWay}"
                             ToolTipService.ToolTip="Saves the password in Windows Credential Manager and connects"/>
                     <Button x:Name="NwwsTestConnectionButton" Content="Test connection" Click="OnTestConnectionClick"
-                            IsEnabled="{x:Bind ViewModel.CanTest, Mode=OneWay}"
+                            IsEnabled="{x:Bind TestEnabled(ViewModel.IsNwws, ViewModel.CanTest), Mode=OneWay}"
                             ToolTipService.ToolTip="Signs in to NOAA Weather Wire and straight back out"/>
                 </StackPanel>
-                <TextBlock Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                           Text="{x:Bind AccountHint(ViewModel.IsNwws, ViewModel.AccountMessage), Mode=OneWay}"/>
-            </Grid>
-        </ContentControl>
+            </prim:SettingsConsoleRow>
+        </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>

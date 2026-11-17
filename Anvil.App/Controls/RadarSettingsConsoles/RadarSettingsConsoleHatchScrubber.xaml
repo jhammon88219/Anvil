@@ -3,14 +3,15 @@
      Primitives/SettingsConsolePlate. The hatch scrubber's OWN look (RadarViewModel.HatchLook), apart from Appearance → Edges.
 
        Hatch scrubber  [Restore defaults]                                                          DEFAULT
-       Line colour    (A) ■ ■ ■ ■ ■ (+)                       Only with the Hatch style            Accent
+       Line color     (A) ■ ■ ■ ■ ■ (+)                       A = your Windows accent color         Accent
        Line spacing   ──●──────────────────────────  5 px                                            5 px
        Line weight    ───────●─────────────────────  1.0 px                                        1.0 px
        Line opacity   ──────────────●──────────────  60%                                              60%
        96             420 (slider * · value 56)              hint (one line)                   150, right
 
-     ⚠️ THE COLUMNS (96 · 420 · * · 150) are the page's. LOCKED (greyed, Restore defaults too) unless Scrubber → Style = Hatch
-     (RadarViewModel.IsHatchScrubber). Sizes are at the edge's 35 px; the scrubber scales them to its 24 px strip. -->
+     ⚠️ Every row is a Primitives/SettingsConsoleRow (lifts; words = Services/Settings/SettingsText by AboutKey).
+     ⚠️ LOCKED (greyed, Restore defaults too) unless Scrubber → Style = Hatch (RadarViewModel.IsHatchScrubber) — the color row's
+     hint says so then. Sizes are at the edge's 35 px; the scrubber scales them to its 24 px strip. -->
 <UserControl x:Class="Anvil.Controls.RadarSettingsConsoles.RadarSettingsConsoleHatchScrubber"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -26,66 +27,52 @@
                     ToolTipService.ToolTip="Put the hatch scrubber's look back to the DEFAULT column (asks first)"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
-                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+        <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
+            <!-- "A" = the accent (follows Windows); "+" = any color. -->
+            <prim:SettingsConsoleRow Label="Line color" AboutKey="hatch.color" Default="{x:Bind ViewModel.DefaultHatchColorText}"
+                                     Hint="{x:Bind ColorHint(ViewModel.Radar.IsHatchScrubber), Mode=OneWay}">
+                <prim:ColorSwatchPicker x:Name="HatchScrubberColorPicker" HorizontalAlignment="Left"
+                                        IsEnabled="{x:Bind ViewModel.Radar.IsHatchScrubber, Mode=OneWay}"
+                                        AllowCustom="True"
+                                        ItemsSource="{x:Bind ViewModel.Radar.HatchLook.ColorSwatches}"
+                                        ToolTips="{x:Bind ViewModel.Radar.HatchLook.ColorNames}"
+                                        SelectedIndex="{x:Bind ViewModel.Radar.HatchLook.ColorIndex, Mode=TwoWay}"
+                                        CustomHex="{x:Bind ViewModel.Radar.HatchLook.ColorHex, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <!-- "A" = the accent (follows Windows); "+" = any colour. -->
-            <TextBlock Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Line color"/>
-            <prim:ColorSwatchPicker x:Name="HatchScrubberColorPicker" Grid.Column="1" HorizontalAlignment="Left"
-                                    IsEnabled="{x:Bind ViewModel.Radar.IsHatchScrubber, Mode=OneWay}"
-                                    AllowCustom="True"
-                                    ItemsSource="{x:Bind ViewModel.Radar.HatchLook.ColorSwatches}"
-                                    ToolTips="{x:Bind ViewModel.Radar.HatchLook.ColorNames}"
-                                    SelectedIndex="{x:Bind ViewModel.Radar.HatchLook.ColorIndex, Mode=TwoWay}"
-                                    CustomHex="{x:Bind ViewModel.Radar.HatchLook.ColorHex, Mode=TwoWay}"/>
-            <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                       Text="{x:Bind ColorHint(ViewModel.Radar.IsHatchScrubber), Mode=OneWay}"/>
-            <TextBlock Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultHatchColorText}"/>
+            <prim:SettingsConsoleRow Label="Line spacing" AboutKey="hatch.spacing" Default="{x:Bind ViewModel.DefaultHatchSpacingText}">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
+                    <Slider x:Name="HatchScrubberSpacingSlider" VerticalAlignment="Center" Minimum="3" Maximum="12" StepFrequency="1"
+                            IsEnabled="{x:Bind ViewModel.Radar.IsHatchScrubber, Mode=OneWay}"
+                            Value="{x:Bind ViewModel.Radar.HatchLook.Spacing, Mode=TwoWay}"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}"
+                               Text="{x:Bind ViewModel.Radar.HatchLook.SpacingText, Mode=OneWay}"/>
+                </Grid>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Line spacing"/>
-            <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="12">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
-                <Slider x:Name="HatchScrubberSpacingSlider" VerticalAlignment="Center" Minimum="3" Maximum="12" StepFrequency="1"
-                        IsEnabled="{x:Bind ViewModel.Radar.IsHatchScrubber, Mode=OneWay}"
-                        Value="{x:Bind ViewModel.Radar.HatchLook.Spacing, Mode=TwoWay}"/>
-                <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}"
-                           Text="{x:Bind ViewModel.Radar.HatchLook.SpacingText, Mode=OneWay}"/>
-            </Grid>
-            <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultHatchSpacingText}"/>
+            <prim:SettingsConsoleRow Label="Line weight" AboutKey="hatch.weight" Default="{x:Bind ViewModel.DefaultHatchWeightText}">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
+                    <Slider x:Name="HatchScrubberWeightSlider" VerticalAlignment="Center" Minimum="0.5" Maximum="2" StepFrequency="0.5"
+                            IsEnabled="{x:Bind ViewModel.Radar.IsHatchScrubber, Mode=OneWay}"
+                            Value="{x:Bind ViewModel.Radar.HatchLook.Weight, Mode=TwoWay}"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}"
+                               Text="{x:Bind ViewModel.Radar.HatchLook.WeightText, Mode=OneWay}"/>
+                </Grid>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="2" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Line weight"/>
-            <Grid Grid.Row="2" Grid.Column="1" ColumnSpacing="12">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
-                <Slider x:Name="HatchScrubberWeightSlider" VerticalAlignment="Center" Minimum="0.5" Maximum="2" StepFrequency="0.5"
-                        IsEnabled="{x:Bind ViewModel.Radar.IsHatchScrubber, Mode=OneWay}"
-                        Value="{x:Bind ViewModel.Radar.HatchLook.Weight, Mode=TwoWay}"/>
-                <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}"
-                           Text="{x:Bind ViewModel.Radar.HatchLook.WeightText, Mode=OneWay}"/>
-            </Grid>
-            <TextBlock Grid.Row="2" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultHatchWeightText}"/>
-
-            <TextBlock Grid.Row="3" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Line opacity"/>
-            <Grid Grid.Row="3" Grid.Column="1" ColumnSpacing="12">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
-                <Slider x:Name="HatchScrubberOpacitySlider" VerticalAlignment="Center" Minimum="10" Maximum="100" StepFrequency="1"
-                        SmallChange="1" LargeChange="10"
-                        IsEnabled="{x:Bind ViewModel.Radar.IsHatchScrubber, Mode=OneWay}"
-                        Value="{x:Bind ViewModel.Radar.HatchLook.Opacity, Mode=TwoWay}"/>
-                <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}"
-                           Text="{x:Bind ViewModel.Radar.HatchLook.OpacityText, Mode=OneWay}"/>
-            </Grid>
-            <TextBlock Grid.Row="3" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultHatchOpacityText}"/>
-        </Grid>
+            <prim:SettingsConsoleRow Label="Line opacity" AboutKey="hatch.opacity" Default="{x:Bind ViewModel.DefaultHatchOpacityText}">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
+                    <Slider x:Name="HatchScrubberOpacitySlider" VerticalAlignment="Center" Minimum="10" Maximum="100" StepFrequency="1"
+                            SmallChange="1" LargeChange="10"
+                            IsEnabled="{x:Bind ViewModel.Radar.IsHatchScrubber, Mode=OneWay}"
+                            Value="{x:Bind ViewModel.Radar.HatchLook.Opacity, Mode=TwoWay}"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Style="{StaticResource TabularNumberTextStyle}"
+                               Text="{x:Bind ViewModel.Radar.HatchLook.OpacityText, Mode=OneWay}"/>
+                </Grid>
+            </prim:SettingsConsoleRow>
+        </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>

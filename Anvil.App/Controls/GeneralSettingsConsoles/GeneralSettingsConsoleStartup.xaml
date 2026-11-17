@@ -4,20 +4,19 @@
 
        Startup    [Restore defaults]                                                               DEFAULT
        Opens on   (•) Pick up where I left off        Opens Anvil in the state you closed it  Where I left off
-           ( ) Start in
-                      [Map only|NowCast|ForeCast|Now + Fore|PastCast]   (394, under the radio's text)  NowCast
-                                                  ↕ 24 px (a group-break row: the "Opens on" group ends)
-       Home site  KTLX · Norman                                                                        None
-                  ☐ Load home site on launch               Only when Anvil starts in NowCast            Off
-                  ☐ Start in full screen                                                                Off
-                  ☑ Show map setup at launch               Only while Anvil has no map                   On
-       96         420                                              hint (one line)              150, right
+                  ( ) Start in
+                      [Map only|NowCast|ForeCast|Now + Fore|PastCast]   Select which Cast mode(s) …     NowCast
+                                                  ↕ group break (SettingsGroupBreakSpace)
+       Home site  KTLX · Norman                   Set it in the Atlas or from a site's map key         None
+                  ☐ Load home site on launch      Only when Anvil starts in NowCast                     Off
+                  ☐ Start in full screen          F11 or Esc leaves full screen                         Off
+                  ☑ Show map setup at launch      While Anvil has no map set                             On
+       96         420                             hint (one line)                               150, right
 
-     ⚠️ THE ROW GRID is Styles.xaml's (SettingsConsoleRowsStyle + Settings*ColumnWidth) — every console shares it; a checkbox sits
-     in the Control column with an empty Label cell (docs/ui-patterns.md).
-     ⚠️ Read ONCE at launch (MapViewModel.RestoreTemporalSession at map-ready; full screen by MainWindow) — a change applies
-     next launch; a fixed start is never saved over the last session. The home site is PICKED in the Radar Atlas; this shows
-     it. Restore defaults asks first and CLEARS the home site (the user's call). -->
+     ⚠️ Every row is a Primitives/SettingsConsoleRow (hover + select lifts; its words = Services/Settings/SettingsText by
+     AboutKey). ⚠️ Read ONCE at launch (MapViewModel.RestoreTemporalSession at map-ready; full screen by MainWindow) — a change
+     applies next launch; a fixed start is never saved over the last session. The home site is PICKED in the Radar Atlas; this
+     shows it. Restore defaults asks first and CLEARS the home site (the user's call). -->
 <UserControl x:Class="Anvil.Controls.GeneralSettingsConsoles.GeneralSettingsConsoleStartup"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -32,79 +31,53 @@
                     ToolTipService.ToolTip="Put Startup back to the DEFAULT column (asks first)"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
-                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="{StaticResource SettingsGroupBreakHeight}"/> <!-- group break: "Opens on" ends -->
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+        <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
+            <prim:SettingsConsoleRow Label="Opens on" AboutKey="startup.resume" Default="{x:Bind ViewModel.DefaultStartupResumeText}">
+                <RadioButton x:Name="StartupResumeRadioButton" GroupName="StartupChoice" VerticalAlignment="Center"
+                             Content="Pick up where I left off"
+                             IsChecked="{x:Bind ViewModel.StartupResume, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="0" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Opens on"/>
-            <RadioButton x:Name="StartupResumeRadioButton" Grid.Row="0" Grid.Column="1" GroupName="StartupChoice" VerticalAlignment="Center"
-                         Content="Pick up where I left off"
-                         IsChecked="{x:Bind ViewModel.StartupResume, Mode=TwoWay}"/>
-            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Opens Anvil in the state you closed it"/>
-            <TextBlock Grid.Row="0" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
-                       Text="{x:Bind ViewModel.DefaultStartupResumeText}"/>
+            <!-- "Start in" + its picker are ONE setting: the radio, then the picker indented 26 under the radio's text. -->
+            <prim:SettingsConsoleRow AboutKey="startup.mode" Default="{x:Bind ViewModel.DefaultStartupModeText}">
+                <StackPanel Spacing="8">
+                    <RadioButton x:Name="StartupFixedRadioButton" GroupName="StartupChoice" VerticalAlignment="Center"
+                                 Content="Start in"
+                                 IsChecked="{x:Bind ViewModel.StartupFixed, Mode=TwoWay}"/>
+                    <prim:SegmentedPicker x:Name="StartupModePicker" Margin="26,0,0,0"
+                                          ItemsSource="{x:Bind ViewModel.StartupModeLabels}"
+                                          SelectedIndex="{x:Bind ViewModel.StartupModeIndex, Mode=TwoWay}"
+                                          IsEnabled="{x:Bind ViewModel.StartupFixed, Mode=OneWay}"/>
+                </StackPanel>
+            </prim:SettingsConsoleRow>
 
-            <RadioButton x:Name="StartupFixedRadioButton" Grid.Row="1" Grid.Column="1" GroupName="StartupChoice" VerticalAlignment="Center"
-                         Content="Start in"
-                         IsChecked="{x:Bind ViewModel.StartupFixed, Mode=TwoWay}"/>
+            <Border Height="{StaticResource SettingsGroupBreakSpace}"/>
 
-            <!-- Under the radio's TEXT: the RadioButton's glyph (20) + its 8 px gap = 28 … rounded to the mock-up's 26. -->
-            <prim:SegmentedPicker x:Name="StartupModePicker" Grid.Row="2" Grid.Column="1" Margin="26,0,0,0"
-                                  HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                  ItemsSource="{x:Bind ViewModel.StartupModeLabels}"
-                                  SelectedIndex="{x:Bind ViewModel.StartupModeIndex, Mode=TwoWay}"
-                                  IsEnabled="{x:Bind ViewModel.StartupFixed, Mode=OneWay}"/>
-            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Select which Cast mode(s) Anvil starts in"/>
-            <TextBlock Grid.Row="2" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
-                       Text="{x:Bind ViewModel.DefaultStartupModeText}"/>
+            <prim:SettingsConsoleRow Label="Home site" AboutKey="startup.homeSite" Default="{x:Bind ViewModel.DefaultHomeSiteText}">
+                <TextBlock x:Name="HomeSiteNameText" VerticalAlignment="Center"
+                           Text="{x:Bind ViewModel.SiteFavorites.HomeSiteName, Mode=OneWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <!-- Row 3 = the group break (SettingsGroupBreakHeight): the "Opens on" group ends there. -->
-            <TextBlock Grid.Row="4" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Home site"/>
-            <TextBlock x:Name="HomeSiteNameText" Grid.Row="4" Grid.Column="1" VerticalAlignment="Center"
-                       Text="{x:Bind ViewModel.SiteFavorites.HomeSiteName, Mode=OneWay}"/>
-            <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Set it in the Atlas or from a site's map key"/>
-            <TextBlock Grid.Row="4" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
-                       Text="{x:Bind ViewModel.DefaultHomeSiteText}"/>
+            <!-- The rule is MapViewModel's SiteFavorites.HoldLaunchLoad (docs/bugs.md S33). -->
+            <prim:SettingsConsoleRow AboutKey="startup.loadHome" Default="{x:Bind ViewModel.DefaultLoadHomeOnLaunchText}">
+                <CheckBox x:Name="LoadHomeOnLaunchCheckBox" VerticalAlignment="Center"
+                          Content="Load home site on launch"
+                          IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <CheckBox x:Name="LoadHomeOnLaunchCheckBox" Grid.Row="5" Grid.Column="1" VerticalAlignment="Center"
-                      Content="Load home site on launch"
-                      IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Start the live radar loop for your home site when Anvil opens"/>
-            <!-- In the HINT column like every hint. The rule is MapViewModel's SiteFavorites.HoldLaunchLoad (docs/bugs.md S33). -->
-            <TextBlock Grid.Row="5" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Only when Anvil starts in NowCast"/>
-            <TextBlock Grid.Row="5" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
-                       Text="{x:Bind ViewModel.DefaultLoadHomeOnLaunchText}"/>
-
-            <CheckBox x:Name="StartInFullScreenCheckBox" Grid.Row="6" Grid.Column="1" VerticalAlignment="Center"
-                      Content="Start in full screen"
-                      IsChecked="{x:Bind ViewModel.StartInFullScreen, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Open Anvil full screen (F11 or Esc leaves it)"/>
-            <TextBlock Grid.Row="6" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="F11 or Esc leaves full screen"/>
-            <TextBlock Grid.Row="6" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
-                       Text="{x:Bind ViewModel.DefaultStartInFullScreenText}"/>
+            <prim:SettingsConsoleRow AboutKey="startup.fullScreen" Default="{x:Bind ViewModel.DefaultStartInFullScreenText}">
+                <CheckBox x:Name="StartInFullScreenCheckBox" VerticalAlignment="Center"
+                          Content="Start in full screen"
+                          IsChecked="{x:Bind ViewModel.StartInFullScreen, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
 
             <!-- Moved from the Basemap page (2026-11-16): a launch preference. The setup window's "Stop showing this at launch"
                  is the SAME setting, inverted (BasemapSetupViewModel.ShowAtLaunch). -->
-            <CheckBox x:Name="ShowMapSetupAtLaunchCheckBox" Grid.Row="7" Grid.Column="1" VerticalAlignment="Center"
-                      Content="Show map setup at launch"
-                      IsChecked="{x:Bind ViewModel.BasemapSetup.ShowAtLaunch, Mode=TwoWay}"/>
-            <TextBlock Grid.Row="7" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="While Anvil has no map set"/>
-            <TextBlock Grid.Row="7" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
-                       Text="{x:Bind ViewModel.DefaultShowMapSetupText}"/>
-        </Grid>
+            <prim:SettingsConsoleRow AboutKey="startup.mapSetup" Default="{x:Bind ViewModel.DefaultShowMapSetupText}">
+                <CheckBox x:Name="ShowMapSetupAtLaunchCheckBox" VerticalAlignment="Center"
+                          Content="Show map setup at launch"
+                          IsChecked="{x:Bind ViewModel.BasemapSetup.ShowAtLaunch, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
+        </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>

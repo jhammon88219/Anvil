@@ -114,6 +114,10 @@
             <!-- A GREYED segmented picker's pick (locked, or not built yet): a slightly LIFTED grey, never the accent, so a
                  control you can't use doesn't read as available. -->
             <SolidColorBrush x:Key="SegmentLockedSelectedBrush" Color="#FF3C3C3C"/>
+            <!-- Primitives/SettingsConsoleRow's lifts over the plate face: HOVER (follow a row across to its hint + default) and
+                 SELECTED (stays lifted; the page's About box shows it). Translucent so they sit on any plate face. -->
+            <SolidColorBrush x:Key="SettingsRowHoverBrush" Color="#0FFFFFFF"/>
+            <SolidColorBrush x:Key="SettingsRowSelectedBrush" Color="#1CFFFFFF"/>
 
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
@@ -156,6 +160,8 @@
             <SolidColorBrush x:Key="SettingsCautionBorderPressedBrush" Color="#FF9A6A0C"/>
             <SolidColorBrush x:Key="SettingsCautionForegroundPressedBrush" Color="#FF5C3900"/>
             <SolidColorBrush x:Key="SegmentLockedSelectedBrush" Color="#FFD6D6D6"/>
+            <SolidColorBrush x:Key="SettingsRowHoverBrush" Color="#0A000000"/>
+            <SolidColorBrush x:Key="SettingsRowSelectedBrush" Color="#16000000"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
@@ -195,6 +201,8 @@
             <SolidColorBrush x:Key="SettingsCautionBorderPressedBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
             <SolidColorBrush x:Key="SettingsCautionForegroundPressedBrush" Color="{ThemeResource SystemColorHighlightTextColor}"/>
             <SolidColorBrush x:Key="SegmentLockedSelectedBrush" Color="{ThemeResource SystemColorGrayTextColor}"/>
+            <SolidColorBrush x:Key="SettingsRowHoverBrush" Color="Transparent"/>
+            <SolidColorBrush x:Key="SettingsRowSelectedBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
@@ -272,21 +280,19 @@
         <Setter Property="HorizontalAlignment" Value="Right"/>
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
     </Style>
-    <!-- THE ROW GRID every console's rows sit on (docs/ui-patterns.md "The row"): Label · Control · Hint (*) · Default.
-           <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
-             <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>     96
-             <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>   420 (the widest control on a page)
-             <ColumnDefinition Width="*"/>                                             hint
-             <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>   150
-         A GROUP BREAK inside a console = an empty row of SettingsGroupBreakHeight (4 + the two 10 px row gaps = 24 px).
+    <!-- THE ROWS every console holds (docs/ui-patterns.md "The row"): a StackPanel of Primitives/SettingsConsoleRow, each
+         Label · Control · Hint (*) · Default on these widths (the row's own grid uses them; so does the Storage table's
+         DEFAULT column):
+           <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
+             <prim:SettingsConsoleRow Label="Clock" AboutKey="units.clock" Default="…"> the control </prim:SettingsConsoleRow>
+             <Border Height="{StaticResource SettingsGroupBreakSpace}"/>      ← a GROUP BREAK inside a console
          A CHECKBOX sits in the Control column with its Label cell empty (Option A, the user's call 2026-11-17). -->
     <GridLength x:Key="SettingsLabelColumnWidth">96</GridLength>
     <GridLength x:Key="SettingsControlColumnWidth">420</GridLength>
     <GridLength x:Key="SettingsDefaultColumnWidth">150</GridLength>
-    <GridLength x:Key="SettingsGroupBreakHeight">4</GridLength>
-    <Style x:Key="SettingsConsoleRowsStyle" TargetType="Grid">
-        <Setter Property="ColumnSpacing" Value="12"/>
-        <Setter Property="RowSpacing" Value="10"/>
+    <x:Double x:Key="SettingsGroupBreakSpace">12</x:Double>
+    <Style x:Key="SettingsConsoleRowsStyle" TargetType="StackPanel">
+        <Setter Property="Spacing" Value="2"/>
     </Style>
     <!-- A row's NAME (the Label column). -->
     <Style x:Key="SettingsConsoleLabelTextStyle" TargetType="TextBlock">

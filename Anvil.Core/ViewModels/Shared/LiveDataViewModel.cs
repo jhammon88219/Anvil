@@ -66,12 +66,7 @@ namespace Anvil.ViewModels
 		public System.Collections.Generic.IReadOnlyList<string> SourceLabels { get; } = new[] { "IEM live feed", "NOAA Weather Wire", "Polling only" };
 
 		/// <summary>The source's one-line hint — what the pick gives you.</summary>
-		public string SourceHint => SourceIndex switch
-		{
-			1 => "About 10 s behind issuance · needs an NWS account",
-			2 => "No outside service · slower to catch new products",
-			_ => "Within seconds · no account · from Iowa State",
-		};
+		public string SourceHint => Services.SettingsText.ChoiceOf("live.source", SourceIndex is 1 or 2 ? SourceIndex : 0);
 
 		/// <summary>The Source card's DEFAULT column.</summary>
 		public string DefaultSourceText => SourceLabels[0];
@@ -274,7 +269,7 @@ namespace Anvil.ViewModels
 		public bool IsLive => LiveFeedKinds.IsPushed(Kind);
 
 		/// <summary>The hint after the tag.</summary>
-		public string LiveHint => IsLive ? "Waits for the live feed while connected" : "No live feed carries it";
+		public string LiveHint => Services.SettingsText.ChoiceOf("polling.feed", IsLive ? 0 : 1);
 
 		/// <summary>The DEFAULT column: "30 s" / "2 min".</summary>
 		public string DefaultText => FeedStatus.EveryWords(LiveFeedKinds.DefaultPoll(Kind));

@@ -6,8 +6,7 @@
        Basemap  [Data Viz Black  ⌄]  Overrides the theme-aware map colors                The theme's
        96       420 (each picker 220, left)  hint (one line, trims)                       150, right
 
-     ⚠️ THE ROW GRID is Styles.xaml's (SettingsConsoleRowsStyle + Settings*ColumnWidth) — the same as every console, so the hint
-     column starts where every other page's does; the pickers stay 220 wide inside the 420 Control column.
+     ⚠️ Every row is a Primitives/SettingsConsoleRow (lifts; words = Services/Settings/SettingsText by AboutKey).
      ⚠️ The pickers are Primitives/SectionedComboBox (commit only on a click), NEVER a ComboBox — a ComboBox changes its pick on
      the mouse wheel (docs/ui-patterns.md "Row kinds"). Both lists are records, so each needs a template (ToString is the record).
      ⚠️ Picking a THEME brings its own basemap (and ends any Basemap override). The Basemap pick is PERSISTED
@@ -38,41 +37,24 @@
                     ToolTipService.ToolTip="Put the theme and basemap back to the DEFAULT column (asks first)"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
-                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+        <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
+            <prim:SettingsConsoleRow Label="Theme" AboutKey="theme.theme" Default="{x:Bind ViewModel.DefaultThemeName}">
+                <prim:SectionedComboBox x:Name="ThemePicker" Width="220" HorizontalAlignment="Left"
+                                        DropDownPlacement="BottomEdgeAlignedLeft"
+                                        ItemsSource="{x:Bind ViewModel.AvailableThemes}"
+                                        SelectedItem="{x:Bind ViewModel.SelectedTheme, Mode=TwoWay}"
+                                        ItemTemplate="{StaticResource ThemeRowTemplate}"
+                                        FaceTemplate="{StaticResource ThemeRowTemplate}"/>
+            </prim:SettingsConsoleRow>
 
-            <TextBlock Grid.Row="0" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Theme"/>
-            <prim:SectionedComboBox x:Name="ThemePicker" Grid.Row="0" Grid.Column="1" Width="220" HorizontalAlignment="Left"
-                                    DropDownPlacement="BottomEdgeAlignedLeft"
-                                    ItemsSource="{x:Bind ViewModel.AvailableThemes}"
-                                    SelectedItem="{x:Bind ViewModel.SelectedTheme, Mode=TwoWay}"
-                                    ItemTemplate="{StaticResource ThemeRowTemplate}"
-                                    FaceTemplate="{StaticResource ThemeRowTemplate}"/>
-            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                       Text="Sets the app theme and map colors together"/>
-            <TextBlock Grid.Row="0" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
-                       Text="{x:Bind ViewModel.DefaultThemeName}"/>
-
-            <TextBlock Grid.Row="1" Style="{StaticResource SettingsConsoleLabelTextStyle}" Text="Basemap"/>
-            <prim:SectionedComboBox x:Name="BasemapPicker" Grid.Row="1" Grid.Column="1" Width="220" HorizontalAlignment="Left"
-                                    DropDownPlacement="BottomEdgeAlignedLeft"
-                                    ItemsSource="{x:Bind ViewModel.AvailableStyles}"
-                                    SelectedItem="{x:Bind ViewModel.SelectedStyle, Mode=TwoWay}"
-                                    ItemTemplate="{StaticResource StyleRowTemplate}"
-                                    FaceTemplate="{StaticResource StyleRowTemplate}"/>
-            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}"
-                       Text="Overrides the theme-aware map colors"/>
-            <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
-                       Text="{x:Bind ViewModel.DefaultBasemapText}"/>
-        </Grid>
+            <prim:SettingsConsoleRow Label="Basemap" AboutKey="theme.basemap" Default="{x:Bind ViewModel.DefaultBasemapText}">
+                <prim:SectionedComboBox x:Name="BasemapPicker" Width="220" HorizontalAlignment="Left"
+                                        DropDownPlacement="BottomEdgeAlignedLeft"
+                                        ItemsSource="{x:Bind ViewModel.AvailableStyles}"
+                                        SelectedItem="{x:Bind ViewModel.SelectedStyle, Mode=TwoWay}"
+                                        ItemTemplate="{StaticResource StyleRowTemplate}"
+                                        FaceTemplate="{StaticResource StyleRowTemplate}"/>
+            </prim:SettingsConsoleRow>
+        </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>

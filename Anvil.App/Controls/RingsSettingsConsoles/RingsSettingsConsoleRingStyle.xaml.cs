@@ -46,27 +46,19 @@ namespace Anvil.Controls.RingsSettingsConsoles
 		public static readonly DependencyProperty IsEditableProperty =
 			DependencyProperty.Register(nameof(IsEditable), typeof(bool), typeof(RingsSettingsConsoleRingStyle), new PropertyMetadata(true));
 
-		/// <summary>The Colour row's hint while editable ("" = none).</summary>
-		public string ColorHint
+		/// <summary>The Color row's entry in Services/Settings/SettingsText (its hint, greyed hint and About) — each ring's own
+		/// ("ring.color.refl", "ring.color.distance"), else the shared "ring.color".</summary>
+		public string ColorKey
 		{
-			get => (string)GetValue(ColorHintProperty);
-			set => SetValue(ColorHintProperty, value);
+			get => (string)GetValue(ColorKeyProperty);
+			set => SetValue(ColorKeyProperty, value);
 		}
 
-		public static readonly DependencyProperty ColorHintProperty =
-			DependencyProperty.Register(nameof(ColorHint), typeof(string), typeof(RingsSettingsConsoleRingStyle), new PropertyMetadata(""));
+		public static readonly DependencyProperty ColorKeyProperty =
+			DependencyProperty.Register(nameof(ColorKey), typeof(string), typeof(RingsSettingsConsoleRingStyle), new PropertyMetadata("ring.color"));
 
-		/// <summary>The Colour row's hint while NOT editable (why it's greyed).</summary>
-		public string LockedHint
-		{
-			get => (string)GetValue(LockedHintProperty);
-			set => SetValue(LockedHintProperty, value);
-		}
-
-		public static readonly DependencyProperty LockedHintProperty =
-			DependencyProperty.Register(nameof(LockedHint), typeof(string), typeof(RingsSettingsConsoleRingStyle), new PropertyMetadata(""));
-
-		public string HintFor(bool editable, string colorHint, string lockedHint) => editable ? colorHint : lockedHint;
+		/// <summary>The Color row's hint: the ring's own, or (greyed) what turns it on.</summary>
+		public string HintFor(bool editable, string colorKey) => Anvil.Services.SettingsText.HintFor(colorKey, editable);
 		public string Pct(double value) => $"{value:0}%";
 		public string Px(double value) => value.ToString("0.0", CultureInfo.CurrentCulture) + " px";
 

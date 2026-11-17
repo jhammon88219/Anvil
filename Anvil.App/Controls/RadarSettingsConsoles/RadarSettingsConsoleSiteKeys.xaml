@@ -8,9 +8,10 @@
                   ☐ Show only the sites near the cursor        Experimental · a 230 km ring follows …    Off
        96 (empty) 420 (the box)                                hint (one line)                  150, right
 
-     ⚠️ THE ROW GRID is Styles.xaml's (SettingsConsoleRowsStyle + Settings*ColumnWidth); checkboxes sit in the Control column. Each box = ONE rule in radar-sites.js's VISIBILITY RULES table
-     (`focus`, `favorites`, `reveal`); a new way to hide keys = a rule there + a row here. The network toggles (NEXRAD / TDWR /
-     research) are gestures on the map-tools rail, not here.
+     ⚠️ Every row is a Primitives/SettingsConsoleRow (lifts; words = Services/Settings/SettingsText by AboutKey); checkboxes
+     sit in the Control column. Each box = ONE rule in radar-sites.js's VISIBILITY RULES table (`focus`, `favorites`,
+     `reveal`); a new way to hide keys = a rule there + a row here. The network toggles (NEXRAD / TDWR / research) are
+     gestures on the map-tools rail, not here.
      ⚠️ "Show only my home and favorite sites" is the SAME property the site picker's footer binds — two switches, one value.
      ⚠️ The cursor row is the SITE-REVEAL bolt-on (grep SITE-REVEAL to excise). -->
 <UserControl x:Class="Anvil.Controls.RadarSettingsConsoles.RadarSettingsConsoleSiteKeys"
@@ -27,40 +28,28 @@
                     ToolTipService.ToolTip="Put the site-key switches back to the DEFAULT column (asks first)"/>
         </prim:SettingsConsolePlate.HeaderContent>
 
-        <Grid Style="{StaticResource SettingsConsoleRowsStyle}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
-                <ColumnDefinition Width="{StaticResource SettingsControlColumnWidth}"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+        <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
+            <prim:SettingsConsoleRow AboutKey="sites.hideOthers" Default="{x:Bind ViewModel.DefaultHideOtherSitesText}">
+                <CheckBox x:Name="HideOtherSitesCheckBox" VerticalAlignment="Center"
+                          Content="Hide the other sites while one is loaded"
+                          IsChecked="{x:Bind ViewModel.Radar.HideOtherSitesWhileLoaded, Mode=TwoWay}"/>
+            </prim:SettingsConsoleRow>
 
-            <CheckBox x:Name="HideOtherSitesCheckBox" Grid.Column="1" VerticalAlignment="Center"
-                      Content="Hide the other sites while one is loaded"
-                      IsChecked="{x:Bind ViewModel.Radar.HideOtherSitesWhileLoaded, Mode=TwoWay}"/>
-            <TextBlock Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Click the loaded site again to unload it"/>
-            <TextBlock Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultHideOtherSitesText}"/>
-
-            <CheckBox x:Name="FavoritesOnlyCheckBox" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"
-                      Content="Show only my home and favorite sites"
-                      IsChecked="{x:Bind ViewModel.SiteFavorites.ShowOnlyFavoritesOnMap, Mode=TwoWay}"
-                      ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.FavoritesOnlyNote, Mode=OneWay}"/>
-            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Star sites in the Atlas to add them"/>
-            <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultFavoritesOnlyText}"/>
+            <prim:SettingsConsoleRow AboutKey="sites.favorites" Default="{x:Bind ViewModel.DefaultFavoritesOnlyText}">
+                <CheckBox x:Name="FavoritesOnlyCheckBox" VerticalAlignment="Center"
+                          Content="Show only my home and favorite sites"
+                          IsChecked="{x:Bind ViewModel.SiteFavorites.ShowOnlyFavoritesOnMap, Mode=TwoWay}"
+                          ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.FavoritesOnlyNote, Mode=OneWay}"/>
+            </prim:SettingsConsoleRow>
 
             <!-- SITE-REVEAL (experimental bolt-on; grep SITE-REVEAL to excise). -->
-            <CheckBox x:Name="RevealSitesCheckBox" Grid.Row="2" Grid.Column="1" VerticalAlignment="Center"
-                      Content="Show only the sites near the cursor"
-                      IsChecked="{x:Bind ViewModel.Radar.RevealSitesNearCursor, Mode=TwoWay}"
-                      ToolTipService.ToolTip="A 230 km ring follows the cursor; only the sites inside it show, plus the loaded site."/>
-            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource SettingsConsoleHintTextStyle}" Text="Experimental · a 230 km ring follows the cursor"/>
-            <TextBlock Grid.Row="2" Grid.Column="3" Style="{StaticResource SettingsConsoleDefaultTextStyle}" Text="{x:Bind ViewModel.DefaultRevealSitesText}"/>
+            <prim:SettingsConsoleRow AboutKey="sites.reveal" Default="{x:Bind ViewModel.DefaultRevealSitesText}">
+                <CheckBox x:Name="RevealSitesCheckBox" VerticalAlignment="Center"
+                          Content="Show only the sites near the cursor"
+                          IsChecked="{x:Bind ViewModel.Radar.RevealSitesNearCursor, Mode=TwoWay}"
+                          ToolTipService.ToolTip="A 230 km ring follows the cursor; only the sites inside it show, plus the loaded site."/>
+            </prim:SettingsConsoleRow>
             <!-- end SITE-REVEAL -->
-        </Grid>
+        </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>
