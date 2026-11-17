@@ -293,8 +293,9 @@ namespace Anvil.Controls.Windows
 
 			// The title line's Reset all names the SHOWN page and calls ITS reset (which asks first). Dev has none.
 			var shown = PageFor(page);
-			ResetAllText = entry is null ? string.Empty : $"Reset all {entry.Label} settings";
-			ResetAllToolTip = shown?.ResetAllToolTip ?? string.Empty;
+			// The key is the DEFAULT wells' width (artboard 19), so its label is short; the tooltip names the page.
+			ResetAllText = "Reset all";
+			ResetAllToolTip = entry is null || shown is null ? string.Empty : $"Reset all {entry.Label} settings: {shown.ResetAllToolTip}";
 			HasResetAll = shown is null ? Visibility.Collapsed : Visibility.Visible;
 		}
 

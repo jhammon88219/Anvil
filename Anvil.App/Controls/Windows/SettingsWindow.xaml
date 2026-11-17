@@ -203,11 +203,12 @@
             </Grid.RowDefinitions>
 
             <!-- THE PAGE HEADER (Option B 2026-11-17; title line = artboard 11) — PINNED above the scrolling consoles:
-                   General   How Anvil starts and your home s…   [ Reset all General settings ]   ← title 34 SemiBold · the rail
+                   General   How Anvil starts and your home s…             [  Reset all  ]   ← title 34 SemiBold · the rail
                                                                                                     entry's tooltip 15, on the
                                                                                                     title's baseline, trims ·
                                                                                                     the caution key, centred on
-                                                                                                    the title's capitals
+                                                                                                    the title's capitals, as wide
+                                                                                                    as (and over) the DEFAULT wells
                    ABOUT · LOAD HOME SITE ON LAUNCH                                     ← Overline; the SELECTED row
                    When Anvil opens, it starts the live radar loop for …                ← Body large 16/22, 3 max, FIXED 88 px box
                    … your home site is set in the Radar Atlas.                          ← no DEFAULT here (2026-11-17): it is the
@@ -245,8 +246,12 @@
                                    ToolTipService.ToolTip="{x:Bind PageDescription, Mode=OneWay}"
                                    Text="{x:Bind PageDescription, Mode=OneWay}"/>
                     </Grid>
-                    <!-- The SHOWN page's Reset all (ISettingsPage.ResetAll — it asks first). Hidden on Dev (nothing to reset). -->
+                    <!-- The SHOWN page's Reset all (ISettingsPage.ResetAll — it asks first). Hidden on Dev (nothing to reset).
+                         ⚠️ LINED UP WITH THE PLATES' DEFAULT WELLS (artboard 19, 2026-11-17): the well's width, and 7 px in from
+                         the plates' edge (their 1 px border + the well's 6 px inset), so both its sides run straight down onto
+                         every well. Hence the short label "Reset all"; the page's name is in the tooltip. -->
                     <ctl:CautionResetButton x:Name="SettingsPageResetAllButton" Grid.Column="1" VerticalAlignment="Center"
+                                            Width="{StaticResource SettingsDefaultWellWidth}" Margin="0,0,7,0"
                                             Visibility="{x:Bind HasResetAll, Mode=OneWay}"
                                             Text="{x:Bind ResetAllText, Mode=OneWay}"
                                             ToolTipService.ToolTip="{x:Bind ResetAllToolTip, Mode=OneWay}"
