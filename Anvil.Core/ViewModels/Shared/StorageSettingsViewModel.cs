@@ -93,9 +93,6 @@ namespace Anvil.ViewModels
 		/// <summary>The rows in display order.</summary>
 		public IReadOnlyList<StorageItemViewModel> Items { get; }
 
-		/// <summary>Anvil's root folder — the page's "Open Anvil's folder".</summary>
-		public string RootFolder => StorageService.AnvilRoot;
-
 		private string _totalText = "…";
 		/// <summary>The usage bar's big number: every row added up.</summary>
 		public string TotalText

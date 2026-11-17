@@ -25,10 +25,5 @@ namespace Anvil.Controls.StorageManagers
 		/// <summary>A segment's weight: its bytes as a star width (MB, so the numbers stay small). Zero = 0* (the
 		/// column's MinWidth still draws a sliver).</summary>
 		public GridLength Star(long bytes) => new(bytes / (1024.0 * 1024.0), GridUnitType.Star);
-
-		private void OnOpenAnvilFolderClick(object sender, RoutedEventArgs e)
-		{
-			if (ViewModel is not null) StorageManagerFolderLauncher.Open(ViewModel.RootFolder);
-		}
 	}
 }

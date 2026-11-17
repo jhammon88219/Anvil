@@ -69,16 +69,16 @@
 
         <!-- MAPS first — the biggest (2026-11-16). No Clear, no limits: maps are deleted one file at a time in the Map card. -->
         <storageManagers:StorageManagerSettingsConsoleDataTableRow x:Name="StorageManagerSettingsConsoleDataTableRowMaps"
-            Item="{x:Bind ViewModel.Maps, Mode=OneWay}" Swatch="{StaticResource StorageMapsBrush}"/>
+            AboutKey="storage.maps" Item="{x:Bind ViewModel.Maps, Mode=OneWay}" Swatch="{StaticResource StorageMapsBrush}"/>
         <storageManagers:StorageManagerSettingsConsoleDataTableRow x:Name="StorageManagerSettingsConsoleDataTableRowRadarVolumes"
-            Item="{x:Bind ViewModel.RadarVolumes, Mode=OneWay}" Swatch="{StaticResource StorageRadarVolumesBrush}"/>
+            AboutKey="storage.radar" Item="{x:Bind ViewModel.RadarVolumes, Mode=OneWay}" Swatch="{StaticResource StorageRadarVolumesBrush}"/>
         <storageManagers:StorageManagerSettingsConsoleDataTableRow x:Name="StorageManagerSettingsConsoleDataTableRowRadarDiagnostics"
-            Item="{x:Bind ViewModel.RadarDiagnostics, Mode=OneWay}" Swatch="{StaticResource StorageRadarDiagnosticsBrush}"/>
+            AboutKey="storage.diagnostics" Item="{x:Bind ViewModel.RadarDiagnostics, Mode=OneWay}" Swatch="{StaticResource StorageRadarDiagnosticsBrush}"/>
         <storageManagers:StorageManagerSettingsConsoleDataTableRow x:Name="StorageManagerSettingsConsoleDataTableRowWeatherData"
-            Item="{x:Bind ViewModel.WeatherData, Mode=OneWay}" Swatch="{StaticResource StorageWeatherDataBrush}"/>
+            AboutKey="storage.weather" Item="{x:Bind ViewModel.WeatherData, Mode=OneWay}" Swatch="{StaticResource StorageWeatherDataBrush}"/>
         <storageManagers:StorageManagerSettingsConsoleDataTableRow x:Name="StorageManagerSettingsConsoleDataTableRowLogs"
-            Item="{x:Bind ViewModel.Logs, Mode=OneWay}" Swatch="{StaticResource StorageLogsBrush}"/>
+            AboutKey="storage.logs" Item="{x:Bind ViewModel.Logs, Mode=OneWay}" Swatch="{StaticResource StorageLogsBrush}"/>
         <storageManagers:StorageManagerSettingsConsoleDataTableRow x:Name="StorageManagerSettingsConsoleDataTableRowUsageHistory"
-            Item="{x:Bind ViewModel.UsageHistory, Mode=OneWay}" Swatch="{StaticResource StorageUsageHistoryBrush}"/>
+            AboutKey="storage.usage" Item="{x:Bind ViewModel.UsageHistory, Mode=OneWay}" Swatch="{StaticResource StorageUsageHistoryBrush}"/>
     </StackPanel>
 </UserControl>

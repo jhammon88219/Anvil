@@ -34,7 +34,8 @@ namespace Anvil.Services
 		public const int HintMaxLength = 72;
 
 		/// <summary>What the About box says while no row on the page is selected.</summary>
-		public const string NothingSelected = "Select a setting to read more about it";
+		public const string NothingSelected =
+			"Nothing selected yet. A setting that can be selected lights up when you hover over it; click it to read more about it here.";
 
 		private static readonly SettingsTextEntry[] Entries =
 		{
@@ -296,6 +297,26 @@ namespace Anvil.Services
 				Hint: null),
 			new("conn.missed", "Missed",
 				"Products the live source dropped this session. Each missed one wakes its layer's own check, so nothing stays missing.",
+				Hint: null),
+
+			// ── Storage → On disk (the table's rows; no hint — each row shows its own short description) ──
+			new("storage.maps", "Maps",
+				"Every map file Anvil knows about, wherever it lives. Maps have no Clear and no limits: remove one file at a time in the Map section below, so a map is never deleted by accident.",
+				Hint: null),
+			new("storage.radar", "Radar volumes",
+				"The radar data downloaded for the loops you've loaded. Keeping it makes reloading a loop fast. When it passes Max size or Keep for, the oldest go first; the newest half hour is never removed while you watch it.",
+				Hint: null),
+			new("storage.diagnostics", "Radar diagnostics",
+				"Records Anvil writes about each radar session, used to track down radar problems. Nothing reads them while you use the app. Past Max size or Keep for, the oldest are removed first.",
+				Hint: null),
+			new("storage.weather", "Weather data",
+				"Saved copies of outlooks, warnings, watches, storm reports, storm cells and the rest, so a layer draws at once and survives a dropped connection. Clearing is safe: each layer downloads again on its next check.",
+				Hint: null),
+			new("storage.logs", "Logs",
+				"Anvil's own record of what it did and any errors it hit, one file per day. Handy when reporting a problem. Past Max size or Keep for, the oldest days are removed first.",
+				Hint: null),
+			new("storage.usage", "Your usage history",
+				"Which radar sites you load and how long your loops take to load. It feeds the Atlas's \"Your use\" and is always kept. Clear asks first and can't be undone.",
 				Hint: null),
 
 			// ── Storage → Map ──

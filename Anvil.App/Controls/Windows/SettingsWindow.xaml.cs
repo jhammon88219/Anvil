@@ -51,9 +51,9 @@ namespace Anvil.Controls.Windows
 		// ── THE PAGE HEADER: title, description, and the About box for the page's SELECTED row ─────────────────────────
 		// The selection is kept PER PAGE (a page you come back to still shows the row you picked there). Rows report a pick
 		// through ISettingsRowHost (a click anywhere on the row, or keyboard focus moving into it).
-		private readonly System.Collections.Generic.Dictionary<int, SettingsConsoleRow> _selectedRowByPage = new();
+		private readonly System.Collections.Generic.Dictionary<int, ISettingsPickableRow> _selectedRowByPage = new();
 
-		public void OnRowPicked(SettingsConsoleRow row)
+		public void OnRowPicked(ISettingsPickableRow row)
 		{
 			if (ViewModel is null) { return; }
 			var page = ViewModel.SettingsTabIndex;

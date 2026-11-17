@@ -1,8 +1,11 @@
 using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Anvil.Controls.Primitives;
 using Anvil.Models;
+using Anvil.Services;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.StorageManagers
@@ -11,13 +14,69 @@ namespace Anvil.Controls.StorageManagers
 	/// One row of Settings → Storage's table (see the XAML header): a <see cref="StorageItemViewModel"/> plus its
 	/// kind colour. Code-behind only relays clicks and keeps the Size colour's VisualState on <see cref="StorageItemViewModel.Fill"/>.
 	/// </summary>
-	public sealed partial class StorageManagerSettingsConsoleDataTableRow : UserControl
+	public sealed partial class StorageManagerSettingsConsoleDataTableRow : UserControl, ISettingsPickableRow
 	{
 		public StorageManagerSettingsConsoleDataTableRow()
 		{
 			InitializeComponent();
+			// A click on the row's own button / dropdown is handled by it — listen to handled presses too, so it still picks.
+			AddHandler(PointerPressedEvent, new PointerEventHandler((_, _) => SettingsRowPicking.Pick(this)), handledEventsToo: true);
+			GotFocus += (_, _) => SettingsRowPicking.Pick(this);
 			// GoToState before the first layout can be lost — re-apply once loaded.
-			Loaded += (_, _) => ApplyFill(false);
+			Loaded += (_, _) =>
+			{
+				ApplyFill(false);
+				ApplyLifts(false);
+			};
+		}
+
+		// ── PICKING (the page's About box) ──
+
+		/// <summary>The kind's entry in <see cref="SettingsText"/> ("storage.&lt;kind&gt;").</summary>
+		public string? AboutKey
+		{
+			get => (string?)GetValue(AboutKeyProperty);
+			set => SetValue(AboutKeyProperty, value);
+		}
+
+		public static readonly DependencyProperty AboutKeyProperty =
+			DependencyProperty.Register(nameof(AboutKey), typeof(string), typeof(StorageManagerSettingsConsoleDataTableRow), new PropertyMetadata(null));
+
+		/// <summary>The row the page's About box shows. Set by the host only.</summary>
+		public bool IsSelected
+		{
+			get => (bool)GetValue(IsSelectedProperty);
+			set => SetValue(IsSelectedProperty, value);
+		}
+
+		public static readonly DependencyProperty IsSelectedProperty =
+			DependencyProperty.Register(nameof(IsSelected), typeof(bool), typeof(StorageManagerSettingsConsoleDataTableRow),
+				new PropertyMetadata(false, (d, _) => ((StorageManagerSettingsConsoleDataTableRow)d).ApplyLifts(true)));
+
+		public string AboutTitle => Item?.Name ?? SettingsText.Get(AboutKey)?.Title ?? string.Empty;
+
+		public string AboutText => SettingsText.Get(AboutKey)?.About ?? string.Empty;
+
+		public string Default => Item?.DefaultText ?? string.Empty;
+
+		private bool _hovered;
+
+		private void OnPointerEntered(object sender, PointerRoutedEventArgs e)
+		{
+			_hovered = true;
+			ApplyLifts(true);
+		}
+
+		private void OnPointerExited(object sender, PointerRoutedEventArgs e)
+		{
+			_hovered = false;
+			ApplyLifts(true);
+		}
+
+		private void ApplyLifts(bool useTransitions)
+		{
+			VisualStateManager.GoToState(this, _hovered ? "Hovered" : "NotHovered", useTransitions);
+			VisualStateManager.GoToState(this, IsSelected ? "Selected" : "Unselected", useTransitions);
 		}
 
 		/// <summary>The row's data.</summary>

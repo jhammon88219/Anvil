@@ -13,7 +13,36 @@ namespace Anvil.Controls.Primitives
 	/// </summary>
 	public interface ISettingsRowHost
 	{
-		void OnRowPicked(SettingsConsoleRow row);
+		void OnRowPicked(ISettingsPickableRow row);
+	}
+
+	/// <summary>
+	/// Anything the page's About box can show: a <see cref="SettingsConsoleRow"/>, or a row with its own grid that still
+	/// lifts and picks the same way (Storage's On disk table rows). Find the host with <see cref="Pick"/>.
+	/// </summary>
+	public interface ISettingsPickableRow
+	{
+		string AboutTitle { get; }
+		string AboutText { get; }
+		string Default { get; }
+		bool IsSelected { get; set; }
+	}
+
+	public static class SettingsRowPicking
+	{
+		/// <summary>Walk up to the <see cref="ISettingsRowHost"/> and report <paramref name="row"/> picked.</summary>
+		public static void Pick(FrameworkElement row)
+		{
+			if (row is not ISettingsPickableRow pickable) { return; }
+			for (DependencyObject? node = VisualTreeHelper.GetParent(row); node is not null; node = VisualTreeHelper.GetParent(node))
+			{
+				if (node is ISettingsRowHost host)
+				{
+					host.OnRowPicked(pickable);
+					return;
+				}
+			}
+		}
 	}
 
 	/// <summary>
@@ -21,7 +50,7 @@ namespace Anvil.Controls.Primitives
 	/// The row's content is its Control cell.
 	/// </summary>
 	[ContentProperty(Name = nameof(ControlContent))]
-	public sealed partial class SettingsConsoleRow : UserControl
+	public sealed partial class SettingsConsoleRow : UserControl, ISettingsPickableRow
 	{
 		public SettingsConsoleRow()
 		{
@@ -200,14 +229,7 @@ namespace Anvil.Controls.Primitives
 		private void Pick()
 		{
 			if (!IsPickable) { return; }
-			for (DependencyObject? node = VisualTreeHelper.GetParent(this); node is not null; node = VisualTreeHelper.GetParent(node))
-			{
-				if (node is ISettingsRowHost host)
-				{
-					host.OnRowPicked(this);
-					return;
-				}
-			}
+			SettingsRowPicking.Pick(this);
 		}
 	}
 }

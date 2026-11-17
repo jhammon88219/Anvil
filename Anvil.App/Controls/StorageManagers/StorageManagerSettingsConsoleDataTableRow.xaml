@@ -9,6 +9,11 @@
        ■ = 14 × 14 (the usage bar's height) · NAME 16 Medium · hint 12 regular, secondary
                                                       ↑ Low = normal text · Medium = caution · High = critical (bold)
 
+     ⭐ PICKABLE like every Settings row (2026-11-17): HOVER + SELECTED lifts (SettingsRowHoverBrush / …SelectedBrush, bled
+     8 px past the cells), picked by a click anywhere on the row (its buttons and dropdowns too) or by focus moving in; the
+     page's About box then shows the kind: title = its name, text = Services/Settings/SettingsText by AboutKey
+     ("storage.<kind>"), default = its DEFAULT limits. It is an ISettingsPickableRow, not a SettingsConsoleRow — its nine
+     columns are the table's.
      ⚠️ THE COLUMNS ARE THE TABLE'S — the same nine columns + ColumnSpacing 10 as the header row in
      StorageManagerSettingsConsoleDataTable. Change both, or the controls stop lining up down the table.
      ⚠️ NAME is Auto until the table measures every row's name (NaturalNameWidth) and hands the WIDEST back
@@ -26,19 +31,10 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <Grid Height="44" ColumnSpacing="10">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="16"/>  <!-- swatch -->
-            <ColumnDefinition x:Name="NameColumn" Width="Auto"/> <!-- name: the TABLE sets every row to the widest name -->
-            <ColumnDefinition Width="*"/>   <!-- grey description -->
-            <ColumnDefinition Width="80"/>  <!-- Size -->
-            <ColumnDefinition Width="96"/>  <!-- Clear -->
-            <ColumnDefinition Width="36"/>  <!-- folder -->
-            <ColumnDefinition Width="104"/> <!-- Max size -->
-            <ColumnDefinition Width="112"/> <!-- Keep for -->
-            <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/> <!-- DEFAULT (the card's column, right-aligned) -->
-        </Grid.ColumnDefinitions>
-
+    <!-- The ROW HOST: bled 8 px each side (like Primitives/SettingsConsoleRow) so the lifts reach past the cells; the cells keep
+         the table's columns exactly (Margin 8 back in). ALL the visual states live here (GoToState reads the root's groups). -->
+    <Grid x:Name="DataTableRowRoot" Margin="-8,0" Background="Transparent"
+          PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="FillStates">
                 <VisualState x:Name="Low"/>
@@ -55,7 +51,42 @@
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
+            <VisualStateGroup x:Name="HoverStates">
+                <VisualState x:Name="NotHovered"/>
+                <VisualState x:Name="Hovered">
+                    <VisualState.Setters>
+                        <Setter Target="DataTableRowHoverLift.Opacity" Value="1"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <VisualStateGroup x:Name="SelectionStates">
+                <VisualState x:Name="Unselected"/>
+                <VisualState x:Name="Selected">
+                    <VisualState.Setters>
+                        <Setter Target="DataTableRowSelectedLift.Opacity" Value="1"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
+
+        <!-- The lifts: the SAME brushes as every Settings row; 1 px down so the row's top hairline stays a line. -->
+        <Border x:Name="DataTableRowHoverLift" Margin="0,1,0,0" CornerRadius="4" Opacity="0" IsHitTestVisible="False"
+                Background="{ThemeResource SettingsRowHoverBrush}"/>
+        <Border x:Name="DataTableRowSelectedLift" Margin="0,1,0,0" CornerRadius="4" Opacity="0" IsHitTestVisible="False"
+                Background="{ThemeResource SettingsRowSelectedBrush}"/>
+
+    <Grid x:Name="DataTableRowCells" Height="44" Margin="8,0" ColumnSpacing="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="16"/>  <!-- swatch -->
+            <ColumnDefinition x:Name="NameColumn" Width="Auto"/> <!-- name: the TABLE sets every row to the widest name -->
+            <ColumnDefinition Width="*"/>   <!-- grey description -->
+            <ColumnDefinition Width="80"/>  <!-- Size -->
+            <ColumnDefinition Width="96"/>  <!-- Clear -->
+            <ColumnDefinition Width="36"/>  <!-- folder -->
+            <ColumnDefinition Width="104"/> <!-- Max size -->
+            <ColumnDefinition Width="112"/> <!-- Keep for -->
+            <ColumnDefinition Width="{StaticResource SettingsDefaultColumnWidth}"/> <!-- DEFAULT (the card's column, right-aligned) -->
+        </Grid.ColumnDefinitions>
 
         <Rectangle x:Name="RowRule" Grid.ColumnSpan="9" Height="1" VerticalAlignment="Top"
                    Fill="{ThemeResource CardStrokeColorDefaultBrush}"/>
@@ -136,5 +167,6 @@
         <!-- DEFAULT: the limits a first run gets ("5 GB · 5 days"), right-aligned under the card's DEFAULT title. -->
         <TextBlock x:Name="DefaultLimitsText" Grid.Column="8" Style="{StaticResource SettingsConsoleDefaultTextStyle}"
                    Text="{x:Bind Item.DefaultText, Mode=OneWay}"/>
+    </Grid>
     </Grid>
 </UserControl>
