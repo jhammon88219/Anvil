@@ -22,7 +22,7 @@
        └──────────────────┴───────────────────────────────────────────────────────────────────┘     page (Composites)
         ↑ Primitives/TabStrip, 220 wide, raised (its edge line is the body outline's, not its own)
      ⭐ FIND A SETTING (2026-11-17, canvas artboards 14–15): the rail's FIRST item, above the entries:
-          [ Find a setting      🔍 ]   ← AutoSuggestBox, width = the widest rail entry + 10, left edge on the entries'
+          [ Find a setting        🔍 ] ← AutoSuggestBox, width = a rail row's full width + 10, left edge on the rows'
           ⏻ General                      typing → the best 6 (name, matched word bold, over "Page › Console") + "Enter — all N";
           ◐ Appearance                   a pick LANDS (page opens, row selected + scrolled to + accent ring flash);
                                          Enter → the RESULTS page (Controls/SettingsSearch/SettingsSearchResults): header
@@ -155,7 +155,7 @@
             </Grid.RowDefinitions>
 
             <!-- FIND A SETTING (canvas artboards 14–15, 2026-11-17) — the rail's FIRST item, Windows Settings' way. Its width =
-                 the widest rail entry + 10 (SearchBoxWidth ← Strip.WidestRowWidth), left edge on the entries'. Typing lists
+                 a rail ROW's full width + 10 (SearchBoxWidth ← the strip's width, OnStripSizeChanged), left edge on the rows'. Typing lists
                  SettingsSearch's best 6 (+ an "Enter — all N" line); a pick LANDS on the row, Enter shows the RESULTS page.
                  UpdateTextOnSelect off: arrowing through the list never rewrites what you typed. Esc clears. -->
             <AutoSuggestBox x:Name="SettingsSearchBox" Margin="6,8,0,4" HorizontalAlignment="Left"
@@ -185,9 +185,9 @@
                  right — it is the rows' right margin (was 6), so the rows never slide under a bar. The JOIN runs on over
                  that gutter to meet the body. -->
             <ctl:PanelScroller x:Name="SettingsRailScroller" Grid.Row="1" Scrolled="OnRailJoinMoved">
-                <ctl:TabStrip x:Name="Strip" Margin="6,8,0,8" JoinsBody="True" LabelFontSize="{StaticResource BodyLargeFontSize}" SizeChanged="OnRailJoinMoved"
+                <ctl:TabStrip x:Name="Strip" Margin="6,8,0,8" JoinsBody="True" LabelFontSize="{StaticResource BodyLargeFontSize}" SizeChanged="OnStripSizeChanged"
                               SuppressSelection="{x:Bind IsSearchShown, Mode=OneWay}"
-                              WidestRowChanged="OnWidestRowChanged" RowClicked="OnRailRowClicked"
+                              RowClicked="OnRailRowClicked"
                               ItemsSource="{x:Bind Tabs}"
                               SelectedIndex="{x:Bind ViewModel.SettingsTabIndex, Mode=TwoWay}"/>
             </ctl:PanelScroller>

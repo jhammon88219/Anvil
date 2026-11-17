@@ -52,7 +52,8 @@ namespace Anvil.Controls.Windows
 			DependencyProperty.Register(nameof(IsSearchShown), typeof(bool), typeof(SettingsWindow),
 				new PropertyMetadata(false, (d, _) => ((SettingsWindow)d).OnSearchShownChanged()));
 
-		/// <summary>The box's width: the widest rail entry + <see cref="SearchBoxExtra"/> (the user's call).</summary>
+		/// <summary>The box's width: a rail row's full width (the strip's) + <see cref="SearchBoxExtra"/> (the user's call — sized
+		/// from the NAME it read narrower than the rows' own lifts, 2026-11-17).</summary>
 		public double SearchBoxWidth
 		{
 			get => (double)GetValue(SearchBoxWidthProperty);
@@ -72,7 +73,11 @@ namespace Anvil.Controls.Windows
 
 		public Visibility SearchOnly(bool searching) => searching ? Visibility.Visible : Visibility.Collapsed;
 
-		private void OnWidestRowChanged(object? sender, EventArgs e) => SearchBoxWidth = Strip.WidestRowWidth + SearchBoxExtra;
+		private void OnStripSizeChanged(object sender, SizeChangedEventArgs e)
+		{
+			SearchBoxWidth = e.NewSize.Width + SearchBoxExtra;
+			UpdateRailJoin();
+		}
 
 		private void OnSearchShownChanged()
 		{

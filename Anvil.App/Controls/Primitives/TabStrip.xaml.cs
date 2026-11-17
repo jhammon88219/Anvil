@@ -84,27 +84,6 @@ namespace Anvil.Controls.Primitives
 		/// <summary>Raised on EVERY row click, the already-selected row included (SelectedIndex only changes on a new one).</summary>
 		public event RoutedEventHandler? RowClicked;
 
-		// ── THE WIDEST ROW (its mark + name + margins) — what the Settings search box is sized from ──
-		private readonly Dictionary<FrameworkElement, double> _rowWidths = new();
-
-		/// <summary>The widest row's content width (mark + gap + name + its 12 px margins); 0 before the rows lay out.</summary>
-		public double WidestRowWidth { get; private set; }
-
-		/// <summary>Raised when <see cref="WidestRowWidth"/> changes (a longer name, or Windows' Text size).</summary>
-		public event EventHandler? WidestRowChanged;
-
-		private void OnRowContentSizeChanged(object sender, SizeChangedEventArgs e)
-		{
-			if (sender is not FrameworkElement content) { return; }
-			_rowWidths[content] = e.NewSize.Width + content.Margin.Left + content.Margin.Right;
-			var widest = _rowWidths.Values.Max();
-			if (widest != WidestRowWidth)
-			{
-				WidestRowWidth = widest;
-				WidestRowChanged?.Invoke(this, EventArgs.Empty);
-			}
-		}
-
 		/// <summary>The rows' name size: Body 14 (the Atlas); Settings sets Body large (its BodyLargeFontSize, 2026-11-17).
 		/// The marks stay 16 (icons aren't on the type scale).</summary>
 		public double LabelFontSize
