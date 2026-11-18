@@ -27,7 +27,8 @@ namespace Anvil.ViewModels
 		private readonly IDispatcher _dispatcher;
 		private string _pendingPassword = string.Empty;
 		private string _accountMessage = string.Empty;
-		private bool _isTesting;
+		private bool _isTesting, _hasSavedAccount, _isEditingUser, _isEditingPassword, _isDetailsOpen;
+		private string _draftUsername;
 		private string _sourceLine = string.Empty, _statusText = string.Empty, _lastProductText = string.Empty, _missedText = string.Empty;
 		private LiveLinkState _linkState;
 
@@ -38,6 +39,8 @@ namespace Anvil.ViewModels
 			_dispatcher = dispatcher;
 			Polling = new ReadOnlyCollection<LivePollRow>(LiveFeedKinds.All.Select(k => new LivePollRow(k, settings)).ToList());
 			Timing = new LiveSourceTimingViewModel(hub, dispatcher);
+			_draftUsername = settings.NwwsUsername.Trim();
+			_hasSavedAccount = hub.SavedNwwsPassword() is not null;
 			hub.Changed += (_, _) => _dispatcher.Post(Refresh);
 			Refresh();
 		}
@@ -63,6 +66,8 @@ namespace Anvil.ViewModels
 				OnPropertyChanged(nameof(IsPollOnly));
 				OnPropertyChanged(nameof(SourceHint));
 				OnPropertyChanged(nameof(SourceAbout));
+				OnPropertyChanged(nameof(AccountHint));
+				OnPropertyChanged(nameof(DetailsConnection));
 				_hub.Restart();
 			}
 		}
@@ -95,27 +100,78 @@ namespace Anvil.ViewModels
 
 		// ── The NOAA Weather Wire account ──
 
-		/// <summary>The account name (saved as typed; the password only on Save).</summary>
+		// A SAVED account shows LOCKED: both boxes grey, each with an Edit key that unlocks it (and turns into Cancel).
+		// The user name box is a DRAFT — nothing reaches settings until Save; Save lights only when something changed.
+
+		/// <summary>The NWS page to ask for an account (an email request; the NWS says up to 10 days or more).</summary>
+		public const string RequestAccountUrl = "https://www.weather.gov/nwws/nwws_oi_request";
+
+		/// <summary>The user name box (two-way) — a draft until Save.</summary>
 		public string NwwsUsername
 		{
-			get => _settings.NwwsUsername;
+			get => _draftUsername;
 			set
 			{
-				if (_settings.NwwsUsername == (value ?? "")) { return; }
-				_settings.NwwsUsername = value ?? "";
-				OnPropertyChanged();
-				OnPropertyChanged(nameof(PasswordPlaceholder));
+				if (SetProperty(ref _draftUsername, value ?? string.Empty))
+				{
+					AccountMessage = string.Empty;
+					RaiseAccount();
+				}
 			}
 		}
 
-		/// <summary>"Saved" in the empty password box when Credential Manager holds one for this name.</summary>
-		public string PasswordPlaceholder => _hub.SavedNwwsPassword() is null ? "Password" : "Saved — type to replace";
+		/// <summary>The account name as SAVED (settings), for the details and the hint.</summary>
+		public string SavedUsername => _settings.NwwsUsername.Trim();
 
-		/// <summary>The password box's text (from the tab's code-behind) — held only until Save or Test.</summary>
-		public void SetPendingPassword(string password) => _pendingPassword = password ?? string.Empty;
+		/// <summary>True once Credential Manager holds a password for the saved name.</summary>
+		public bool HasSavedAccount => _hasSavedAccount;
 
-		/// <summary>"Saved." · "Signed in. The account works." · what went wrong.</summary>
-		public string AccountMessage { get => _accountMessage; private set => SetProperty(ref _accountMessage, value); }
+		public bool IsEditingUser { get => _isEditingUser; private set { if (SetProperty(ref _isEditingUser, value)) { RaiseAccount(); } } }
+
+		public bool IsEditingPassword { get => _isEditingPassword; private set { if (SetProperty(ref _isEditingPassword, value)) { RaiseAccount(); } } }
+
+		/// <summary>The user name box takes typing: no saved account yet, or its Edit was pressed.</summary>
+		public bool IsUserOpen => !_hasSavedAccount || _isEditingUser;
+
+		/// <summary>The password box takes typing: no saved account yet, or its Edit was pressed.</summary>
+		public bool IsPasswordOpen => !_hasSavedAccount || _isEditingPassword;
+
+		public string UserEditLabel => _isEditingUser ? "Cancel" : "Edit";
+
+		public string PasswordEditLabel => _isEditingPassword ? "Cancel" : "Edit";
+
+		/// <summary>The password box's placeholder: dots for a saved one, a prompt while editing.</summary>
+		public string PasswordPlaceholder => !_hasSavedAccount ? "Password" : _isEditingPassword ? "Type the new password" : "●●●●●●●●●●";
+
+		/// <summary>The password box's text (from the tab's code-behind) — held only until Save, Test or Cancel.</summary>
+		public void SetPendingPassword(string password)
+		{
+			var was = _pendingPassword.Length > 0;
+			_pendingPassword = password ?? string.Empty;
+			if (was != _pendingPassword.Length > 0) { AccountMessage = string.Empty; RaiseAccount(); }
+		}
+
+		/// <summary>Something differs from what's saved (a first account: both boxes filled).</summary>
+		public bool HasChanges => _hasSavedAccount
+			? !string.Equals(_draftUsername.Trim(), SavedUsername, StringComparison.Ordinal) || _pendingPassword.Length > 0
+			: _draftUsername.Trim().Length > 0 && _pendingPassword.Length > 0;
+
+		public bool CanSave => HasChanges && _draftUsername.Trim().Length > 0;
+
+		/// <summary>"Saved." · "Signed in. The account works." · what went wrong — the last action's words.</summary>
+		public string AccountMessage
+		{
+			get => _accountMessage;
+			private set { if (SetProperty(ref _accountMessage, value)) { OnPropertyChanged(nameof(AccountHint)); } }
+		}
+
+		/// <summary>The buttons row's hint: the last action's words, else where the account stands.</summary>
+		public string AccountHint =>
+			_accountMessage.Length > 0 ? _accountMessage
+			: _hasSavedAccount && HasChanges ? "Not saved yet · Test connection tries what's typed"
+			: _hasSavedAccount && IsNwws && LinkState == LiveLinkState.Connected ? $"Signed in as {SavedUsername} · nothing to save"
+			: _hasSavedAccount ? $"Saved as {SavedUsername} · nothing to save"
+			: "Fill in both to test or save";
 
 		public bool IsTesting
 		{
@@ -123,39 +179,118 @@ namespace Anvil.ViewModels
 			private set { if (SetProperty(ref _isTesting, value)) { OnPropertyChanged(nameof(CanTest)); } }
 		}
 
-		public bool CanTest => !_isTesting;
+		/// <summary>A name and a password (typed, or the saved one) to try, and no test running.</summary>
+		public bool CanTest => !_isTesting && _draftUsername.Trim().Length > 0 && (_pendingPassword.Length > 0 || _hasSavedAccount);
 
-		/// <summary>Saves the account (password → Credential Manager) and reconnects if NOAA Weather Wire is the source.</summary>
-		/// <returns>True when the password was saved (the tab then clears its box).</returns>
+		/// <summary>The user name's Edit / Cancel. Cancel puts the saved name back.</summary>
+		public void ToggleEditUser()
+		{
+			if (_isEditingUser) { NwwsUsername = SavedUsername; }
+			AccountMessage = string.Empty;
+			IsEditingUser = !_isEditingUser;
+		}
+
+		/// <summary>The password's Edit / Cancel. On Cancel the tab clears its box (→ <see cref="SetPendingPassword"/>).</summary>
+		public void ToggleEditPassword()
+		{
+			AccountMessage = string.Empty;
+			IsEditingPassword = !_isEditingPassword;
+		}
+
+		/// <summary>Saves the account (password → Credential Manager) and reconnects if NOAA Weather Wire is the source.
+		/// A rename alone keeps the saved password.</summary>
+		/// <returns>True when it was saved (the tab then clears its password box; both boxes lock again).</returns>
 		public bool SaveAccount()
 		{
-			if (string.IsNullOrWhiteSpace(NwwsUsername) || _pendingPassword.Length == 0)
+			// Read the saved password BEFORE the save moves the name it's filed under.
+			var password = _pendingPassword.Length > 0 ? _pendingPassword : _hub.SavedNwwsPassword() ?? string.Empty;
+			if (_draftUsername.Trim().Length == 0 || password.Length == 0)
 			{
-				AccountMessage = "Enter the user name and password first.";
+				AccountMessage = "Enter the user name and password first";
 				return false;
 			}
-			var saved = _hub.SaveNwwsAccount(NwwsUsername, _pendingPassword);
-			AccountMessage = saved ? "Saved." : "Windows wouldn't save the password.";
-			OnPropertyChanged(nameof(PasswordPlaceholder));
-			if (saved && IsNwws) { _hub.Restart(); }
+			var saved = _hub.SaveNwwsAccount(_draftUsername, password);
+			AccountMessage = saved ? "Saved" : "Windows wouldn't save the password";
+			if (saved)
+			{
+				_draftUsername = SavedUsername;
+				OnPropertyChanged(nameof(NwwsUsername));
+				_isEditingUser = _isEditingPassword = false;
+				if (IsNwws) { _hub.Restart(); }
+			}
+			RefreshSaved();
 			return saved;
 		}
 
 		/// <summary>Signs in and back out with what's typed (or the saved password).</summary>
 		public async Task TestConnectionAsync()
 		{
-			if (IsTesting) { return; }
+			if (!CanTest) { return; }
 			IsTesting = true;
 			AccountMessage = "Signing in…";
 			try
 			{
 				var password = _pendingPassword.Length > 0 ? _pendingPassword : _hub.SavedNwwsPassword() ?? string.Empty;
-				AccountMessage = await _hub.TestNwwsAsync(NwwsUsername, password, CancellationToken.None);
+				AccountMessage = (await _hub.TestNwwsAsync(_draftUsername.Trim(), password, CancellationToken.None)).TrimEnd('.');
 			}
 			finally
 			{
 				IsTesting = false;
 			}
+		}
+
+		// ── Account details (facts only — the password is NEVER shown in Anvil) ──
+
+		public bool IsDetailsOpen
+		{
+			get => _isDetailsOpen;
+			private set { if (SetProperty(ref _isDetailsOpen, value)) { OnPropertyChanged(nameof(DetailsButtonLabel)); } }
+		}
+
+		public string DetailsButtonLabel => _isDetailsOpen ? "Hide details" : "Account details";
+
+		public void ToggleDetails() => IsDetailsOpen = !_isDetailsOpen;
+
+		public string DetailsStoredIn => $"Windows Credential Manager · Web Credentials · \"{LiveFeedHub.NwwsCredentialResource}\"";
+
+		public string DetailsServer => NwwsOiSource.Host;
+
+		/// <summary>How the account stands right now: the Connection plate's status while it's the source.</summary>
+		public string DetailsConnection => IsNwws ? StatusText : $"Not in use · updates come from {LiveSources.NameOf(LiveSources.Normalize(_settings.LiveSource))}";
+
+		/// <summary>Forget account (the tab asks first): password out of Credential Manager, name out of settings.</summary>
+		public void ForgetAccount()
+		{
+			_hub.ForgetNwwsAccount();
+			_draftUsername = string.Empty;
+			OnPropertyChanged(nameof(NwwsUsername));
+			_isEditingUser = _isEditingPassword = false;
+			IsDetailsOpen = false;
+			AccountMessage = "Account forgotten";
+			RefreshSaved();
+		}
+
+		private void RefreshSaved()
+		{
+			_hasSavedAccount = _hub.SavedNwwsPassword() is not null;
+			RaiseAccount();
+		}
+
+		private void RaiseAccount()
+		{
+			OnPropertyChanged(nameof(HasSavedAccount));
+			OnPropertyChanged(nameof(SavedUsername));
+			OnPropertyChanged(nameof(IsEditingUser));
+			OnPropertyChanged(nameof(IsEditingPassword));
+			OnPropertyChanged(nameof(IsUserOpen));
+			OnPropertyChanged(nameof(IsPasswordOpen));
+			OnPropertyChanged(nameof(UserEditLabel));
+			OnPropertyChanged(nameof(PasswordEditLabel));
+			OnPropertyChanged(nameof(PasswordPlaceholder));
+			OnPropertyChanged(nameof(HasChanges));
+			OnPropertyChanged(nameof(CanSave));
+			OnPropertyChanged(nameof(CanTest));
+			OnPropertyChanged(nameof(AccountHint));
 		}
 
 		// ── Polling ──
@@ -207,6 +342,8 @@ namespace Anvil.ViewModels
 			MissedText = s.Source != LiveSources.Nwws
 				? "Not tracked (only NOAA Weather Wire numbers its products)"
 				: s.Missed == 0 ? "None this session" : $"{s.Missed} this session · each one caught up";
+			OnPropertyChanged(nameof(AccountHint));     // "Signed in as …" follows the link
+			OnPropertyChanged(nameof(DetailsConnection));
 		}
 
 		/// <summary>The source line's words. Internal for tests.</summary>

@@ -280,15 +280,21 @@ namespace Anvil.Services
 				}),
 
 			// ── Live Data → Weather Wire account ──
+			new("wire.request", "Get an account",
+				"NOAA Weather Wire needs an account from the NWS. The request page (weather.gov/nwws/nwws_oi_request) asks for your name, contact details and one or more accounts; the NWS says processing can take 10 days or more.",
+				Hint: "Request by email to the NWS · can take 10 days or more"),
 			new("wire.user", "User name",
-				"Your NOAA Weather Wire account name, from the NWS. An account can be signed in on one computer at a time.",
+				"Your NOAA Weather Wire account name, from the NWS. An account can be signed in on one computer at a time. Once saved it locks; Edit unlocks it, Cancel puts the saved name back.",
 				Hint: "From the NWS · one computer at a time"),
 			new("wire.password", "Password",
-				"Kept only in Windows Credential Manager, never in Anvil's settings file. Leave it empty to keep the one already saved.",
+				"Kept only in Windows Credential Manager, never in Anvil's settings file, and never shown in Anvil. Once saved it locks; Edit lets you type a new one, Cancel keeps the saved one.",
 				Hint: "Kept in Windows Credential Manager"),
 			new("wire.account", "Account",
-				"Save account stores the password and connects. Test connection signs in to NOAA Weather Wire and straight back out, to check the account works.",
+				"Save account stores the account and connects; it lights only when something changed. Test connection signs in to NOAA Weather Wire and straight back out with what's typed (or the saved password). It changes nothing.",
 				HintOff: "Only with NOAA Weather Wire"),
+			new("wire.details", "Account details",
+				"What's saved and where: the user name, the Credential Manager entry, the server and how the connection stands. The password is never shown; Credential Manager can show it after your Windows sign-in. Forget account removes it.",
+				Hint: "Facts only · never the password"),
 
 			// ── Live Data → Polling ──
 			new("polling.feed", "Polling",

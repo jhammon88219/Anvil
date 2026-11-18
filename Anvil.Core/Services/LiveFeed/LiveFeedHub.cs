@@ -178,6 +178,15 @@ namespace Anvil.Services
 			return _credentials.Write(NwwsCredentialResource, user, password);
 		}
 
+		/// <summary>Forgets the account (password out of Credential Manager, name out of settings); a Weather Wire run
+		/// restarts, which leaves it needing an account.</summary>
+		public void ForgetNwwsAccount()
+		{
+			_credentials?.Delete(NwwsCredentialResource);
+			_settings.Settings.NwwsUsername = string.Empty;
+			if (Source == LiveSources.Nwws) { Restart(); }
+		}
+
 		/// <summary>
 		/// DEV → Live source timing: fresh IEM and Weather Wire sources of its own (not the hub's run), or why not.
 		/// ⚠️ One Weather Wire sign-in per account: refused while the hub itself is ON Weather Wire.

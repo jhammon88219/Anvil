@@ -11,17 +11,19 @@ namespace Anvil.Dialogs
 	/// </summary>
 	public sealed partial class ConfirmResetDialog : ContentDialog
 	{
-		public ConfirmResetDialog(string title, string body)
+		public ConfirmResetDialog(string title, string body, string action = "Reset")
 		{
 			InitializeComponent();
 			Title = title;
 			BodyText.Text = body;
+			PrimaryButtonText = action;
 		}
 
-		/// <summary>Show it over <paramref name="anchor"/>'s window; true = Reset.</summary>
-		public static async Task<bool> ConfirmAsync(UIElement anchor, string title, string body)
+		/// <summary>Show it over <paramref name="anchor"/>'s window; true = the caution key (<paramref name="action"/>,
+		/// "Reset" unless a caller names its own — Weather Wire's "Forget").</summary>
+		public static async Task<bool> ConfirmAsync(UIElement anchor, string title, string body, string action = "Reset")
 		{
-			var dialog = new ConfirmResetDialog(title, body) { XamlRoot = anchor.XamlRoot };
+			var dialog = new ConfirmResetDialog(title, body, action) { XamlRoot = anchor.XamlRoot };
 			return await dialog.ShowAsync() == ContentDialogResult.Primary;
 		}
 	}

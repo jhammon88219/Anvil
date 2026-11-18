@@ -315,6 +315,65 @@ namespace Anvil.Tests
 			hub.Shutdown();
 		}
 
+		// ── The Weather Wire account plate (Settings → Live Data) ──
+
+		private sealed class MemoryCredentials : ICredentialStore
+		{
+			public readonly Dictionary<(string, string), string> Saved = new();
+			public string? Read(string resource, string user) => Saved.TryGetValue((resource, user), out var p) ? p : null;
+			public bool Write(string resource, string user, string password) { Saved[(resource, user)] = password; return true; }
+			public void Delete(string resource) { foreach (var k in Saved.Keys.Where(k => k.Item1 == resource).ToList()) { Saved.Remove(k); } }
+		}
+
+		[Fact]
+		public void Wire_account_locks_once_saved_saves_only_changes_and_forgets()
+		{
+			var settings = new AppSettings { LiveSource = LiveSources.Poll };
+			var store = new MemoryCredentials();
+			var hub = new LiveFeedHub(Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings }), store, null, NullLogger.Instance);
+			var vm = new LiveDataViewModel(hub, settings, Inline);
+
+			// First time: open boxes, Save only once both are filled.
+			Assert.False(vm.HasSavedAccount);
+			Assert.True(vm.IsUserOpen && vm.IsPasswordOpen);
+			vm.NwwsUsername = "first.last";
+			Assert.False(vm.CanSave);
+			Assert.Equal(string.Empty, settings.NwwsUsername); // a draft until Save
+			vm.SetPendingPassword("pw1");
+			Assert.True(vm.CanSave);
+			Assert.True(vm.SaveAccount());
+			vm.SetPendingPassword(""); // the tab clears its box
+
+			// Saved: locked, nothing to save.
+			Assert.True(vm.HasSavedAccount);
+			Assert.False(vm.IsUserOpen || vm.IsPasswordOpen);
+			Assert.False(vm.CanSave);
+			Assert.True(vm.CanTest);
+
+			// Edit the name; Cancel restores it; a rename alone keeps the saved password.
+			vm.ToggleEditUser();
+			Assert.True(vm.IsUserOpen);
+			vm.NwwsUsername = "other.name";
+			Assert.True(vm.CanSave);
+			vm.ToggleEditUser();
+			Assert.Equal("first.last", vm.NwwsUsername);
+			Assert.False(vm.CanSave);
+			vm.ToggleEditUser();
+			vm.NwwsUsername = "new.name";
+			Assert.True(vm.SaveAccount());
+			Assert.Equal("new.name", settings.NwwsUsername);
+			Assert.Equal("pw1", store.Read(LiveFeedHub.NwwsCredentialResource, "new.name"));
+			Assert.False(vm.IsUserOpen);
+
+			// Forget: password and name gone, boxes open again.
+			vm.ToggleDetails();
+			vm.ForgetAccount();
+			Assert.Empty(store.Saved);
+			Assert.Equal(string.Empty, settings.NwwsUsername);
+			Assert.False(vm.HasSavedAccount || vm.IsDetailsOpen);
+			Assert.True(vm.IsUserOpen && vm.IsPasswordOpen);
+		}
+
 		// ── NOAA Weather Wire ──
 
 		[Fact]
