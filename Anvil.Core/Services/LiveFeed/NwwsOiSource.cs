@@ -27,7 +27,8 @@ namespace Anvil.Services
 	/// a missed product → <see cref="ILiveSourceSink.Gap"/>. Tracking restarts per connection (a reconnect's catch-up
 	/// covers what fell in the drop). ⚠️ One account = one computer (NWS terms), so the room nick is randomised per
 	/// connection only to dodge a stale nick after a drop.
-	/// ⚠️ Untested against the live server until the user's account arrives (built 2026-10-19 from the protocol docs).
+	/// Built 2026-10-19 from the protocol docs; SIGN-IN confirmed against the live server 2026-11-18 (after the GetStream fix,
+	/// docs/bugs.md S35). Joining the room and receiving products is the next thing to confirm live.
 	/// </remarks>
 	public sealed class NwwsOiSource : ILiveProductSource
 	{

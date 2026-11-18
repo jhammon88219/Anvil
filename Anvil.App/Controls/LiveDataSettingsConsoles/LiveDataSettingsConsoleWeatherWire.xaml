@@ -12,7 +12,7 @@
      source is NOAA Weather Wire — each CONTROL greys (not the rows), so a greyed row can still be picked to read its About.
      An account is YOURS: no DEFAULT, no Restore defaults, and Reset all keeps it.
      ⚠️ The password lives ONLY in Credential Manager (ICredentialStore), never AppSettings: the PasswordBox hands it to the VM
-     from code-behind (SetPendingPassword), never through a binding. NWWS-OI is untested live (no account yet). -->
+     from code-behind (SetPendingPassword), never through a binding. Sign-in confirmed live 2026-11-18. -->
 <UserControl x:Class="Anvil.Controls.LiveDataSettingsConsoles.LiveDataSettingsConsoleWeatherWire"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
