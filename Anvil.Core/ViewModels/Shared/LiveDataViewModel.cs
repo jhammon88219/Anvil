@@ -29,6 +29,7 @@ namespace Anvil.ViewModels
 		private string _accountMessage = string.Empty;
 		private bool _isTesting, _hasSavedAccount, _isEditingUser, _isEditingPassword, _isDetailsOpen;
 		private string _draftUsername;
+		private string _pollingStateLine = string.Empty;
 		private string _sourceLine = string.Empty, _statusText = string.Empty, _lastProductText = string.Empty, _missedText = string.Empty;
 		private LiveLinkState _linkState;
 
@@ -313,7 +314,19 @@ namespace Anvil.ViewModels
 
 		// ── How the connection stands (Settings → Connection, and the expander's source line) ──
 
-		public LiveLinkState LinkState { get => _linkState; private set => SetProperty(ref _linkState, value); }
+		public LiveLinkState LinkState
+		{
+			get => _linkState;
+			private set
+			{
+				if (SetProperty(ref _linkState, value))
+				{
+					OnPropertyChanged(nameof(IsLinkConnected));
+					OnPropertyChanged(nameof(IsLinkFallback));
+					OnPropertyChanged(nameof(IsLinkOff));
+				}
+			}
+		}
 
 		/// <summary>The activity expander's last line: "Live via IEM · connected since 11:02 AM" · "IEM lost at 12:08:31 PM ·
 		/// polling until it's back" · "Polling only · Settings → Live Data" …</summary>
@@ -350,7 +363,27 @@ namespace Anvil.ViewModels
 				: s.Missed == 0 ? "None this session" : $"{s.Missed} this session · each one caught up";
 			OnPropertyChanged(nameof(AccountHint));     // "Signed in as …" follows the link
 			OnPropertyChanged(nameof(DetailsConnection));
+			PollingStateLine = PollingLineOf(s, name);
+			foreach (var row in Polling) { row.SetLink(s.State, name); }
 		}
+
+		// The Polling line's dot: green = connected, amber = a live source standing in by polling, grey = Polling only.
+		public bool IsLinkConnected => LinkState == LiveLinkState.Connected;
+		public bool IsLinkFallback => LinkState is LiveLinkState.Connecting or LiveLinkState.Down or LiveLinkState.NeedsAccount;
+		public bool IsLinkOff => !IsLinkConnected && !IsLinkFallback;
+
+		/// <summary>The Polling plate's line under its title: what the intervals are doing right now.</summary>
+		public string PollingStateLine { get => _pollingStateLine; private set => SetProperty(ref _pollingStateLine, value); }
+
+		/// <summary>The Polling plate's line words. Internal for tests.</summary>
+		internal static string PollingLineOf(LiveFeedSnapshot s, string name) => s.State switch
+		{
+			LiveLinkState.Connected => $"Now: {name} connected since {ClockMinutes(s.Since)} · Live layers wait for it, the rest poll",
+			LiveLinkState.Connecting => $"Now: connecting to {name} · every layer polls meanwhile",
+			LiveLinkState.Down => $"Now: {name} lost at {ClockMinutes(s.Since)} · every layer polls until it's back",
+			LiveLinkState.NeedsAccount => $"Now: {name} needs an account · every layer polls",
+			_ => "Now: Polling only · every layer is checked on these intervals",
+		};
 
 		/// <summary>The source line's words. Internal for tests.</summary>
 		internal static string LineOf(LiveFeedSnapshot s, string name) => s.State switch
@@ -403,6 +436,7 @@ namespace Anvil.ViewModels
 				var stored = clamped == LiveFeedKinds.DefaultPoll(Kind) ? (int?)null : seconds;
 				if (_settings.PollSecondsOf(Kind) != stored) { _settings.SetPollSeconds(Kind, stored); }
 				OnPropertyChanged();
+				OnPropertyChanged(nameof(LiveHint)); // "Every 30 s"
 			}
 		}
 
@@ -413,14 +447,59 @@ namespace Anvil.ViewModels
 		/// <summary>The MINIMUM column: "15 s" / "2 min".</summary>
 		public string MinimumText => FeedStatus.EveryWords(LiveFeedKinds.MinimumPoll(Kind));
 
-		/// <summary>Beside the number box: "seconds · min 15 s".</summary>
-		public string UnitText => "seconds · min " + MinimumText;
+		// ── What the row is doing NOW (the tag follows the link — LiveDataViewModel.Refresh → SetLink) ──
+		// Connected → a pushed feed waits for the live source (LIVE tag); any other state of a live source → it polls in
+		// the feed's place (FALLBACK, amber); Polling only, and storm cells / HRRR always → plain POLLING.
 
-		/// <summary>True = a live source carries it while connected (the "Live" tag); false = always polled.</summary>
+		private LiveLinkState _link = LiveLinkState.Off;
+		private string _sourceName = string.Empty;
+
+		/// <summary>True = a live source carries it while connected; false = always polled (storm cells, HRRR).</summary>
 		public bool IsLive => LiveFeedKinds.IsPushed(Kind);
 
-		/// <summary>The hint after the tag.</summary>
-		public string LiveHint => Services.SettingsText.ChoiceOf("polling.feed", IsLive ? 0 : 1);
+		/// <summary>The live source is connected and carries this feed — it waits for products, no schedule.</summary>
+		public bool IsTagLive => IsLive && _link == LiveLinkState.Connected;
+
+		/// <summary>A live source is picked but not connected — this feed polls in its place until it's back.</summary>
+		public bool IsTagFallback => IsLive && _link is LiveLinkState.Connecting or LiveLinkState.Down or LiveLinkState.NeedsAccount;
+
+		/// <summary>Plain polling — its normal state (Polling only, or a feed no live source carries).</summary>
+		public bool IsTagPolling => !IsTagLive && !IsTagFallback;
+
+		/// <summary>The tag's word.</summary>
+		public string TagText => IsTagLive ? "Live" : "Polling";
+
+		private string Every => FeedStatus.EveryWords(TimeSpan.FromSeconds(Seconds));
+
+		/// <summary>The hint after the tag, in words for the CURRENT state.</summary>
+		public string LiveHint =>
+			IsTagLive ? $"Waits for {_sourceName} · safety check every 10 min"
+			: IsTagFallback ? _link switch
+			{
+				LiveLinkState.Connecting => $"Every {Every} until {_sourceName} connects",
+				LiveLinkState.NeedsAccount => $"Every {Every} · {_sourceName} needs an account",
+				_ => $"Every {Every} until {_sourceName} is back",
+			}
+			: IsLive ? $"Every {Every}"
+			: $"Every {Every} · no live feed carries it";
+
+		/// <summary>Beside the number box: "seconds · min 15 s" — or, while the live feed carries this one,
+		/// "seconds when IEM is down · min 15 s" (the number is the OUTAGE interval then).</summary>
+		public string UnitText => IsTagLive ? $"seconds when {_sourceName} is down · min {MinimumText}" : "seconds · min " + MinimumText;
+
+		/// <summary>The hub's state, pushed by <see cref="LiveDataViewModel"/> on every change.</summary>
+		internal void SetLink(LiveLinkState link, string sourceName)
+		{
+			if (_link == link && _sourceName == sourceName) { return; }
+			_link = link;
+			_sourceName = sourceName;
+			OnPropertyChanged(nameof(IsTagLive));
+			OnPropertyChanged(nameof(IsTagFallback));
+			OnPropertyChanged(nameof(IsTagPolling));
+			OnPropertyChanged(nameof(TagText));
+			OnPropertyChanged(nameof(LiveHint));
+			OnPropertyChanged(nameof(UnitText));
+		}
 
 		/// <summary>The DEFAULT column: "30 s" / "2 min".</summary>
 		public string DefaultText => FeedStatus.EveryWords(LiveFeedKinds.DefaultPoll(Kind));
@@ -429,6 +508,7 @@ namespace Anvil.ViewModels
 		{
 			_settings.SetPollSeconds(Kind, null);
 			OnPropertyChanged(nameof(Seconds));
+			OnPropertyChanged(nameof(LiveHint));
 		}
 	}
 }

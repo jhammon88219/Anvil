@@ -22,8 +22,8 @@ namespace Anvil.Controls.LiveDataSettingsConsoles
 			DependencyProperty.Register(nameof(ViewModel), typeof(LiveDataViewModel), typeof(LiveDataSettingsConsolePolling),
 				new PropertyMetadata(null));
 
-		/// <summary>The row template's "Polled" tag (static: a DataTemplate's x:Bind resolves against the ROW).</summary>
-		public static Visibility Not(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
+		/// <summary>One of the three declared tags / dots (static: a DataTemplate's x:Bind resolves against the ROW).</summary>
+		public static Visibility Shown(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
 		private async void OnRestoreDefaults(object sender, RoutedEventArgs e)
 		{

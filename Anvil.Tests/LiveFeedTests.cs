@@ -315,6 +315,35 @@ namespace Anvil.Tests
 			hub.Shutdown();
 		}
 
+		// ── The Polling plate's tags follow the link ──
+
+		[Fact]
+		public void Poll_row_tags_follow_the_link()
+		{
+			var settings = new AppSettings();
+			var vm = new LiveDataViewModel(Hub(settings, _ => null), settings, Inline);
+			var warnings = vm.Polling.Single(r => r.Kind == LiveFeedKind.Warnings);
+			var cells = vm.Polling.Single(r => r.Kind == LiveFeedKind.StormCells);
+
+			warnings.SetLink(LiveLinkState.Connected, "IEM");
+			cells.SetLink(LiveLinkState.Connected, "IEM");
+			Assert.True(warnings.IsTagLive);
+			Assert.Equal("seconds when IEM is down · min 15 s", warnings.UnitText);
+			Assert.True(cells.IsTagPolling);
+			Assert.Equal("Every 60 s · no live feed carries it", cells.LiveHint); // FeedStatus.EveryWords' own wording
+
+			warnings.SetLink(LiveLinkState.Down, "IEM");
+			Assert.True(warnings.IsTagFallback);
+			Assert.Equal("Every 30 s until IEM is back", warnings.LiveHint);
+			Assert.Equal("seconds · min 15 s", warnings.UnitText);
+
+			warnings.SetLink(LiveLinkState.Off, "Polling only");
+			Assert.True(warnings.IsTagPolling);
+			Assert.Equal("Every 30 s", warnings.LiveHint);
+			warnings.Seconds = 45;
+			Assert.Equal("Every 45 s", warnings.LiveHint);
+		}
+
 		// ── The Weather Wire account plate (Settings → Live Data) ──
 
 		private sealed class MemoryCredentials : ICredentialStore

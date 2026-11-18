@@ -298,8 +298,7 @@ namespace Anvil.Services
 
 			// ── Live Data → Polling ──
 			new("polling.feed", "Polling",
-				"Seconds between checks for this layer when no live source carries it. While the live feed is connected, a Live layer waits for it instead, with a safety check every 10 minutes.",
-				Choices: new[] { "Waits for the live feed while connected", "No live feed carries it" }),
+				"Seconds between checks for this layer when no live source carries it. While the live feed is connected, a Live layer waits for it instead (safety check every 10 min) and this is its interval for when the feed drops. The tag shows what it's doing now."),
 			new("polling.radar", "Radar",
 				"The radar keeps its own schedule, set on the Radar page under Live polling.",
 				Hint: "Set in Radar → Live polling"),
