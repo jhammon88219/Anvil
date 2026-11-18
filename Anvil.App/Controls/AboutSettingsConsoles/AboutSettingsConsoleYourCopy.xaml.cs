@@ -1,14 +1,14 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.Controls.StorageManagers;
 using Anvil.Services;
 
 namespace Anvil.Controls.AboutSettingsConsoles
 {
-	/// <summary>Settings → About → This copy (see the XAML header): version facts, Copy details, the logs folder.</summary>
-	public sealed partial class AboutSettingsConsoleThisCopy : UserControl
+	/// <summary>Settings → About → Your copy (see the XAML header): version facts, Copy details, the logs folder.</summary>
+	public sealed partial class AboutSettingsConsoleYourCopy : UserControl
 	{
-		public AboutSettingsConsoleThisCopy()
+		public AboutSettingsConsoleYourCopy()
 		{
 			InitializeComponent();
 		}

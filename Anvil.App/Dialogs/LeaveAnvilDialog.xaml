@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LeaveAnvilDialog — asked before a ↗ link opens the user's browser (canvas artboard 28, 2026-11-18).
+
+       ┌─ Open this page in your browser? ───────────────────┐
+       │  You're leaving Anvil for a page on the web.        │
+       │  ┌ MapLibre GL JS                                 ┐ │  ← where: the link's name + its full address
+       │  │ https://github.com/maplibre/maplibre-gl-js     │ │
+       │  └────────────────────────────────────────────────┘ │
+       │  ☐ Don't ask again                                  │  ← ONE app-wide flag, AppSettings.AskBeforeOpeningLinks
+       │      [ Open in browser ]          ( Cancel )        │  Open = the accent key (nothing is lost), not caution amber
+       └─────────────────────────────────────────────────────┘
+     ⚠️ DefaultButton is Close (Cancel): Enter / Esc stay in Anvil. "Don't ask again" only counts when Open is pressed.
+     Callers never show it directly — AboutAnvil.OpenLinkAsync asks (or not) and opens. -->
+<ContentDialog x:Class="Anvil.Dialogs.LeaveAnvilDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+               xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+               mc:Ignorable="d"
+               Title="Open this page in your browser?"
+               PrimaryButtonText="Open in browser"
+               CloseButtonText="Cancel"
+               DefaultButton="Close"
+               PrimaryButtonStyle="{StaticResource AccentButtonStyle}">
+
+    <StackPanel x:Name="LeaveAnvilDialogBody" Spacing="12" MaxWidth="420">
+        <TextBlock Style="{StaticResource BodyTextStyle}" TextWrapping="Wrap"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Text="You're leaving Anvil for a page on the web."/>
+        <Border x:Name="LeaveAnvilDialogWhere" Padding="12,10" CornerRadius="4"
+                Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+            <StackPanel Spacing="2">
+                <TextBlock x:Name="LeaveAnvilDialogName" Style="{StaticResource BodyStrongTextStyle}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="LeaveAnvilDialogAddress" Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap"
+                           IsTextSelectionEnabled="True" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </Border>
+        <CheckBox x:Name="LeaveAnvilDialogDontAsk" Content="Don't ask again"/>
+    </StackPanel>
+</ContentDialog>

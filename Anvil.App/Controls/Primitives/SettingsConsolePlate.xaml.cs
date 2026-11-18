@@ -37,6 +37,16 @@ namespace Anvil.Controls.Primitives
 		public static readonly DependencyProperty HeaderContentProperty =
 			DependencyProperty.Register(nameof(HeaderContent), typeof(object), typeof(SettingsConsolePlate), new PropertyMetadata(null));
 
+		/// <summary>On the title row at its RIGHT edge (e.g. About → Your copy's Copy details). Null = nothing.</summary>
+		public object? HeaderEndContent
+		{
+			get => GetValue(HeaderEndContentProperty);
+			set => SetValue(HeaderEndContentProperty, value);
+		}
+
+		public static readonly DependencyProperty HeaderEndContentProperty =
+			DependencyProperty.Register(nameof(HeaderEndContent), typeof(object), typeof(SettingsConsolePlate), new PropertyMetadata(null));
+
 		/// <summary>Whether the rows carry a right-hand DEFAULT column, titled once here.</summary>
 		public bool ShowDefaultHeader
 		{

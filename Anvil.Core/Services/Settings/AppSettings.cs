@@ -882,6 +882,15 @@ namespace Anvil.Services
 			set => SetProperty(ref _startInFullScreen, value);
 		}
 
+		private bool _askBeforeOpeningLinks = true;
+		/// <summary>Ask before a ↗ link opens the browser (Dialogs/LeaveAnvilDialog). Default ON; its "Don't ask again" box
+		/// turns it OFF for every link in Anvil.</summary>
+		public bool AskBeforeOpeningLinks
+		{
+			get => _askBeforeOpeningLinks;
+			set => SetProperty(ref _askBeforeOpeningLinks, value);
+		}
+
 		private string _distanceUnits = Models.DistanceUnits.Kilometers;
 		/// <summary>
 		/// The unit every GROUND-DISTANCE readout is shown in — the range ruler's chip and the Inspector's

@@ -60,8 +60,26 @@ namespace Anvil.Controls.AboutSettingsConsoles
 			catch (Exception ex) { Debug.WriteLine($"[about] WebView2 version: {ex.Message}"); return "—"; }
 		}
 
-		/// <summary>Opens a web link in the user's browser (fire and forget).</summary>
-		public static void OpenLink(string url) => _ = global::Windows.System.Launcher.LaunchUriAsync(new Uri(url));
+		/// <summary>
+		/// Opens a ↗ link in the user's browser — first asking (Dialogs/LeaveAnvilDialog) unless "Don't ask again" was ticked
+		/// (AppSettings.AskBeforeOpeningLinks, one flag for every link). <paramref name="name"/> is what the dialog calls the page.
+		/// </summary>
+		public static async void OpenLink(Microsoft.UI.Xaml.UIElement anchor, string name, string url)
+		{
+			try
+			{
+				var settings = ((App)Microsoft.UI.Xaml.Application.Current).Services
+					.GetService(typeof(Anvil.Services.ISettingsService)) as Anvil.Services.ISettingsService;
+				if (settings?.Settings.AskBeforeOpeningLinks != false)
+				{
+					var (open, dontAsk) = await Anvil.Dialogs.LeaveAnvilDialog.AskAsync(anchor, name, url);
+					if (!open) { return; }
+					if (dontAsk && settings is not null) { settings.Settings.AskBeforeOpeningLinks = false; }
+				}
+				await global::Windows.System.Launcher.LaunchUriAsync(new Uri(url));
+			}
+			catch (Exception ex) { Debug.WriteLine($"[about] opening {url} failed: {ex.Message}"); }
+		}
 
 		/// <summary>Puts <see cref="Details"/> on the clipboard.</summary>
 		public static void CopyDetails()

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- AboutSettingsConsoleBuiltWith — Settings → About → Built with (artboard 22): the open-source work Anvil stands on.
+<!-- AboutSettingsConsoleBuiltWith — Settings → About → Built with (artboard 27): the open-source work Anvil stands on.
 
        ┌ Built with ───────────────────────────────────────────────┐
-       │ MapLibre GL JS        the map                    Project › │   ← each project's own page, where its
-       │ PMTiles               the offline map file       Project › │     license lives (one link per row
-       │ …                                                          │     instead of the mock's single key)
+       │ MapLibre GL JS ↗                                   the map │   ← AboutSettingsConsoleLinkRow: the NAME is the
+       │ PMTiles ↗                             the offline map file │     link (its GitHub page, where its license
+       │ …                                                          │     lives); what it does at the far right
        └────────────────────────────────────────────────────────────┘
-     Links are declared HyperlinkButtons (NavigateUri) — no code. ⚠️ A new dependency adds its row here (and README.md). -->
+     ⚠️ A new dependency adds its row here (and README.md). -->
 <UserControl x:Class="Anvil.Controls.AboutSettingsConsoles.AboutSettingsConsoleBuiltWith"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -18,30 +18,14 @@
 
     <prim:SettingsConsolePlate x:Name="AboutSettingsConsoleBuiltWithPlate" Title="Built with">
         <StackPanel>
-            <local:AboutSettingsConsoleInfoRow Label="MapLibre GL JS" IsQuiet="True" Value="the map">
-                <local:AboutSettingsConsoleInfoRow.Action><HyperlinkButton Content="Project" NavigateUri="https://github.com/maplibre/maplibre-gl-js"/></local:AboutSettingsConsoleInfoRow.Action>
-            </local:AboutSettingsConsoleInfoRow>
-            <local:AboutSettingsConsoleInfoRow Label="PMTiles" IsQuiet="True" Value="the offline map file">
-                <local:AboutSettingsConsoleInfoRow.Action><HyperlinkButton Content="Project" NavigateUri="https://github.com/protomaps/PMTiles"/></local:AboutSettingsConsoleInfoRow.Action>
-            </local:AboutSettingsConsoleInfoRow>
-            <local:AboutSettingsConsoleInfoRow Label="nexrad-level-2-data" IsQuiet="True" Value="radar decoding">
-                <local:AboutSettingsConsoleInfoRow.Action><HyperlinkButton Content="Project" NavigateUri="https://github.com/netbymatt/nexrad-level-2-data"/></local:AboutSettingsConsoleInfoRow.Action>
-            </local:AboutSettingsConsoleInfoRow>
-            <local:AboutSettingsConsoleInfoRow Label="Py-ART" IsQuiet="True" Value="velocity dealiasing (ported)">
-                <local:AboutSettingsConsoleInfoRow.Action><HyperlinkButton Content="Project" NavigateUri="https://github.com/ARM-DOE/pyart"/></local:AboutSettingsConsoleInfoRow.Action>
-            </local:AboutSettingsConsoleInfoRow>
-            <local:AboutSettingsConsoleInfoRow Label="seek-bzip" IsQuiet="True" Value="decompression">
-                <local:AboutSettingsConsoleInfoRow.Action><HyperlinkButton Content="Project" NavigateUri="https://github.com/cscott/seek-bzip"/></local:AboutSettingsConsoleInfoRow.Action>
-            </local:AboutSettingsConsoleInfoRow>
-            <local:AboutSettingsConsoleInfoRow Label="SharpCompress" IsQuiet="True" Value="decompression">
-                <local:AboutSettingsConsoleInfoRow.Action><HyperlinkButton Content="Project" NavigateUri="https://github.com/adamhathcock/sharpcompress"/></local:AboutSettingsConsoleInfoRow.Action>
-            </local:AboutSettingsConsoleInfoRow>
-            <local:AboutSettingsConsoleInfoRow Label="CommunityToolkit" IsQuiet="True" Value="app plumbing">
-                <local:AboutSettingsConsoleInfoRow.Action><HyperlinkButton Content="Project" NavigateUri="https://github.com/CommunityToolkit/dotnet"/></local:AboutSettingsConsoleInfoRow.Action>
-            </local:AboutSettingsConsoleInfoRow>
-            <local:AboutSettingsConsoleInfoRow Label="Serilog" IsQuiet="True" Value="logging">
-                <local:AboutSettingsConsoleInfoRow.Action><HyperlinkButton Content="Project" NavigateUri="https://github.com/serilog/serilog"/></local:AboutSettingsConsoleInfoRow.Action>
-            </local:AboutSettingsConsoleInfoRow>
+            <local:AboutSettingsConsoleLinkRow Title="MapLibre GL JS" What="the map" Url="https://github.com/maplibre/maplibre-gl-js"/>
+            <local:AboutSettingsConsoleLinkRow Title="PMTiles" What="the offline map file" Url="https://github.com/protomaps/PMTiles"/>
+            <local:AboutSettingsConsoleLinkRow Title="nexrad-level-2-data" What="radar decoding" Url="https://github.com/netbymatt/nexrad-level-2-data"/>
+            <local:AboutSettingsConsoleLinkRow Title="Py-ART" What="velocity dealiasing (ported)" Url="https://github.com/ARM-DOE/pyart"/>
+            <local:AboutSettingsConsoleLinkRow Title="seek-bzip" What="decompression" Url="https://github.com/cscott/seek-bzip"/>
+            <local:AboutSettingsConsoleLinkRow Title="SharpCompress" What="decompression" Url="https://github.com/adamhathcock/sharpcompress"/>
+            <local:AboutSettingsConsoleLinkRow Title="CommunityToolkit" What="app plumbing" Url="https://github.com/CommunityToolkit/dotnet"/>
+            <local:AboutSettingsConsoleLinkRow Title="Serilog" What="logging" Url="https://github.com/serilog/serilog"/>
         </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>

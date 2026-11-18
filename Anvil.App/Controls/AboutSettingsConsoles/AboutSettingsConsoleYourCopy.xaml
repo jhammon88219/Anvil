@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- AboutSettingsConsoleYourCopy — Settings → About → Your copy (artboard 27): what is running, for a bug report.
+
+       ┌ Your copy ────────────────────────────────── [Copy details] ┐   ← HeaderEndContent: the title row's RIGHT edge
+       │ Version           1.0.0.0 · Debug                            │
+       │ Windows App SDK   2.1.3                                      │   ← AboutAnvil reads each, once, never throws ("—")
+       │ Map engine        WebView2 131.0 · MapLibre GL JS 5.21.1     │
+       │ Logs              %LocalAppData%\Anvil\Logs         [ Open ] │   ← StorageManagerFolderLauncher (package-aware)
+       └──────────────────────────────────────────────────────────────┘
+     Copy details and Open are both AboutKeyWidth (112) at the same right edge — one column. Rows 6 apart.
+     Copy details = every line above + the Windows version, on the clipboard (AboutAnvil.Details). -->
+<UserControl x:Class="Anvil.Controls.AboutSettingsConsoles.AboutSettingsConsoleYourCopy"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:local="using:Anvil.Controls.AboutSettingsConsoles"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <prim:SettingsConsolePlate x:Name="AboutSettingsConsoleYourCopyPlate" Title="Your copy">
+        <prim:SettingsConsolePlate.HeaderEndContent>
+            <Button x:Name="AboutSettingsConsoleYourCopyCopyButton" Content="Copy details" Click="OnCopyClick"
+                    Width="{StaticResource AboutKeyWidth}"
+                    ToolTipService.ToolTip="Puts these lines on the clipboard, to paste into a bug report"/>
+        </prim:SettingsConsolePlate.HeaderEndContent>
+        <StackPanel Spacing="6">
+            <local:AboutSettingsConsoleInfoRow x:Name="AboutSettingsConsoleYourCopyVersion" Label="Version" Value="{x:Bind VersionText}"/>
+            <local:AboutSettingsConsoleInfoRow x:Name="AboutSettingsConsoleYourCopyWindowsAppSdk" Label="Windows App SDK" Value="{x:Bind WindowsAppSdk}"/>
+            <local:AboutSettingsConsoleInfoRow x:Name="AboutSettingsConsoleYourCopyMapEngine" Label="Map engine" Value="{x:Bind MapEngine}"/>
+            <local:AboutSettingsConsoleInfoRow x:Name="AboutSettingsConsoleYourCopyLogs" Label="Logs" Value="{x:Bind LogsPath}" IsQuiet="True">
+                <local:AboutSettingsConsoleInfoRow.Action>
+                    <Button Content="Open" Click="OnOpenLogsClick" Width="{StaticResource AboutKeyWidth}"
+                            ToolTipService.ToolTip="Opens the logs folder in File Explorer"/>
+                </local:AboutSettingsConsoleInfoRow.Action>
+            </local:AboutSettingsConsoleInfoRow>
+        </StackPanel>
+    </prim:SettingsConsolePlate>
+</UserControl>

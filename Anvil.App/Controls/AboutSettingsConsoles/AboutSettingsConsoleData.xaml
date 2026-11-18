@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- AboutSettingsConsoleData — Settings → About → Data (artboard 22): where every feed comes from, one quiet line each,
+<!-- AboutSettingsConsoleData — Settings → About → Data sources (artboard 27): where every feed comes from, one quiet line each,
      then the not-affiliated line.
 
-       ┌ Data ──────────────────────────────────────────────────────────────┐
+       ┌ Data sources ──────────────────────────────────────────────────────┐
        │ Radar                NEXRAD Level II · Unidata's buckets on AWS     │
        │ Outlooks · reports   NOAA/NWS Storm Prediction Center               │
        │ …                                                                   │
@@ -18,7 +18,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <prim:SettingsConsolePlate x:Name="AboutSettingsConsoleDataPlate" Title="Data">
+    <prim:SettingsConsolePlate x:Name="AboutSettingsConsoleDataPlate" Title="Data sources">
         <StackPanel>
             <local:AboutSettingsConsoleInfoRow Label="Radar" IsQuiet="True" Value="NEXRAD Level II · Unidata's archive and chunks buckets on AWS"/>
             <local:AboutSettingsConsoleInfoRow Label="Outlooks · reports" IsQuiet="True" Value="NOAA/NWS Storm Prediction Center"/>

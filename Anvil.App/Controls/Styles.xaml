@@ -382,6 +382,9 @@
     <GridLength x:Key="SettingsDefaultColumnWidth">150</GridLength>
     <!-- The plate's DEFAULT WELL: the column + 8 each side (a row's bleed), so it lines up with the row lifts. Keep = column + 16. -->
     <x:Double x:Key="SettingsDefaultWellWidth">166</x:Double>
+    <!-- Settings → About: every key at a plate's right edge (Copy details, Open, Read it) shares this width, so they stand
+         in one column (canvas artboard 27, 2026-11-18). -->
+    <x:Double x:Key="AboutKeyWidth">112</x:Double>
     <x:Double x:Key="SettingsGroupBreakSpace">12</x:Double>
     <Style x:Key="SettingsConsoleRowsStyle" TargetType="StackPanel">
         <Setter Property="Spacing" Value="2"/>

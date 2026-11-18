@@ -11,10 +11,10 @@ namespace Anvil.Controls.AboutSettingsConsoles
 			InitializeComponent();
 		}
 
-		private void OnLicenseClick(object sender, RoutedEventArgs e) => AboutAnvil.OpenLink(AboutAnvil.LicenseUrl);
+		private void OnLicenseClick(object sender, RoutedEventArgs e) => AboutAnvil.OpenLink(this, "Anvil's license (AGPL-3.0)", AboutAnvil.LicenseUrl);
 
-		private void OnSourceClick(object sender, RoutedEventArgs e) => AboutAnvil.OpenLink(AboutAnvil.SourceUrl);
+		private void OnSourceClick(object sender, RoutedEventArgs e) => AboutAnvil.OpenLink(this, "Anvil's source code", AboutAnvil.SourceUrl);
 
-		private void OnIssuesClick(object sender, RoutedEventArgs e) => AboutAnvil.OpenLink(AboutAnvil.IssuesUrl);
+		private void OnIssuesClick(object sender, RoutedEventArgs e) => AboutAnvil.OpenLink(this, "Anvil's issue list", AboutAnvil.IssuesUrl);
 	}
 }

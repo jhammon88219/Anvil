@@ -274,11 +274,13 @@ namespace Anvil.Controls.Windows
 					: $"{_searchCount} {(_searchCount == 1 ? "setting" : "settings")} on {_searchPages} {(_searchPages == 1 ? "page" : "pages")}";
 				HasResetAll = Visibility.Collapsed;
 				HasAboutBox = Visibility.Collapsed;
+				HasAnvilBox = Visibility.Collapsed;
 				return;
 			}
 			var page = ViewModel.SettingsTabIndex;
-			// About (facts, no rows to pick) and Dev (expanders) have no About box.
+			// About shows Anvil itself in the slot (no rows to pick); Dev (expanders) shows nothing there.
 			HasAboutBox = page is (int)SettingsTab.About or (int)SettingsTab.Dev ? Visibility.Collapsed : Visibility.Visible;
+			HasAnvilBox = page == (int)SettingsTab.About ? Visibility.Visible : Visibility.Collapsed;
 			var entry = System.Linq.Enumerable.FirstOrDefault(Tabs, t => t.PageIndex == page);
 			PageTitle = entry?.Label ?? string.Empty;
 			PageDescription = entry?.Tooltip ?? string.Empty;
@@ -332,6 +334,11 @@ namespace Anvil.Controls.Windows
 		public static readonly DependencyProperty HasAboutBoxProperty =
 			DependencyProperty.Register(nameof(HasAboutBox), typeof(Visibility), typeof(SettingsWindow), new PropertyMetadata(Visibility.Visible));
 
+		/// <summary>The About page's version of the slot: Anvil's description + the operational-use line.</summary>
+		public Visibility HasAnvilBox { get => (Visibility)GetValue(HasAnvilBoxProperty); private set => SetValue(HasAnvilBoxProperty, value); }
+		public static readonly DependencyProperty HasAnvilBoxProperty =
+			DependencyProperty.Register(nameof(HasAnvilBox), typeof(Visibility), typeof(SettingsWindow), new PropertyMetadata(Visibility.Collapsed));
+
 		public Visibility HasResetAll { get => (Visibility)GetValue(HasResetAllProperty); private set => SetValue(HasResetAllProperty, value); }
 		public static readonly DependencyProperty HasResetAllProperty =
 			DependencyProperty.Register(nameof(HasResetAll), typeof(Visibility), typeof(SettingsWindow), new PropertyMetadata(Visibility.Collapsed));
@@ -359,6 +366,9 @@ namespace Anvil.Controls.Windows
 
 		/// <summary>"Debug" or "Release" — which build is running.</summary>
 		public string BuildKind => AboutSettingsConsoles.AboutAnvil.BuildKind;
+
+		private void OnSourceLinkClick(object sender, RoutedEventArgs e) =>
+			AboutSettingsConsoles.AboutAnvil.OpenLink((UIElement)sender, "Anvil's source code", AboutSettingsConsoles.AboutAnvil.SourceUrl);
 
 		/// <summary>The strip's tabs, in <see cref="SettingsTab"/> order. Built once per window instance.</summary>
 		public ObservableCollection<TabEntry> Tabs { get; }

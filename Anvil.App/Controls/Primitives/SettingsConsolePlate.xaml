@@ -9,6 +9,7 @@
        │ …                                                                 ▒▒  …  ▒▒ │   LABEL column (≥ 96) · HeaderContent
        └─────────────────────────────────────────────────────────────────────▀▀▀▀▀▀▀─┘   on the CONTROL column's left edge, so
         ▒ = the DEFAULT WELL (amber wash, inset 6, radius 4) behind the column, title row to last row
+        HeaderEndContent = a key at the title row's RIGHT edge instead of DEFAULT (About → Your copy: [Copy details])
         face CardBackgroundFillColorDefaultBrush · hairline SectionBorderBrush           it lines up with the control below ·
         radius 6 · padding 14,12,14,14                                                    DEFAULT far right (caution amber)
 
@@ -53,6 +54,11 @@
                            FontSize="{StaticResource OverlineFontSize}" CharacterSpacing="{StaticResource OverlineCharacterSpacing}"
                            Foreground="{ThemeResource SettingsCautionForegroundBrush}"
                            Visibility="{x:Bind Show(ShowDefaultHeader), Mode=OneWay}"/>
+                <!-- A key at the title row's RIGHT edge (About → Your copy's Copy details, 2026-11-18) — the same right edge as
+                     the rows' last column. Not used together with ShowDefaultHeader. -->
+                <ContentPresenter x:Name="SettingsConsolePlateHeaderEndContent" Grid.Column="2" VerticalAlignment="Center"
+                                  HorizontalAlignment="Right"
+                                  Content="{x:Bind HeaderEndContent, Mode=OneWay}"/>
             </Grid>
 
             <ContentPresenter x:Name="SettingsConsolePlateBody" Content="{x:Bind Body, Mode=OneWay}"/>

@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- AboutSettingsTab — Settings → About (SettingsTab.About, the last page before Dev; canvas artboard 22, 2026-11-17).
-     Not settings: what Anvil is, what's running, where the data comes from, what it's built with, the license.
+<!-- AboutSettingsTab — Settings → About (SettingsTab.About, the last page before Dev; canvas artboard 27, 2026-11-18).
+     Not settings: what's running, the license, where the data comes from, what it's built with.
 
-       ┌ Anvil ─────────────────────────────────────────────────────────────────────────────┐   AboutSettingsConsoleAnvil
-       └────────────────────────────────────────────────────────────────────────────────────┘
-       ┌ This copy  [Copy details] ──────────────┐ ┌ License ──────────────────────────────┐   …ThisCopy | …License
-       └─────────────────────────────────────────┘ └───────────────────────────────────────┘
-       ┌ Data ───────────────────────────────────┐ ┌ Built with ───────────────────────────┐   …Data | …BuiltWith
-       └─────────────────────────────────────────┘ └───────────────────────────────────────┘
-     Two equal columns, 12 apart (the plates' gap). The window's header shows NO Reset all (SettingsWindow.PageFor = null) and
-     NO About box (nothing to pick) on this page. Rows are AboutSettingsConsoleInfoRow — no lifts, no DEFAULT well.
-     Takes NO view model: every fact is AboutAnvil's. -->
+       (Anvil's description + the operational-use line live in the WINDOW's header, in the About slot — SettingsWindow
+        SettingsAboutAnvil — not on a plate.)
+       ┌ Your copy ─────────── [Copy details] ┐ ┌ License ──────────────────────────────┐   …YourCopy | …License
+       └──────────────────────────────────────┘ └───────────────────────────────────────┘
+       ┌ Data sources ────────────────────────┐ ┌ Built with ───────────────────────────┐   …Data | …BuiltWith
+       └──────────────────────────────────────┘ └───────────────────────────────────────┘
+     Two equal columns, 12 apart (the plates' gap). No Reset all on this page (SettingsWindow.PageFor = null).
+     Rows are AboutSettingsConsoleInfoRow / …LinkRow — no lifts, no DEFAULT well. Takes NO view model: facts are AboutAnvil's. -->
 <UserControl x:Class="Anvil.Controls.Composites.AboutSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -27,12 +26,10 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <aboutSettingsConsoles:AboutSettingsConsoleAnvil x:Name="AboutSettingsConsoleAnvil" Grid.ColumnSpan="2"/>
-        <aboutSettingsConsoles:AboutSettingsConsoleThisCopy x:Name="AboutSettingsConsoleThisCopy" Grid.Row="1"/>
-        <aboutSettingsConsoles:AboutSettingsConsoleLicense x:Name="AboutSettingsConsoleLicense" Grid.Row="1" Grid.Column="1"/>
-        <aboutSettingsConsoles:AboutSettingsConsoleData x:Name="AboutSettingsConsoleData" Grid.Row="2"/>
-        <aboutSettingsConsoles:AboutSettingsConsoleBuiltWith x:Name="AboutSettingsConsoleBuiltWith" Grid.Row="2" Grid.Column="1"/>
+        <aboutSettingsConsoles:AboutSettingsConsoleYourCopy x:Name="AboutSettingsConsoleYourCopy"/>
+        <aboutSettingsConsoles:AboutSettingsConsoleLicense x:Name="AboutSettingsConsoleLicense" Grid.Column="1"/>
+        <aboutSettingsConsoles:AboutSettingsConsoleData x:Name="AboutSettingsConsoleData" Grid.Row="1"/>
+        <aboutSettingsConsoles:AboutSettingsConsoleBuiltWith x:Name="AboutSettingsConsoleBuiltWith" Grid.Row="1" Grid.Column="1"/>
     </Grid>
 </UserControl>
