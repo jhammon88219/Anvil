@@ -219,7 +219,8 @@
                  ⚠️ The About box is ONE fixed height (Overline 16 + 6 + three Body-large 22 px lines = 88) whatever is selected, or nothing
                  (SettingsText.NothingSelected), so picking a row never moves the page. Its words are the catalog's
                  (Services/Settings/SettingsText); the selection is kept PER PAGE (SettingsWindow.OnRowPicked).
-                 Spacing: title line · 22 · About box (88) · 6 · hairline (the box rests near the line).
+                 Spacing: title line (MinHeight 36) · the SLOT (110: 22 + About box 88, or About's 14 + 96, or empty) · 6 · hairline —
+                 the SAME on every page, so switching pages never moves the title or the plates (2026-11-18).
                  Right margin 4 = the cards' right edge (the scroller below bleeds -12 into BodyHost's 16). -->
             <StackPanel x:Name="SettingsPageHeader" Margin="0,0,4,6">
                 <!-- THE TITLE LINE (artboard 11, 2026-11-17): title · description · Reset all.
@@ -228,8 +229,10 @@
                        · the description, bottom-aligned in the same Auto row as the title, shares the title's BASELINE;
                        · that pair, centred against the 36 px Reset all key, puts the key's middle on the middle of the title's
                          capitals — the optical centre — instead of the line box's (which sat ~4 px low).
-                     Descenders ("Appearance") draw below the box; nothing here clips them. -->
-                <Grid x:Name="SettingsPageTitleLine" ColumnSpacing="24">
+                     Descenders ("Appearance") draw below the box; nothing here clips them.
+                     ⚠️ MinHeight 36 = the Reset all key's own MinHeight: the line keeps that height on pages WITHOUT the key
+                     (About, Dev, search results), so the title sits at the same spot on every page (2026-11-18). -->
+                <Grid x:Name="SettingsPageTitleLine" ColumnSpacing="24" MinHeight="36">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>    <!-- title + description (the description trims) -->
                         <ColumnDefinition Width="Auto"/> <!-- Reset all, its right edge = the plates' -->
@@ -258,6 +261,11 @@
                                             ToolTipService.ToolTip="{x:Bind ResetAllToolTip, Mode=OneWay}"
                                             Click="OnResetAllClick"/>
                 </Grid>
+                <!-- THE SLOT under the title line — ONE fixed height on EVERY page (2026-11-18): it holds the About box (setting
+                     pages), Anvil's description (About), or nothing (Dev, search results), and is 110 tall whichever, so the
+                     hairline and the first plate start at the same spot on every page. MinHeight, not Height: big Windows
+                     text can still grow it. -->
+                <Grid x:Name="SettingsPageHeaderSlot" MinHeight="110">
                 <!-- No DEFAULT here (artboard 18, 2026-11-17): the selected row shows its own, in its plate's DEFAULT well.
                      Sits LOW (2026-11-17): 22 above, 6 to the hairline (was 14 / 14) — the header's height is unchanged. -->
                 <Grid x:Name="SettingsAboutBox" MinHeight="88" Margin="0,22,0,0"
@@ -297,6 +305,7 @@
                         </TextBlock>
                     </StackPanel>
                     </StackPanel>
+                </Grid>
                 </Grid>
             </StackPanel>
             <Border x:Name="SettingsPageHeaderRule" Height="1" VerticalAlignment="Bottom" Margin="0,0,4,0" IsHitTestVisible="False"
