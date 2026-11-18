@@ -4,13 +4,15 @@
 
        Source  [Restore defaults]                                                                  DEFAULT
        Updates from  [ IEM live feed | NOAA Weather Wire | Polling only ]   About 15–20 s after …   IEM live feed
-                     ● IEM LIVE FEED   NOAA WEATHER WIRE    POLLING ONLY     ← heads: overline, TERTIARY grey (never the cell
-       How fast        15–20 s …       Fastest …            Up to each …       colour); the picked source's head = accent + dot
-     ┌ Account         None            Free NWS account …   None          ┐  ← each row = LiveDataSettingsConsoleSourceDetailRow,
-     └──────────────────────────────────────────────────────────────────────┘    lifted on hover (canvas artboard 31, 2026-11-18)
-       Relies on       Iowa State …    The NWS itself       Only each …
-       Best for        Most people     Storm days …         Fixing …
-       96 label col · three equal columns · ends 162 short of the right edge (clear of the DEFAULT column and its well)
+                   │ ● IEM LIVE FEED │ NOAA WEATHER WIRE │ POLLING ONLY     ← heads: overline, TERTIARY grey (never the cell
+       How fast    │ 15–20 s …       │ Fastest …         │ Up to each …       colour); the picked source's head = accent + dot
+     ┌ Account       None              Free NWS account …  None          ┐  ← each row = LiveDataSettingsConsoleSourceDetailRow,
+     └──────────────────────────────────────────────────────────────────────┘    lifted on hover, separators hidden there
+       Relies on   │ Iowa State …    │ The NWS itself    │ Only each …        (canvas artboards 31 + 33, 2026-11-18)
+       Best for    │ Most people     │ Storm days …      │ Fixing …
+       96 label col · three equal columns · │ = a separator before each source, heads to last row
+       ⚠️ Ends 172 short of the right edge: the rows' hover bleeds 8 px, and this keeps it 6 px clear of the DEFAULT well
+       (166 + 6 inset). On THIS plate only — other plates' rows lift across the well, by design.
 
      ⚠️ PICKING HAPPENS ONLY ON THE UPDATES FROM LINE (user's call, 2026-11-18): the details table is reference — no cards, no
      column lift, no clicks. A Primitives/SettingsConsoleRow (lifts; words = Services/Settings/SettingsText "live.source":
@@ -49,10 +51,24 @@
             </prim:SettingsConsoleRow>
 
             <!-- THE DETAILS TABLE (see the header sketch). -->
-            <StackPanel x:Name="LiveDataSettingsConsoleSourceDetails" Margin="0,10,162,0">
+            <StackPanel x:Name="LiveDataSettingsConsoleSourceDetails" Margin="0,10,172,0">
                 <!-- Column heads: grey overline; the picked source's head swaps to the accent copy + dot (opacities follow the
-                     pick so the brushes stay ThemeResources). Same columns + bleed as the detail rows. -->
-                <Grid x:Name="SourceDetailsHeads" Margin="-8,0" Padding="8,6,8,8" ColumnSpacing="12">
+                     pick so the brushes stay ThemeResources). Same columns + bleed + separators as the detail rows. -->
+                <Grid x:Name="SourceDetailsHeads" Margin="-8,0" Padding="8,0" ColumnSpacing="12">
+                    <Grid.Resources>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Orientation" Value="Horizontal"/>
+                            <Setter Property="Spacing" Value="6"/>
+                            <Setter Property="Margin" Value="0,6,0,8"/>
+                        </Style>
+                        <Style TargetType="Rectangle">
+                            <Setter Property="Width" Value="1"/>
+                            <Setter Property="HorizontalAlignment" Value="Left"/>
+                            <Setter Property="Margin" Value="-7,0,0,0"/>
+                            <Setter Property="Fill" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                            <Setter Property="IsHitTestVisible" Value="False"/>
+                        </Style>
+                    </Grid.Resources>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
                         <ColumnDefinition Width="*"/>
@@ -60,7 +76,11 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                    <Rectangle x:Name="SourceDetailsHeadSeparatorIem" Grid.Column="1"/>
+                    <Rectangle x:Name="SourceDetailsHeadSeparatorNwws" Grid.Column="2"/>
+                    <Rectangle x:Name="SourceDetailsHeadSeparatorPolling" Grid.Column="3"/>
+
+                    <StackPanel Grid.Column="1">
                         <Ellipse Width="6" Height="6" VerticalAlignment="Center" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                  Visibility="{x:Bind PickedMark(ViewModel.SourceIndex, 0), Mode=OneWay}"/>
                         <Grid>
@@ -70,7 +90,7 @@
                                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Opacity="{x:Bind Picked(ViewModel.SourceIndex, 0), Mode=OneWay}"/>
                         </Grid>
                     </StackPanel>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                    <StackPanel Grid.Column="2">
                         <Ellipse Width="6" Height="6" VerticalAlignment="Center" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                  Visibility="{x:Bind PickedMark(ViewModel.SourceIndex, 1), Mode=OneWay}"/>
                         <Grid>
@@ -80,7 +100,7 @@
                                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Opacity="{x:Bind Picked(ViewModel.SourceIndex, 1), Mode=OneWay}"/>
                         </Grid>
                     </StackPanel>
-                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6">
+                    <StackPanel Grid.Column="3">
                         <Ellipse Width="6" Height="6" VerticalAlignment="Center" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                  Visibility="{x:Bind PickedMark(ViewModel.SourceIndex, 2), Mode=OneWay}"/>
                         <Grid>

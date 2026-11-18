@@ -2,10 +2,12 @@
 <!-- LiveDataSettingsConsoleSourceDetailRow — ONE row of the Source plate's details table (canvas artboard 31, 2026-11-18):
      a trait (label) and its value for each of the three sources.
 
-       ┌──────────────────────────────────────────────────────────────────────────────────────────────┐ ← hover = the Settings
-       │ Account        None                  Free NWS account · one computer    None                   │   row hover lift, label
-       └──────────────────────────────────────────────────────────────────────────────────────────────┘   to last cell; the label
-         96 label        *  IEM               *  Weather Wire                     *  Polling                brightens to primary
+         How fast     │ 15–20 s …          │ Fastest …                        │ Up to each …          ← │ = a separator in the
+       ┌──────────────────────────────────────────────────────────────────────────────────────────────┐   gap BEFORE each source
+       │ Account        None                  Free NWS account · one computer    None                   │ ← hover = the Settings
+       └──────────────────────────────────────────────────────────────────────────────────────────────┘   row hover lift; the label
+         96 label     │  *  IEM            │  *  Weather Wire                 │  *  Polling             brightens, separators hide
+     (canvas artboard 33, 2026-11-18)
 
      ⚠️ The columns MUST match the head row in LiveDataSettingsConsoleSource (96 · * · * · *, ColumnSpacing 12, the -8 bleed +
      8 padding that lets the lift reach past the text the way a SettingsConsoleRow's does).
@@ -24,6 +26,13 @@
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Margin" Value="0,7"/>
         </Style>
+        <Style x:Key="DetailSeparatorStyle" TargetType="Rectangle">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Margin" Value="-7,0,0,0"/>
+            <Setter Property="Fill" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
     </UserControl.Resources>
 
     <Grid x:Name="DetailRowRoot" Margin="-8,0" Padding="8,0" CornerRadius="4" ColumnSpacing="12" Background="Transparent">
@@ -34,6 +43,9 @@
                     <VisualState.Setters>
                         <Setter Target="DetailRowRoot.Background" Value="{ThemeResource SettingsRowHoverBrush}"/>
                         <Setter Target="DetailRowLabel.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <Setter Target="DetailRowSeparatorIem.Visibility" Value="Collapsed"/>
+                        <Setter Target="DetailRowSeparatorNwws.Visibility" Value="Collapsed"/>
+                        <Setter Target="DetailRowSeparatorPolling.Visibility" Value="Collapsed"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -45,6 +57,12 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
+
+        <!-- The separators: 1 px in the middle of the 12 px gap BEFORE each source column (row height, so the rows' pieces
+             join into one line; the head row draws its own). Hidden while this row is hovered. -->
+        <Rectangle x:Name="DetailRowSeparatorIem" Grid.Column="1" Style="{StaticResource DetailSeparatorStyle}"/>
+        <Rectangle x:Name="DetailRowSeparatorNwws" Grid.Column="2" Style="{StaticResource DetailSeparatorStyle}"/>
+        <Rectangle x:Name="DetailRowSeparatorPolling" Grid.Column="3" Style="{StaticResource DetailSeparatorStyle}"/>
 
         <TextBlock x:Name="DetailRowLabel" Style="{StaticResource DetailCellStyle}" Text="{x:Bind Label, Mode=OneWay}"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
