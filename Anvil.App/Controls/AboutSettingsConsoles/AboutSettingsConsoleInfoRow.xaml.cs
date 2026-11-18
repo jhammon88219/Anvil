@@ -49,6 +49,23 @@ namespace Anvil.Controls.AboutSettingsConsoles
 		public static readonly DependencyProperty ActionProperty =
 			DependencyProperty.Register(nameof(Action), typeof(object), typeof(AboutSettingsConsoleInfoRow), new PropertyMetadata(null));
 
+		/// <summary>Set the (quiet) value against the row's RIGHT edge instead of after the label (Data sources).</summary>
+		public bool IsValueRight
+		{
+			get => (bool)GetValue(IsValueRightProperty);
+			set => SetValue(IsValueRightProperty, value);
+		}
+
+		public static readonly DependencyProperty IsValueRightProperty =
+			DependencyProperty.Register(nameof(IsValueRight), typeof(bool), typeof(AboutSettingsConsoleInfoRow), new PropertyMetadata(false));
+
 		public Visibility Show(bool value, bool when) => value == when ? Visibility.Visible : Visibility.Collapsed;
+
+		public HorizontalAlignment ValueAlignment(bool right) => right ? HorizontalAlignment.Right : HorizontalAlignment.Stretch;
+
+		public TextAlignment ValueTextAlignment(bool right) => right ? TextAlignment.Right : TextAlignment.Left;
+
+		/// <summary>A right-set value also takes the (empty) key column, so it reaches the row's true right edge.</summary>
+		public int ValueSpan(bool right) => right ? 2 : 1;
 	}
 }

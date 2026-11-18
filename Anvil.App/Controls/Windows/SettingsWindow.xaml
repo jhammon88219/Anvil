@@ -272,32 +272,30 @@
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind AboutText, Mode=OneWay}"/>
                     </StackPanel>
                 </Grid>
-                <!-- THE ABOUT PAGE's slot (canvas artboard 25/27, 2026-11-18) — Anvil itself instead of a picked row:
-                       ANVIL                                                         ← Overline, like "ABOUT · <ROW>"
+                <!-- THE ABOUT PAGE's slot (canvas artboard 25/27; caption dropped 2026-11-18, the user's call — it took a whole line):
+                       (14 below the title line)
                        A severe-weather workstation for Windows. It decodes …       ← Body large, TWO lines max
-                       (10)
+                       (14 — the SAME gap as above it)
                        ⚠ Not for operational use. Rely on official NWS products …   ← ONE plain line: amber mark + amber lead,
                                                                                        the rest grey — no box (not a key)
-                     ⚠️ 14 above + 96 tall (other pages: 22 + 88) — the same 110, so the hairline and plates never move. -->
+                     ⚠️ 14 above + 96 tall (other pages: 22 + 88) — the same 110, so the hairline and plates never move; what the
+                     text doesn't use is left at the slot's foot. -->
                 <Grid x:Name="SettingsAboutAnvil" MinHeight="96" Margin="0,14,0,0"
                       Visibility="{x:Bind HasAnvilBox, Mode=OneWay}">
-                    <StackPanel>
-                        <TextBlock x:Name="SettingsAboutAnvilCaption" Text="ANVIL" FontSize="{StaticResource OverlineFontSize}"
-                                   CharacterSpacing="{StaticResource OverlineCharacterSpacing}" LineHeight="{StaticResource OverlineLineHeight}"
-                                   LineStackingStrategy="BlockLineHeight" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                        <TextBlock x:Name="SettingsAboutAnvilText" Margin="0,6,0,10" MaxWidth="900" HorizontalAlignment="Left"
+                    <StackPanel VerticalAlignment="Top">
+                        <TextBlock x:Name="SettingsAboutAnvilText" Margin="0,0,0,14" MaxWidth="900" HorizontalAlignment="Left"
                                    FontSize="{StaticResource BodyLargeFontSize}" LineHeight="{StaticResource BodyLargeLineHeight}" LineStackingStrategy="BlockLineHeight"
                                    TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                    Text="A severe-weather workstation for Windows. It decodes NEXRAD Level II radar itself, live or replayed from the archive, and draws it over a local map with SPC outlooks, watches, warnings and storm reports."/>
-                    </StackPanel>
-                    <StackPanel x:Name="SettingsAboutAnvilDisclaimer" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+                    <StackPanel x:Name="SettingsAboutAnvilDisclaimer" Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE7BA;" FontSize="14" VerticalAlignment="Center"
                                   Foreground="{ThemeResource SettingsCautionForegroundBrush}"/>
                         <TextBlock Style="{StaticResource BodyTextStyle}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center">
                             <Run FontWeight="SemiBold" Foreground="{ThemeResource SettingsCautionForegroundBrush}" Text="Not for operational use."/>
                             <Run Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Rely on official NWS products for any safety-of-life decision."/>
                         </TextBlock>
+                    </StackPanel>
                     </StackPanel>
                 </Grid>
             </StackPanel>
