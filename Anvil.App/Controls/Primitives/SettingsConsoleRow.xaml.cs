@@ -21,7 +21,7 @@ namespace Anvil.Controls.Primitives
 
 	/// <summary>
 	/// Anything the page's About box can show: a <see cref="SettingsConsoleRow"/>, or a row with its own grid that still
-	/// lifts and picks the same way (Storage's On disk table rows). Find the host with <see cref="Pick"/>.
+	/// lifts and picks the same way (Storage's Disk usage table rows). Find the host with <see cref="Pick"/>.
 	/// </summary>
 	public interface ISettingsPickableRow
 	{

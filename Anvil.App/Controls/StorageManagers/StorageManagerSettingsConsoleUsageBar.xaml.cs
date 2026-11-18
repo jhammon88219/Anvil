@@ -25,5 +25,8 @@ namespace Anvil.Controls.StorageManagers
 		/// <summary>A segment's weight: its bytes as a star width (MB, so the numbers stay small). Zero = 0* (the
 		/// column's MinWidth still draws a sliver).</summary>
 		public GridLength Star(long bytes) => new(bytes / (1024.0 * 1024.0), GridUnitType.Star);
+
+		/// <summary>A segment while ANOTHER table row is hovered: 30% (the mock-up's value).</summary>
+		public double SegmentOpacity(bool isDimmed) => isDimmed ? 0.3 : 1.0;
 	}
 }

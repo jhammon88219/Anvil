@@ -113,6 +113,21 @@ namespace Anvil.ViewModels
 			private set => SetProperty(ref _shareText, value);
 		}
 
+		private bool _isHovered, _isDimmed;
+		/// <summary>The pointer is over this row (set by the table row) — the parent dims every OTHER bar segment.</summary>
+		public bool IsHovered
+		{
+			get => _isHovered;
+			set => SetProperty(ref _isHovered, value);
+		}
+
+		/// <summary>Another row is hovered: this kind's bar segment dims (StorageSettingsViewModel sets it).</summary>
+		public bool IsDimmed
+		{
+			get => _isDimmed;
+			internal set => SetProperty(ref _isDimmed, value);
+		}
+
 		private StorageFill _fill;
 		/// <summary>White / yellow / red — the row's VisualState.</summary>
 		public StorageFill Fill

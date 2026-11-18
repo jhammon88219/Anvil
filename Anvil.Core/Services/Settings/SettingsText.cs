@@ -314,7 +314,7 @@ namespace Anvil.Services
 				"Products the live source dropped this session. Each missed one wakes its layer's own check, so nothing stays missing.",
 				Hint: null),
 
-			// ── Storage → On disk (the table's rows; no hint — each row shows its own short description) ──
+			// ── Storage → Disk usage (the table's rows; no hint — each row shows its own short description) ──
 			new("storage.maps", "Maps",
 				"Every map file Anvil knows about, wherever it lives. Maps have no Clear and no limits: remove one file at a time in the Map section below, so a map is never deleted by accident.",
 				Hint: null),

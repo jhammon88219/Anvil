@@ -17,7 +17,7 @@
      spans to the row's end (ControlSpan 3) and the last-action message is an inert row.
      ⚠️ Every choice here is drawn AT ONCE (Use, a delete — MainWindow re-points the map). A delete Windows refuses (the file still
      open) finishes at the next launch (AppSettings.BasemapPendingDeletes). Added files stay where they are
-     (AppSettings.BasemapAddedFiles). The SAME file list sizes On disk's Maps row (BasemapSetupViewModel.MapFilePaths). -->
+     (AppSettings.BasemapAddedFiles). The SAME file list sizes Disk usage's Maps row (BasemapSetupViewModel.MapFilePaths). -->
 <UserControl x:Class="Anvil.Controls.StorageSettingsConsoles.StorageSettingsConsoleMap"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"

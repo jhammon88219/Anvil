@@ -2,7 +2,7 @@
 <!-- StorageSettingsTab — Settings → Storage (2026-11-16: + the whole Basemap page): what Anvil keeps on disk and its limits, the
      map in use and your map files, getting an offline map, and the online map.
 
-       ┌ On disk  [Restore defaults] ─────────────────────────────── DEFAULT ┐  StorageManagers/StorageManagerSettingsConsole
+       ┌ Disk usage  [Restore defaults] ──────────────────────────── DEFAULT ┐  StorageManagers/StorageManagerSettingsConsole
        │ 39.9 GB [📁 Open folder] · the bar (Maps first) · the table (Maps ·    │  (Maps = every map file Anvil knows; no Clear,
        │ Radar volumes · Radar diagnostics · Weather data · Logs · Your usage)  │   no limits)
        └────────────────────────────────────────────────────────────────────────┘

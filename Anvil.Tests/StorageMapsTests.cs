@@ -13,7 +13,7 @@ namespace Anvil.Tests
 {
 	/// <summary>
 	/// Settings → Storage (2026-11-16): the MAPS kind (every map file Anvil knows, on the bar and first in the table, with no
-	/// Clear and no limits), the On disk card's Restore defaults, and Live Data's polling defaults.
+	/// Clear and no limits), the Disk usage card's Restore defaults, and Live Data's polling defaults.
 	/// </summary>
 	public class StorageMapsTests
 	{
@@ -32,6 +32,20 @@ namespace Anvil.Tests
 			});
 			var settingsService = TemporalPanePersistenceTests.Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
 			return new StorageSettingsViewModel(radar, settingsService, storage);
+		}
+
+		[Fact]
+		public void Hovering_a_row_dims_every_other_bar_segment()
+		{
+			var vm = New(new AppSettings());
+			Assert.DoesNotContain(vm.Items, i => i.IsDimmed);
+
+			vm.RadarVolumes.IsHovered = true;
+			Assert.False(vm.RadarVolumes.IsDimmed);
+			Assert.All(vm.Items.Where(i => i != vm.RadarVolumes), i => Assert.True(i.IsDimmed));
+
+			vm.RadarVolumes.IsHovered = false;
+			Assert.DoesNotContain(vm.Items, i => i.IsDimmed);
 		}
 
 		[Fact]

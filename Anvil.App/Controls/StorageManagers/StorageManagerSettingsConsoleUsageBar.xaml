@@ -4,7 +4,9 @@
        39.9 GB          (the total INCLUDES Maps — every map file Anvil knows, wherever it lives)
        used by Anvil  ← total 28 SemiBold tabular (line 34) over the caption 12 (line 16) = 50 tall
                         (no folder key here — removed 2026-11-17; each table row opens its own folder)
-       ████████████████████████████▌▌▌▏▏  ← 14 tall, a segment per kind in the TABLE's row order (Maps first), 2 px apart, rounded 3
+       ████████████████████████████▌▌▌▏▏        │ DEFAULT │  ← 14 tall, a segment per kind in the TABLE's row order (Maps
+                                         ↑ ends 160 in        first), 2 px apart, rounded 3; ENDS at the KEEP FOR edge
+       hover a TABLE ROW → every OTHER segment dims to 30% (brushing: StorageItemViewModel.IsHovered → IsDimmed)
 
        hover the bar ↓
        ┌──────────────────────────────────┐
@@ -38,8 +40,10 @@
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </StackPanel>
 
-        <!-- The bar. A transparent host so the whole band (not just the drawn segments) opens the legend. -->
-        <Grid x:Name="UsageBarHost" Background="Transparent" Padding="0,4">
+        <!-- The bar. A transparent host so the whole band (not just the drawn segments) opens the legend.
+             ⚠️ Right margin 160 = the table's DEFAULT column (SettingsDefaultColumnWidth 150) + its ColumnSpacing 10: the bar
+             ENDS flush with the KEEP FOR dropdowns and never runs under DEFAULT (2026-11-18). Change with the table. -->
+        <Grid x:Name="UsageBarHost" Background="Transparent" Padding="0,4" Margin="0,0,160,0">
             <ToolTipService.ToolTip>
                 <ToolTip>
                     <Grid x:Name="UsageBarLegend" ColumnSpacing="8" RowSpacing="4" MinWidth="260">
@@ -96,12 +100,26 @@
                     <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.Logs.SizeBytes), Mode=OneWay}"/>
                     <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.UsageHistory.SizeBytes), Mode=OneWay}"/>
                 </Grid.ColumnDefinitions>
-                <Rectangle Grid.Column="0" Fill="{StaticResource StorageMapsBrush}"/>
-                <Rectangle Grid.Column="1" Fill="{StaticResource StorageRadarVolumesBrush}"/>
-                <Rectangle Grid.Column="2" Fill="{StaticResource StorageRadarDiagnosticsBrush}"/>
-                <Rectangle Grid.Column="3" Fill="{StaticResource StorageWeatherDataBrush}"/>
-                <Rectangle Grid.Column="4" Fill="{StaticResource StorageLogsBrush}"/>
-                <Rectangle Grid.Column="5" Fill="{StaticResource StorageUsageHistoryBrush}"/>
+                <!-- Hovering a TABLE ROW dims every other segment (Item.IsDimmed), easing over 120 ms. (OpacityTransition is a
+                     plain property, not a DP — a Style can't set it, so each segment declares its own.) -->
+                <Rectangle Grid.Column="0" Fill="{StaticResource StorageMapsBrush}" Opacity="{x:Bind SegmentOpacity(ViewModel.Maps.IsDimmed), Mode=OneWay}">
+                    <Rectangle.OpacityTransition><ScalarTransition Duration="0:0:0.12"/></Rectangle.OpacityTransition>
+                </Rectangle>
+                <Rectangle Grid.Column="1" Fill="{StaticResource StorageRadarVolumesBrush}" Opacity="{x:Bind SegmentOpacity(ViewModel.RadarVolumes.IsDimmed), Mode=OneWay}">
+                    <Rectangle.OpacityTransition><ScalarTransition Duration="0:0:0.12"/></Rectangle.OpacityTransition>
+                </Rectangle>
+                <Rectangle Grid.Column="2" Fill="{StaticResource StorageRadarDiagnosticsBrush}" Opacity="{x:Bind SegmentOpacity(ViewModel.RadarDiagnostics.IsDimmed), Mode=OneWay}">
+                    <Rectangle.OpacityTransition><ScalarTransition Duration="0:0:0.12"/></Rectangle.OpacityTransition>
+                </Rectangle>
+                <Rectangle Grid.Column="3" Fill="{StaticResource StorageWeatherDataBrush}" Opacity="{x:Bind SegmentOpacity(ViewModel.WeatherData.IsDimmed), Mode=OneWay}">
+                    <Rectangle.OpacityTransition><ScalarTransition Duration="0:0:0.12"/></Rectangle.OpacityTransition>
+                </Rectangle>
+                <Rectangle Grid.Column="4" Fill="{StaticResource StorageLogsBrush}" Opacity="{x:Bind SegmentOpacity(ViewModel.Logs.IsDimmed), Mode=OneWay}">
+                    <Rectangle.OpacityTransition><ScalarTransition Duration="0:0:0.12"/></Rectangle.OpacityTransition>
+                </Rectangle>
+                <Rectangle Grid.Column="5" Fill="{StaticResource StorageUsageHistoryBrush}" Opacity="{x:Bind SegmentOpacity(ViewModel.UsageHistory.IsDimmed), Mode=OneWay}">
+                    <Rectangle.OpacityTransition><ScalarTransition Duration="0:0:0.12"/></Rectangle.OpacityTransition>
+                </Rectangle>
             </Grid>
         </Grid>
     </StackPanel>

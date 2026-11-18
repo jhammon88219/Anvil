@@ -81,6 +81,19 @@ namespace Anvil.ViewModels
 				null, null, null, null, null, null);
 
 			Items = new[] { Maps, RadarVolumes, RadarDiagnostics, WeatherData, Logs, UsageHistory };
+
+			// BRUSHING (2026-11-18): hovering a table row dims every OTHER kind's bar segment, so its slice stands out.
+			foreach (var item in Items)
+			{
+				item.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(StorageItemViewModel.IsHovered)) { ApplyHover(); } };
+			}
+		}
+
+		private void ApplyHover()
+		{
+			StorageItemViewModel? hovered = null;
+			foreach (var item in Items) { if (item.IsHovered) { hovered = item; } }
+			foreach (var item in Items) { item.IsDimmed = hovered is not null && !ReferenceEquals(item, hovered); }
 		}
 
 		public StorageItemViewModel Maps { get; }
@@ -117,7 +130,7 @@ namespace Anvil.ViewModels
 			Maps.Folder = folder();
 		}
 
-		/// <summary>The On disk card's Restore defaults: every limit back to the DEFAULT column (sweeps follow the setters).</summary>
+		/// <summary>The Disk usage card's Restore defaults: every limit back to the DEFAULT column (sweeps follow the setters).</summary>
 		public void RestoreDefaults()
 		{
 			foreach (var item in Items) item.RestoreDefaults();

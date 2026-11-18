@@ -5,7 +5,7 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// Settings → Storage (see the XAML header): On disk, Map, Offline map and Online map — each its own section control — over
+	/// Settings → Storage (see the XAML header): Disk usage, Map, Offline map and Online map — each its own section control — over
 	/// the coordinator <see cref="MapViewModel"/> (<see cref="MapViewModel.Storage"/> + <see cref="MapViewModel.BasemapSetup"/>).
 	/// </summary>
 	public sealed partial class StorageSettingsTab : UserControl, Primitives.ISettingsPage

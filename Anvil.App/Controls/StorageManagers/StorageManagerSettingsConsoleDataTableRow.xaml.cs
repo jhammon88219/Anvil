@@ -66,12 +66,14 @@ namespace Anvil.Controls.StorageManagers
 		{
 			_hovered = true;
 			ApplyLifts(true);
+			if (Item is { } item) { item.IsHovered = true; } // its usage-bar segment stands out
 		}
 
 		private void OnPointerExited(object sender, PointerRoutedEventArgs e)
 		{
 			_hovered = false;
 			ApplyLifts(true);
+			if (Item is { } item) { item.IsHovered = false; }
 		}
 
 		private void ApplyLifts(bool useTransitions)

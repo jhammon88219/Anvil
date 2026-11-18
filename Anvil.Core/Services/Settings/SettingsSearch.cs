@@ -55,7 +55,7 @@ namespace Anvil.Services
 			["wire"] = new("Live Data", "Weather Wire account"),
 			["polling"] = new("Live Data", "Polling"),
 			["conn"] = new("Live Data", "Connection"),
-			["storage"] = new("Storage", "On disk"),
+			["storage"] = new("Storage", "Disk usage"),
 			["map"] = new("Storage", "Map"),
 			["offline"] = new("Storage", "Offline map"),
 			["online"] = new("Storage", "Online map"),

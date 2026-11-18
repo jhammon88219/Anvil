@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- StorageManagerSettingsConsole — Settings → Storage's "On disk" card: everything Anvil keeps on disk, on a
-     Primitives/SettingsConsolePlate (2026-11-16 — it drew its own surface before). Title row: On disk · Restore defaults (every
+<!-- StorageManagerSettingsConsole — Settings → Storage's "Disk usage" card (was "On disk" until 2026-11-18): everything Anvil
+     keeps on disk, on a Primitives/SettingsConsolePlate (2026-11-16 — it drew its own surface before). Title row: Disk usage · Restore defaults (every
      limit, asks first; a lowered limit sweeps like any change) · DEFAULT (each row's limits a first run gets, the table's 9th column).
 
        ┌──────────────────────────────────────────────────────────────────────────────────────┐
        │ 6.1 GB                                                                                │ ← StorageManagerSettingsConsoleUsageBar
        │ used by Anvil                                                                         │
-       │ ██████████████████████████████████████████████▌▌▏▏   (hover = legend)                 │
+       │ ████████████████████████████████████████▌▌▏▏   (hover = legend)  │ DEFAULT col clear │
        │                                                                                       │   14 gap
        │ DATA                         SIZE ?                       MAX SIZE ?  KEEP FOR ?      │ ← StorageManagerSettingsConsoleDataTable
        │ ■ Radar volumes …            1.8 GB  [ Clear ] [📁]  [5 GB ⌄]   [5 days ⌄]            │
@@ -25,7 +25,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <prim:SettingsConsolePlate x:Name="StorageManagerSettingsConsolePlate" Title="On disk" ShowDefaultHeader="True">
+    <prim:SettingsConsolePlate x:Name="StorageManagerSettingsConsolePlate" Title="Disk usage" ShowDefaultHeader="True">
         <prim:SettingsConsolePlate.HeaderContent>
             <Button x:Name="OnDiskRestoreDefaultsButton" Content="Restore defaults" Click="OnRestoreDefaults"
                     ToolTipService.ToolTip="Every Max size and Keep for back to the DEFAULT column (asks first)"/>
