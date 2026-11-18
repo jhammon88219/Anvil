@@ -32,6 +32,24 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void A_row_whose_About_follows_the_pick_has_one_per_choice_and_each_fits_the_box()
+		{
+			foreach (var e in SettingsText.All.Where(e => e.ChoiceAbouts is not null))
+			{
+				Assert.True(e.Choices is not null && e.ChoiceAbouts!.Count == e.Choices.Count,
+					$"{e.Key}: ChoiceAbouts needs exactly one About per choice");
+				foreach (var about in e.ChoiceAbouts!)
+				{
+					Assert.False(string.IsNullOrWhiteSpace(about), $"{e.Key}: an empty choice About");
+					Assert.True(about.Length <= SettingsText.AboutMaxLength,
+						$"{e.Key}: a choice About is {about.Length} characters (max {SettingsText.AboutMaxLength})");
+				}
+			}
+			Assert.Equal(SettingsText.Get("live.source")!.ChoiceAbouts![1], SettingsText.ChoiceAboutOf("live.source", 1));
+			Assert.Equal(SettingsText.Get("live.source")!.About, SettingsText.ChoiceAboutOf("live.source", 9)); // out of range → plain About
+		}
+
+		[Fact]
 		public void Hints_are_one_short_line_with_no_full_stop()
 		{
 			foreach (var (key, hint) in AllHints())

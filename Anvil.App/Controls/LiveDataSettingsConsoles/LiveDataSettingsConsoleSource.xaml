@@ -3,11 +3,21 @@
      NowCast feeds' live updates come from. ONE source at a time (NOAA Weather Wire REPLACES IEM, the user's call 2026-10-19).
 
        Source  [Restore defaults]                                                                  DEFAULT
-       Updates from  [ IEM live feed | NOAA Weather Wire | Polling only ]   Within seconds · no account   IEM live feed
-       96            420                                                    hint (follows the pick)  150, right
+       Updates from  [ IEM live feed | NOAA Weather Wire | Polling only ]   About 15–20 s after …   IEM live feed
+                     ┌──────────────┬━━━━━━━━━━━━━━━━━━━━┬──────────────┐
+                     │ IEM LIVE FEED│ NOAA WEATHER WIRE  │ POLLING ONLY │   ← THE COMPARISON (canvas artboard 30, 2026-11-18):
+       How fast      │ 15–20 s …    │ Fastest …          │ Up to each … │     always visible; the PICKED column wears the row
+       Account       │ None         │ Free NWS account … │ None         │     select lift + a 2 px accent top edge; clicking a
+       Relies on     │ Iowa State … │ The NWS itself     │ Only each …  │     column picks it (same as the picker)
+       Best for      │ Most people  │ Storm days …       │ Fixing …     │
+                     └──────────────┴────────────────────┴──────────────┘
+       96 label col · three equal columns · ends 162 short of the right edge (clear of the DEFAULT column and its well)
 
-     ⚠️ A Primitives/SettingsConsoleRow (lifts; words = Services/Settings/SettingsText "live.source", whose Choices are the
-     per-source hints LiveDataViewModel.SourceHint picks). Restore defaults = IEM; the Weather Wire account is KEPT. -->
+     ⚠️ A Primitives/SettingsConsoleRow (lifts; words = Services/Settings/SettingsText "live.source": Choices = the per-source
+     HINTS, ChoiceAbouts = the per-source ABOUT texts (artboard 29) — LiveDataViewModel.SourceHint / .SourceAbout pick them).
+     The table's short cells are layout labels, declared here; keep its "How fast" cells in step with the catalog's hints.
+     ⚠️ Timings: IEM's 15–20 s is measured; Weather Wire's speed is NOT yet — no number until the lag check has run.
+     Restore defaults = IEM; the Weather Wire account is KEPT. -->
 <UserControl x:Class="Anvil.Controls.LiveDataSettingsConsoles.LiveDataSettingsConsoleSource"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -15,6 +25,27 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <Style x:Key="SourceCompareCellStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyTextStyle}">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="10,6"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+        <Style x:Key="SourceCompareRowLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyTextStyle}">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,6"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Style>
+        <Style x:Key="SourceCompareHeadStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="{StaticResource OverlineFontSize}"/>
+            <Setter Property="LineHeight" Value="{StaticResource OverlineLineHeight}"/>
+            <Setter Property="CharacterSpacing" Value="{StaticResource OverlineCharacterSpacing}"/>
+            <Setter Property="Margin" Value="10,10,10,6"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+    </UserControl.Resources>
 
     <prim:SettingsConsolePlate x:Name="LiveDataSettingsConsoleSourcePlate" Title="Source" ShowDefaultHeader="True">
         <prim:SettingsConsolePlate.HeaderContent>
@@ -24,11 +55,78 @@
 
         <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
             <prim:SettingsConsoleRow Label="Updates from" AboutKey="live.source" Default="{x:Bind ViewModel.DefaultSourceText}"
-                                     Hint="{x:Bind ViewModel.SourceHint, Mode=OneWay}">
+                                     Hint="{x:Bind ViewModel.SourceHint, Mode=OneWay}"
+                                     About="{x:Bind ViewModel.SourceAbout, Mode=OneWay}">
                 <prim:SegmentedPicker x:Name="LiveSourcePicker"
                                       ItemsSource="{x:Bind ViewModel.SourceLabels}"
                                       SelectedIndex="{x:Bind ViewModel.SourceIndex, Mode=TwoWay}"/>
             </prim:SettingsConsoleRow>
+
+            <!-- THE COMPARISON TABLE (see the header sketch). Lifts are Borders whose OPACITY follows the pick (the brushes stay
+                 ThemeResources); the tap targets are transparent Borders declared LAST, one per column. -->
+            <Grid x:Name="LiveDataSettingsConsoleSourceCompare" Margin="0,8,162,0" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- The picked column's lift + accent edge. -->
+                <Border Grid.Column="1" Grid.RowSpan="5" CornerRadius="4" IsHitTestVisible="False"
+                        Background="{ThemeResource SettingsRowSelectedBrush}" Opacity="{x:Bind Lift(ViewModel.SourceIndex, 0), Mode=OneWay}"/>
+                <Border Grid.Column="2" Grid.RowSpan="5" CornerRadius="4" IsHitTestVisible="False"
+                        Background="{ThemeResource SettingsRowSelectedBrush}" Opacity="{x:Bind Lift(ViewModel.SourceIndex, 1), Mode=OneWay}"/>
+                <Border Grid.Column="3" Grid.RowSpan="5" CornerRadius="4" IsHitTestVisible="False"
+                        Background="{ThemeResource SettingsRowSelectedBrush}" Opacity="{x:Bind Lift(ViewModel.SourceIndex, 2), Mode=OneWay}"/>
+                <Border Grid.Column="1" Height="2" VerticalAlignment="Top" CornerRadius="4,4,0,0" IsHitTestVisible="False"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="{x:Bind Lift(ViewModel.SourceIndex, 0), Mode=OneWay}"/>
+                <Border Grid.Column="2" Height="2" VerticalAlignment="Top" CornerRadius="4,4,0,0" IsHitTestVisible="False"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="{x:Bind Lift(ViewModel.SourceIndex, 1), Mode=OneWay}"/>
+                <Border Grid.Column="3" Height="2" VerticalAlignment="Top" CornerRadius="4,4,0,0" IsHitTestVisible="False"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="{x:Bind Lift(ViewModel.SourceIndex, 2), Mode=OneWay}"/>
+
+                <!-- Column heads. -->
+                <TextBlock Grid.Column="1" Style="{StaticResource SourceCompareHeadStyle}" Text="IEM LIVE FEED"/>
+                <TextBlock Grid.Column="2" Style="{StaticResource SourceCompareHeadStyle}" Text="NOAA WEATHER WIRE"/>
+                <TextBlock Grid.Column="3" Style="{StaticResource SourceCompareHeadStyle}" Text="POLLING ONLY"/>
+
+                <!-- How fast (in step with the catalog's hints). -->
+                <TextBlock Grid.Row="1" Style="{StaticResource SourceCompareRowLabelStyle}" Text="How fast"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Style="{StaticResource SourceCompareCellStyle}" Text="About 15–20 s after issuance"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource SourceCompareCellStyle}" Text="Fastest, straight from the NWS"/>
+                <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource SourceCompareCellStyle}" Text="Up to each layer's polling interval"/>
+
+                <TextBlock Grid.Row="2" Style="{StaticResource SourceCompareRowLabelStyle}" Text="Account"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Style="{StaticResource SourceCompareCellStyle}" Text="None"/>
+                <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource SourceCompareCellStyle}" Text="Free NWS account · one computer"/>
+                <TextBlock Grid.Row="2" Grid.Column="3" Style="{StaticResource SourceCompareCellStyle}" Text="None"/>
+
+                <TextBlock Grid.Row="3" Style="{StaticResource SourceCompareRowLabelStyle}" Text="Relies on"/>
+                <TextBlock Grid.Row="3" Grid.Column="1" Style="{StaticResource SourceCompareCellStyle}" Text="Iowa State's IEM (best effort)"/>
+                <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource SourceCompareCellStyle}" Text="The NWS itself"/>
+                <TextBlock Grid.Row="3" Grid.Column="3" Style="{StaticResource SourceCompareCellStyle}" Text="Only each layer's own data"/>
+
+                <TextBlock Grid.Row="4" Style="{StaticResource SourceCompareRowLabelStyle}" Text="Best for"/>
+                <TextBlock Grid.Row="4" Grid.Column="1" Style="{StaticResource SourceCompareCellStyle}" Text="Most people"/>
+                <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource SourceCompareCellStyle}" Text="Storm days, when every second counts"/>
+                <TextBlock Grid.Row="4" Grid.Column="3" Style="{StaticResource SourceCompareCellStyle}" Text="Fixing problems · strict networks"/>
+
+                <!-- Tap targets: clicking a column picks that source. -->
+                <Border Grid.Column="1" Grid.RowSpan="5" Background="Transparent" Tag="0" Tapped="OnColumnTapped"
+                        ToolTipService.ToolTip="Use the IEM live feed"/>
+                <Border Grid.Column="2" Grid.RowSpan="5" Background="Transparent" Tag="1" Tapped="OnColumnTapped"
+                        ToolTipService.ToolTip="Use NOAA Weather Wire"/>
+                <Border Grid.Column="3" Grid.RowSpan="5" Background="Transparent" Tag="2" Tapped="OnColumnTapped"
+                        ToolTipService.ToolTip="Use polling only"/>
+            </Grid>
         </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>

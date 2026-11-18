@@ -58,6 +58,7 @@ namespace Anvil.ViewModels
 				OnPropertyChanged(nameof(IsNwws));
 				OnPropertyChanged(nameof(IsPollOnly));
 				OnPropertyChanged(nameof(SourceHint));
+				OnPropertyChanged(nameof(SourceAbout));
 				_hub.Restart();
 			}
 		}
@@ -67,6 +68,9 @@ namespace Anvil.ViewModels
 
 		/// <summary>The source's one-line hint — what the pick gives you.</summary>
 		public string SourceHint => Services.SettingsText.ChoiceOf("live.source", SourceIndex is 1 or 2 ? SourceIndex : 0);
+
+		/// <summary>The Updates from row's About text — what the PICKED source is, gives and costs (follows the pick).</summary>
+		public string SourceAbout => Services.SettingsText.ChoiceAboutOf("live.source", SourceIndex is 1 or 2 ? SourceIndex : 0);
 
 		/// <summary>The Source card's DEFAULT column.</summary>
 		public string DefaultSourceText => SourceLabels[0];

@@ -264,6 +264,14 @@ namespace Anvil.Controls.Windows
 			RefreshPageHeader();
 		}
 
+		public void OnRowWordsChanged(ISettingsPickableRow row)
+		{
+			if (ViewModel is not null && _selectedRowByPage.TryGetValue(ViewModel.SettingsTabIndex, out var shown) && ReferenceEquals(shown, row))
+			{
+				RefreshPageHeader();
+			}
+		}
+
 		private void RefreshPageHeader()
 		{
 			if (ViewModel is null) { return; }

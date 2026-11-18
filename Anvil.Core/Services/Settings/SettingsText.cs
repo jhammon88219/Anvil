@@ -8,7 +8,7 @@ namespace Anvil.Services
 	/// One Settings row's words: its <see cref="Title"/> (the About caption — a checkbox row has no label, so the title is the
 	/// box's own text), its short <see cref="Hint"/>, the hint while the row is greyed (<see cref="HintOff"/>), a hint per choice
 	/// for rows whose hint follows the pick (<see cref="Choices"/>), and the long <see cref="About"/> shown in the page header's
-	/// About box when the row is selected.
+	/// About box when the row is selected — or, for a row whose About follows the pick, one per choice (<see cref="ChoiceAbouts"/>).
 	/// </summary>
 	public sealed record SettingsTextEntry(
 		string Key,
@@ -16,7 +16,8 @@ namespace Anvil.Services
 		string About,
 		string? Hint = null,
 		string? HintOff = null,
-		IReadOnlyList<string>? Choices = null);
+		IReadOnlyList<string>? Choices = null,
+		IReadOnlyList<string>? ChoiceAbouts = null);
 
 	/// <summary>
 	/// EVERY word a Settings row shows beyond its label and control — the hints and the About texts — in ONE place, so the
@@ -262,11 +263,20 @@ namespace Anvil.Services
 			// ── Live Data → Source ──
 			new("live.source", "Updates from",
 				"Where live updates come from. A new product only wakes its layer, which then fetches its own data. NOAA Weather Wire replaces the IEM feed; Polling only checks each layer on its timer.",
+				// ⚠️ TIMINGS: IEM's 15–20 s is MEASURED (docs/live-data.md); Weather Wire's is not yet — say a number only once
+				// the lag check has run. (The old text had them backwards: IEM is downstream of the NWS's own wire.)
 				Choices: new[]
 				{
-					"Within seconds · no account · from Iowa State",
-					"About 10 s behind issuance · needs an NWS account",
-					"No outside service · slower to catch new products",
+					"About 15–20 s after issuance · no account",
+					"Fastest, straight from the NWS · needs an NWS account",
+					"Up to each layer's polling interval · no live service",
+				},
+				// What each source IS, what you GET, what you GIVE UP (canvas artboard 29, 2026-11-18) — the About box follows the pick.
+				ChoiceAbouts: new[]
+				{
+					"Iowa State University's Environmental Mesonet re-broadcasts every NWS product as it's issued, and Anvil listens. You get no account and nothing to set up. You give up a few seconds against the NWS's own wire, and it relies on a free, best-effort university service.",
+					"The National Weather Service's own product stream, straight from the source. You get the fastest path, and Anvil notices a missed product and catches up. You give up a free NWS account (asked for by email, can take days) that signs in on one computer at a time.",
+					"No live stream: each layer checks for new data on its own timer (Polling, below). You get nothing extra running, and it works on strict networks. You give up speed: a new warning can show up as late as that layer's polling interval.",
 				}),
 
 			// ── Live Data → Weather Wire account ──
@@ -371,6 +381,13 @@ namespace Anvil.Services
 		/// <summary>The hint for choice <paramref name="index"/> of a row whose hint follows the pick ("" when out of range).</summary>
 		public static string ChoiceOf(string key, int index) =>
 			Get(key)?.Choices is { } choices && index >= 0 && index < choices.Count ? choices[index] : string.Empty;
+
+		/// <summary>The About text for choice <paramref name="index"/> of a row whose About follows the pick; its plain About
+		/// when it has none for that choice.</summary>
+		public static string ChoiceAboutOf(string key, int index) =>
+			Get(key) is { } e
+				? (e.ChoiceAbouts is { } abouts && index >= 0 && index < abouts.Count ? abouts[index] : e.About)
+				: string.Empty;
 
 		/// <summary>The hint for a row that is on or greyed.</summary>
 		public static string HintFor(string key, bool on) => on ? HintOf(key) : HintOffOf(key);

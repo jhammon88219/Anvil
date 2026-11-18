@@ -14,6 +14,9 @@ namespace Anvil.Controls.Primitives
 	public interface ISettingsRowHost
 	{
 		void OnRowPicked(ISettingsPickableRow row);
+
+		/// <summary>A row's About text changed while it may be showing (an About that follows the pick).</summary>
+		void OnRowWordsChanged(ISettingsPickableRow row);
 	}
 
 	/// <summary>
@@ -40,15 +43,22 @@ namespace Anvil.Controls.Primitives
 		/// <summary>Walk up to the <see cref="ISettingsRowHost"/> and report <paramref name="row"/> picked.</summary>
 		public static void Pick(FrameworkElement row)
 		{
-			if (row is not ISettingsPickableRow pickable) { return; }
+			if (row is ISettingsPickableRow pickable && HostOf(row) is { } host) { host.OnRowPicked(pickable); }
+		}
+
+		/// <summary>Tell the host <paramref name="row"/>'s About text changed (so a showing About box re-reads it).</summary>
+		public static void WordsChanged(FrameworkElement row)
+		{
+			if (row is ISettingsPickableRow pickable && HostOf(row) is { } host) { host.OnRowWordsChanged(pickable); }
+		}
+
+		private static ISettingsRowHost? HostOf(FrameworkElement row)
+		{
 			for (DependencyObject? node = VisualTreeHelper.GetParent(row); node is not null; node = VisualTreeHelper.GetParent(node))
 			{
-				if (node is ISettingsRowHost host)
-				{
-					host.OnRowPicked(pickable);
-					return;
-				}
+				if (node is ISettingsRowHost host) { return host; }
 			}
+			return null;
 		}
 	}
 
@@ -188,8 +198,19 @@ namespace Anvil.Controls.Primitives
 		/// row has no label; its title is the box's text).</summary>
 		public string AboutTitle => !string.IsNullOrEmpty(Label) ? Label : SettingsText.Get(AboutKey)?.Title ?? string.Empty;
 
+		/// <summary>An explicit About text (one that follows the pick, e.g. Live Data's source — its words still come from
+		/// SettingsText). Null = the catalog's About for <see cref="AboutKey"/>.</summary>
+		public string? About
+		{
+			get => (string?)GetValue(AboutProperty);
+			set => SetValue(AboutProperty, value);
+		}
+		public static readonly DependencyProperty AboutProperty =
+			DependencyProperty.Register(nameof(About), typeof(string), typeof(SettingsConsoleRow),
+				new PropertyMetadata(null, (d, _) => SettingsRowPicking.WordsChanged((SettingsConsoleRow)d)));
+
 		/// <summary>The About box's text ("" when the row has no catalog entry).</summary>
-		public string AboutText => SettingsText.Get(AboutKey)?.About ?? string.Empty;
+		public string AboutText => About ?? SettingsText.Get(AboutKey)?.About ?? string.Empty;
 
 		// ── x:Bind helpers ──
 
