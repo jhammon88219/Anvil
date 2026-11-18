@@ -158,7 +158,10 @@ namespace Anvil.Services
 			{
 				_tcp = tcp;
 				_logger = logger;
-				_stream = tcp.GetStream();
+				// ⚠️ NOT tcp.GetStream() here: the socket isn't connected yet, and GetStream on an unconnected TcpClient throws
+				// "The operation is not allowed on non-connected sockets" — every sign-in failed before a byte was sent
+				// (docs/bugs.md, first live test 2026-11-18). OpenAsync takes the stream once ConnectAsync has finished.
+				_stream = Stream.Null;
 				_nick = $"{user}-anvil-{Random.Shared.Next(1000, 9999)}";
 			}
 
