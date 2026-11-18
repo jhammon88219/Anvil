@@ -37,9 +37,13 @@ namespace Anvil.ViewModels
 			_settings = settings;
 			_dispatcher = dispatcher;
 			Polling = new ReadOnlyCollection<LivePollRow>(LiveFeedKinds.All.Select(k => new LivePollRow(k, settings)).ToList());
+			Timing = new LiveSourceTimingViewModel(hub, dispatcher);
 			hub.Changed += (_, _) => _dispatcher.Post(Refresh);
 			Refresh();
 		}
+
+		/// <summary>DEV → Live source timing: IEM and Weather Wire side by side (does nothing until started).</summary>
+		public LiveSourceTimingViewModel Timing { get; }
 
 		// ── Where live updates come from ──
 

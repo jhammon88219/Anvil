@@ -178,6 +178,21 @@ namespace Anvil.Services
 			return _credentials.Write(NwwsCredentialResource, user, password);
 		}
 
+		/// <summary>
+		/// DEV → Live source timing: fresh IEM and Weather Wire sources of its own (not the hub's run), or why not.
+		/// ⚠️ One Weather Wire sign-in per account: refused while the hub itself is ON Weather Wire.
+		/// </summary>
+		public (ILiveProductSource? Iem, ILiveProductSource? Nwws, string? Refusal) TimingSources()
+		{
+			if (Source == LiveSources.Nwws)
+			{
+				return (null, null, "Switch Live Data to IEM or Polling first: a Weather Wire account signs in on one connection at a time.");
+			}
+			var nwws = _sourceFor(LiveSources.Nwws);
+			if (nwws is null) { return (null, null, "Save a NOAA Weather Wire account first (Settings → Live Data)."); }
+			return (_sourceFor(LiveSources.Iem), nwws, null);
+		}
+
 		private ILiveProductSource? RealSource(string token, Lazy<HttpClient> http)
 		{
 			if (token == LiveSources.Nwws)

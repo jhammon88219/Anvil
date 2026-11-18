@@ -70,6 +70,10 @@ namespace Anvil.Controls.Composites
 
 		private void OnSeedStopClick(object sender, RoutedEventArgs e) => SeedVm?.Stop();
 
+		private void OnTimingStartClick(object sender, RoutedEventArgs e) => ViewModel?.LiveData.Timing.Start();
+
+		private void OnTimingStopClick(object sender, RoutedEventArgs e) => ViewModel?.LiveData.Timing.Stop();
+
 		private void OnSeedSpeedChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
 		{
 			if (SeedVm is not null) SeedVm.SpeedCapMbps = double.IsNaN(args.NewValue) ? 0 : args.NewValue;
