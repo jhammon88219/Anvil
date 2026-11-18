@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LiveDataSettingsConsoleSourceDetailRow — ONE row of the Source plate's details table (canvas artboard 31, 2026-11-18):
+     a trait (label) and its value for each of the three sources.
+
+       ┌──────────────────────────────────────────────────────────────────────────────────────────────┐ ← hover = the Settings
+       │ Account        None                  Free NWS account · one computer    None                   │   row hover lift, label
+       └──────────────────────────────────────────────────────────────────────────────────────────────┘   to last cell; the label
+         96 label        *  IEM               *  Weather Wire                     *  Polling                brightens to primary
+
+     ⚠️ The columns MUST match the head row in LiveDataSettingsConsoleSource (96 · * · * · *, ColumnSpacing 12, the -8 bleed +
+     8 padding that lets the lift reach past the text the way a SettingsConsoleRow's does).
+     Not clickable: picking a source happens ONLY on the Updates from line (user's call, 2026-11-18). -->
+<UserControl x:Class="Anvil.Controls.LiveDataSettingsConsoles.LiveDataSettingsConsoleSourceDetailRow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             PointerEntered="OnPointerEntered" PointerExited="OnPointerLeft"
+             PointerCanceled="OnPointerLeft" PointerCaptureLost="OnPointerLeft">
+
+    <UserControl.Resources>
+        <Style x:Key="DetailCellStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyTextStyle}">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,7"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid x:Name="DetailRowRoot" Margin="-8,0" Padding="8,0" CornerRadius="4" ColumnSpacing="12" Background="Transparent">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="HoverStates">
+                <VisualState x:Name="Normal"/>
+                <VisualState x:Name="PointerOver">
+                    <VisualState.Setters>
+                        <Setter Target="DetailRowRoot.Background" Value="{ThemeResource SettingsRowHoverBrush}"/>
+                        <Setter Target="DetailRowLabel.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="{StaticResource SettingsLabelColumnWidth}"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock x:Name="DetailRowLabel" Style="{StaticResource DetailCellStyle}" Text="{x:Bind Label, Mode=OneWay}"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        <TextBlock Grid.Column="1" Style="{StaticResource DetailCellStyle}" Text="{x:Bind Iem, Mode=OneWay}"/>
+        <TextBlock Grid.Column="2" Style="{StaticResource DetailCellStyle}" Text="{x:Bind Nwws, Mode=OneWay}"/>
+        <TextBlock Grid.Column="3" Style="{StaticResource DetailCellStyle}" Text="{x:Bind Polling, Mode=OneWay}"/>
+    </Grid>
+</UserControl>
