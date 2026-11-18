@@ -7,12 +7,12 @@
                   Don't have one?  Request a Weather Wire account ↗           Email request to the NWS · can take 10 days or more
        User name  [firstname.lastname                         ]               From the NWS · one computer at a time
        Password   [Password                                   ]               Kept in Windows Credential Manager
-                                        [Test connection][Save account]       Fill in both to test or save   ← runs into Default
+                                             [Test connection][Sign in]       Fill in both to test or sign in   ← runs into Default
 
      SAVED (LOCKED — both boxes grey; Edit INSIDE each box, right, full height, the buttons' width):
        User name  [firstname.lastname          |     Edit     ]
        Password   [●●●●●●●●●●                  |     Edit     ]               Edit unlocks THAT box and becomes Cancel
-                  [Account details][Test connection][Save account]            Signed in as … · nothing to save
+                  [Account details][Test connection][Sign in]                 Signed in as … (follows the connection)
                   ┌ Account   firstname.lastname ──────────────┐               ← only while Account details is open
                   │ Password  Saved · never shown in Anvil     │
                   │ Stored in / Server / Connection            │
@@ -26,7 +26,8 @@
      ⚠️ The password lives ONLY in Credential Manager (ICredentialStore), never AppSettings: the PasswordBox hands it to the VM
      from code-behind (SetPendingPassword), never through a binding. The password is NEVER shown in Anvil — the details say
      where Windows keeps it (Credential Manager asks for the Windows sign-in to show it).
-     ⚠️ The user name box is a DRAFT (LiveDataViewModel) — settings change only on Save; Save lights only on a change.
+     ⚠️ The user name box is a DRAFT (LiveDataViewModel) — settings change only on Sign in (it SAVES the account,
+     then signs in — the button is greyed unless Weather Wire is the source, so it always does both); it lights only on a change.
      The Edit key OVERLAYS the box's right end; the box's right Padding (EditPadding) keeps text out from under it, and the
      PasswordBox's reveal eye is off while the Edit key sits there. -->
 <UserControl x:Class="Anvil.Controls.LiveDataSettingsConsoles.LiveDataSettingsConsoleWeatherWire"
@@ -96,11 +97,11 @@
                             Content="Test connection" Click="OnTestConnectionClick"
                             IsEnabled="{x:Bind Both(ViewModel.IsNwws, ViewModel.CanTest), Mode=OneWay}"
                             ToolTipService.ToolTip="Signs in to NOAA Weather Wire and straight back out — changes nothing"/>
-                    <Button x:Name="NwwsSaveAccountButton" Width="{StaticResource WireButtonWidth}"
+                    <Button x:Name="NwwsSignInButton" Width="{StaticResource WireButtonWidth}"
                             Style="{StaticResource AccentButtonStyle}"
-                            Content="Save account" Click="OnSaveAccountClick"
+                            Content="Sign in" Click="OnSignInClick"
                             IsEnabled="{x:Bind Both(ViewModel.IsNwws, ViewModel.CanSave), Mode=OneWay}"
-                            ToolTipService.ToolTip="Saves the password in Windows Credential Manager and connects"/>
+                            ToolTipService.ToolTip="Saves the account in Windows Credential Manager and signs in to NOAA Weather Wire"/>
                 </StackPanel>
             </prim:SettingsConsoleRow>
 

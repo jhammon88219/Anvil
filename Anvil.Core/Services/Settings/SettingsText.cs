@@ -290,7 +290,7 @@ namespace Anvil.Services
 				"Kept only in Windows Credential Manager, never in Anvil's settings file, and never shown in Anvil. Once saved it locks; Edit lets you type a new one, Cancel keeps the saved one.",
 				Hint: "Kept in Windows Credential Manager"),
 			new("wire.account", "Account",
-				"Save account stores the account and connects; it lights only when something changed. Test connection signs in to NOAA Weather Wire and straight back out with what's typed (or the saved password). It changes nothing.",
+				"Sign in saves the account and signs in; it lights only when something changed. Test connection signs in to NOAA Weather Wire and straight back out with what's typed (or the saved password). It changes nothing.",
 				HintOff: "Only with NOAA Weather Wire"),
 			new("wire.details", "Account details",
 				"What's saved and where: the user name, the Credential Manager entry, the server and how the connection stands. The password is never shown; Credential Manager can show it after your Windows sign-in. Forget account removes it.",

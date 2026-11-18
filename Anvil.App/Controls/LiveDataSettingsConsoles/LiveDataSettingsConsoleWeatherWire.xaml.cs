@@ -57,7 +57,7 @@ namespace Anvil.Controls.LiveDataSettingsConsoles
 			else { NwwsPasswordBox.Password = string.Empty; } // Cancel keeps the saved one
 		}
 
-		private void OnSaveAccountClick(object sender, RoutedEventArgs e)
+		private void OnSignInClick(object sender, RoutedEventArgs e)
 		{
 			if (ViewModel?.SaveAccount() == true) { NwwsPasswordBox.Password = string.Empty; } // both boxes lock again
 		}

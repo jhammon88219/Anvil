@@ -101,7 +101,7 @@ namespace Anvil.ViewModels
 		// ── The NOAA Weather Wire account ──
 
 		// A SAVED account shows LOCKED: both boxes grey, each with an Edit key that unlocks it (and turns into Cancel).
-		// The user name box is a DRAFT — nothing reaches settings until Save; Save lights only when something changed.
+		// The user name box is a DRAFT — nothing reaches settings until Sign in (SaveAccount); it lights only when something changed.
 
 		/// <summary>The NWS page to ask for an account (an email request; the NWS says up to 10 days or more).</summary>
 		public const string RequestAccountUrl = "https://www.weather.gov/nwws/nwws_oi_request";
@@ -168,10 +168,15 @@ namespace Anvil.ViewModels
 		/// <summary>The buttons row's hint: the last action's words, else where the account stands.</summary>
 		public string AccountHint =>
 			_accountMessage.Length > 0 ? _accountMessage
-			: _hasSavedAccount && HasChanges ? "Not saved yet · Test connection tries what's typed"
-			: _hasSavedAccount && IsNwws && LinkState == LiveLinkState.Connected ? $"Signed in as {SavedUsername} · nothing to save"
-			: _hasSavedAccount ? $"Saved as {SavedUsername} · nothing to save"
-			: "Fill in both to test or save";
+			: _hasSavedAccount && HasChanges ? "Changed · Sign in to save it · Test connection tries it"
+			: _hasSavedAccount && IsNwws ? LinkState switch
+			{
+				LiveLinkState.Connected => $"Signed in as {SavedUsername}",
+				LiveLinkState.Connecting => $"Signing in as {SavedUsername}…",
+				_ => $"Saved as {SavedUsername} · not signed in",
+			}
+			: _hasSavedAccount ? $"Saved as {SavedUsername} · used when Weather Wire is the source"
+			: "Fill in both to test or sign in";
 
 		public bool IsTesting
 		{
@@ -210,7 +215,8 @@ namespace Anvil.ViewModels
 				return false;
 			}
 			var saved = _hub.SaveNwwsAccount(_draftUsername, password);
-			AccountMessage = saved ? "Saved" : "Windows wouldn't save the password";
+			// Saved → no message, so the hint follows the connection ("Signing in as …" → "Signed in as …").
+			AccountMessage = saved ? string.Empty : "Windows wouldn't save the password";
 			if (saved)
 			{
 				_draftUsername = SavedUsername;
