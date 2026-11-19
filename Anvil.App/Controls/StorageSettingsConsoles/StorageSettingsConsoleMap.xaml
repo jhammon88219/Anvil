@@ -34,11 +34,13 @@
              mc:Ignorable="d">
 
     <UserControl.Resources>
-        <!-- The list's columns (header + every row): name * · DETAIL 84 · SIZE 76 · SAVED 100 · buttons 72. Change all together. -->
-        <x:Double x:Key="MapListDetailWidth">84</x:Double>
-        <x:Double x:Key="MapListSizeWidth">76</x:Double>
-        <x:Double x:Key="MapListDateWidth">100</x:Double>
-        <x:Double x:Key="MapListButtonsWidth">72</x:Double>
+        <!-- The list's columns (header + every row): name * · DETAIL 84 · SIZE 76 · SAVED 100 · buttons 72. Change all together.
+             ⚠️ GridLength, NOT x:Double — ColumnDefinition.Width won't take a double (a XamlParseException the moment the
+             page loads; docs/bugs.md). -->
+        <GridLength x:Key="MapListDetailWidth">84</GridLength>
+        <GridLength x:Key="MapListSizeWidth">76</GridLength>
+        <GridLength x:Key="MapListDateWidth">100</GridLength>
+        <GridLength x:Key="MapListButtonsWidth">72</GridLength>
 
         <Style x:Key="MapListTagStyle" TargetType="Border">
             <Setter Property="Padding" Value="6,1"/>
