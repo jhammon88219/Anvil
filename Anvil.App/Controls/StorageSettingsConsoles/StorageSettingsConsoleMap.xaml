@@ -1,29 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- StorageSettingsConsoleMap — Settings → Storage's "Which map to use" section (was "Map" until 2026-11-19; from the retired
-     Basemap page, 2026-11-16), on a Primitives/SettingsConsolePlate: ONE pick-one list of every map Anvil could draw, the
-     online one included. Over BasemapSetupViewModel (MapViewModel.BasemapSetup) — the SAME instance the map setup window uses.
-     Mock-up: the "Which map to use" Design canvas, boards 2–4 (2026-11-19).
+<!-- StorageSettingsConsoleMap — Settings → Storage's "Which map to use" section, on a Primitives/SettingsConsolePlate: TWO choices,
+     Online map | Offline map, with the map files nested under Offline (2026-11-19, canvas "Storage page — fewer plates" board A;
+     it REPLACED the Offline map and Online map plates — their options live in Dialogs/DownloadMapDialog + OnlineMapDialog).
+     Over BasemapSetupViewModel (MapViewModel.BasemapSetup) — the SAME instance the map setup window uses.
 
-       Which map to use                                                            (no reset, no DEFAULT — files are yours)
-       Maps                                      DETAIL     SIZE   SAVED
-                 ( ) Online map                                                      ← greys + "Set up a map key in Online
-                     Protomaps · needs the internet                                     map below" until a key is saved
-                 (•) Lower 48 + 3 more           [Full]   34.1 GB  11/2/2026  [📁][🗑]
-                 ( ) Lower 48 + Alaska           [Standard] 5.0 GB 10/20/2026 [📁][🗑]
-                 ⚠ Delete Lower 48 + Alaska · frees 5.0 GB             [Keep][Delete] ← the trash ASKS on its own row first
-                 ( ) Older USA map               [Full]   28.8 GB  6/8/2026   [📁][🗑]
-                 (•) No map  Radar and overlays over a blank background             ← only while nothing draws (inert)
-                 [Add a map file…]  212.3 GB free        Added Lower 48 + 3 more · pick it to draw it   ← one short line
-       96        * (radio + short name) · 84 · 76 right · 100 · 72
+       Which map to use                                                       (no reset, no DEFAULT — files are yours)
+       (•) Online map                                  [Full]                        [Set up…]
+           Protomaps · streams as you move · needs the internet
+       ( ) Offline map
+           From a file on this PC · works with no internet
+               MAP FILE                      DETAIL    SIZE   SAVED
+               (•) Lower 48 + Alaska         [Standard] 5.0 GB 10/20/2026   [📁][🗑]   ← the dot picks the file (and Offline)
+               ( ) Older USA map             [Full]   28.8 GB  6/8/2026    [📁][🗑]
+               ⚠ Delete Older USA map · frees 28.8 GB                  [Keep][Delete] ← the trash ASKS on its row first
+               ▓▓▓▓▓░░░░░  Downloading … · 1.9 of 4.6 GB            [Cancel]        ← only while a download runs
+               ⚠ Your connection dropped …                             [Retry]       ← only after one stopped
+               [Download a map…] [Add a map file…]  212.3 GB free   Added … · pick it to draw it
+       ↑ starts at the plate's left edge (NO label column — the Disk usage table's alignment, the user's call 2026-11-19)
+       radio 28 · name * · tag 84 · action 230 | nested (indent 40): dot 28 · name * · 84 · 76 right · 100 · 72
 
-     ⚠️ Picking = clicking a row's RADIO (its name is the radio's content): a file → UseFile, the online row → UseSavedOnline.
-     Each radio sits in its own parent, so they never group-uncheck each other; IsChecked comes from the VM every Refresh.
-     ⚠️ Short names + DETAIL tags + the file-name rule = Models/Map/BasemapFileNames (BasemapFileOptions.ShortName); the full
-     area list and the file's path are the row's TOOLTIP, never a line of their own.
-     ⚠️ Every row is a Primitives/SettingsConsoleRow (lifts; words = Services/Settings/SettingsText by AboutKey); the list
-     spans to the row's end (ControlSpan 3). Every choice here is drawn AT ONCE (MainWindow re-points the map). A delete Windows
-     refuses (the file still open) finishes at the next launch (AppSettings.BasemapPendingDeletes). Added files stay where they
-     are (AppSettings.BasemapAddedFiles). The SAME file list sizes Disk usage's Maps row (BasemapSetupViewModel.MapFilePaths). -->
+     ⚠️ Picking = a RADIO: Online → UseSavedOnline (no key saved yet → the Set up dialog), Offline → UseOffline (the last file, else
+     the first), a file's dot → UseFile. Each radio sits in its own parent, so they never group-uncheck each other; IsChecked comes
+     from the VM on every Refresh. The online map is ALWAYS full detail (its Full tag is fixed).
+     ⚠️ Short names + DETAIL tags + the file-name rule = Models/Map/BasemapFileNames; the full area list and the path = the file
+     row's TOOLTIP. Every choice is drawn AT ONCE (MainWindow re-points the map). A delete Windows refuses finishes at the next
+     launch (AppSettings.BasemapPendingDeletes). The SAME file list sizes Disk usage's Maps row (MapFilePaths).
+     ⚠️ Column widths are GridLength resources — never x:Double (docs/bugs.md S36; XamlResourceTypeTests). -->
 <UserControl x:Class="Anvil.Controls.StorageSettingsConsoles.StorageSettingsConsoleMap"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -34,9 +36,12 @@
              mc:Ignorable="d">
 
     <UserControl.Resources>
-        <!-- The list's columns (header + every row): name * · DETAIL 84 · SIZE 76 · SAVED 100 · buttons 72. Change all together.
-             ⚠️ GridLength, NOT x:Double — ColumnDefinition.Width won't take a double (a XamlParseException the moment the
-             page loads; docs/bugs.md). -->
+        <!-- The two CHOICE rows: radio 28 · name * · tag 84 · action 230. -->
+        <GridLength x:Key="MapChoiceTagWidth">84</GridLength>
+        <GridLength x:Key="MapChoiceActionWidth">230</GridLength>
+        <!-- The nested FILE list, indented 40 under Offline map: name (its dot is the radio) * · DETAIL 84 · SIZE 76 · SAVED 100 ·
+             buttons 72. Change all together. -->
+        <Thickness x:Key="MapFilesIndent">40,0,0,4</Thickness>
         <GridLength x:Key="MapListDetailWidth">84</GridLength>
         <GridLength x:Key="MapListSizeWidth">76</GridLength>
         <GridLength x:Key="MapListDateWidth">100</GridLength>
@@ -52,7 +57,7 @@
 
         <!-- One map file. Two faces on one row: the details, or (trash pressed) the delete question. -->
         <DataTemplate x:Key="MapFileRowTemplate" x:DataType="vm:BasemapFileRow">
-            <Grid MinHeight="44" BorderThickness="0,1,0,0" BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+            <Grid MinHeight="40" BorderThickness="0,1,0,0" BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                   ToolTipService.ToolTip="{x:Bind Tooltip}">
                 <Grid ColumnSpacing="12" Visibility="{x:Bind IsShowingDetails, Mode=OneWay}">
                     <Grid.ColumnDefinitions>
@@ -105,63 +110,116 @@
     </UserControl.Resources>
 
     <prim:SettingsConsolePlate x:Name="StorageSettingsConsoleMapPlate" Title="Which map to use">
-        <StackPanel Style="{StaticResource SettingsConsoleRowsStyle}">
-            <!-- THE LIST: online · every file · (no map). Its label sits on the head row's line. -->
-            <prim:SettingsConsoleRow Label="Maps" AboutKey="map.files" ControlSpan="3" TextVerticalAlignment="Top">
-                <StackPanel>
-                    <Grid x:Name="MapListHeads" ColumnSpacing="12" Padding="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="{StaticResource MapListDetailWidth}"/>
-                            <ColumnDefinition Width="{StaticResource MapListSizeWidth}"/>
-                            <ColumnDefinition Width="{StaticResource MapListDateWidth}"/>
-                            <ColumnDefinition Width="{StaticResource MapListButtonsWidth}"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="1" Style="{StaticResource OverlineTextStyle}" Text="DETAIL"/>
-                        <TextBlock Grid.Column="2" Style="{StaticResource OverlineTextStyle}" Text="SIZE" HorizontalAlignment="Right"/>
-                        <TextBlock Grid.Column="3" Style="{StaticResource OverlineTextStyle}" Text="SAVED"/>
-                    </Grid>
+        <StackPanel>
+            <!-- ONLINE: always full detail. No key yet → picking it opens Set up… -->
+            <Grid x:Name="MapChoiceOnline" MinHeight="52" ColumnSpacing="12" BorderThickness="0,1,0,0"
+                  BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="{StaticResource MapChoiceTagWidth}"/>
+                    <ColumnDefinition Width="{StaticResource MapChoiceActionWidth}"/>
+                </Grid.ColumnDefinitions>
+                <RadioButton x:Name="MapChoiceOnlineRadio" VerticalAlignment="Center" MinWidth="0"
+                             IsChecked="{x:Bind ViewModel.IsOnlineInUse, Mode=OneWay}"
+                             Click="OnUseOnlineClick" AutomationProperties.Name="Online map">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource BodyTextStyle}" Text="Online map"/>
+                        <TextBlock Style="{StaticResource CaptionTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="{x:Bind ViewModel.OnlineRowText, Mode=OneWay}"/>
+                    </StackPanel>
+                </RadioButton>
+                <Border Grid.Column="1" Style="{StaticResource MapListTagStyle}">
+                    <TextBlock Style="{StaticResource CaptionTextStyle}" Text="Full" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </Border>
+                <Button x:Name="MapChoiceOnlineSetUpButton" Grid.Column="2" HorizontalAlignment="Right" Content="Set up…"
+                        Click="OnSetUpOnlineClick" ToolTipService.ToolTip="Paste and test your free map key"/>
+            </Grid>
 
-                    <!-- Online: picks the SAVED online map; greyed until the Online map card has a working key. -->
-                    <Grid x:Name="MapListOnlineRow" MinHeight="44" BorderThickness="0,1,0,0"
-                          BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-                        <RadioButton x:Name="MapListOnlineRadio" VerticalAlignment="Center" MinWidth="0"
-                                     IsChecked="{x:Bind ViewModel.IsOnlineInUse, Mode=OneWay}"
-                                     IsEnabled="{x:Bind ViewModel.CanUseSavedOnline, Mode=OneWay}"
-                                     Click="OnUseOnlineClick" AutomationProperties.Name="Online map">
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource BodyTextStyle}" Text="Online map"/>
-                                <TextBlock Style="{StaticResource CaptionTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                           Text="{x:Bind ViewModel.OnlineRowText, Mode=OneWay}"/>
-                            </StackPanel>
-                        </RadioButton>
-                    </Grid>
+            <!-- OFFLINE: the files below it are its choices. -->
+            <Grid x:Name="MapChoiceOffline" MinHeight="52" ColumnSpacing="12" BorderThickness="0,1,0,0"
+                  BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                <RadioButton x:Name="MapChoiceOfflineRadio" VerticalAlignment="Center" MinWidth="0"
+                             IsChecked="{x:Bind ViewModel.IsOfflineInUse, Mode=OneWay}"
+                             IsEnabled="{x:Bind ViewModel.CanUseOffline, Mode=OneWay}"
+                             Click="OnUseOfflineClick" AutomationProperties.Name="Offline map">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource BodyTextStyle}" Text="Offline map"/>
+                        <TextBlock Style="{StaticResource CaptionTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="{x:Bind ViewModel.OfflineRowText, Mode=OneWay}"/>
+                    </StackPanel>
+                </RadioButton>
+            </Grid>
 
-                    <ItemsControl x:Name="MapFileRows" IsTabStop="False" ItemsSource="{x:Bind ViewModel.Files}" ItemTemplate="{StaticResource MapFileRowTemplate}"/>
+            <!-- The FILES, indented under Offline map. -->
+            <StackPanel x:Name="MapFiles" Margin="{StaticResource MapFilesIndent}">
+                <Grid x:Name="MapFileHeads" ColumnSpacing="12" Padding="0,6,0,6" Visibility="{x:Bind ViewModel.CanUseOffline, Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="{StaticResource MapListDetailWidth}"/>
+                        <ColumnDefinition Width="{StaticResource MapListSizeWidth}"/>
+                        <ColumnDefinition Width="{StaticResource MapListDateWidth}"/>
+                        <ColumnDefinition Width="{StaticResource MapListButtonsWidth}"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource OverlineTextStyle}" Text="MAP FILE"/>
+                    <TextBlock Grid.Column="1" Style="{StaticResource OverlineTextStyle}" Text="DETAIL"/>
+                    <TextBlock Grid.Column="2" Style="{StaticResource OverlineTextStyle}" Text="SIZE" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="3" Style="{StaticResource OverlineTextStyle}" Text="SAVED"/>
+                </Grid>
 
-                    <!-- No map: only while nothing draws — a state, not a choice (checked, inert). -->
-                    <Grid x:Name="MapListNoMapRow" MinHeight="44" BorderThickness="0,1,0,0"
-                          BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                          Visibility="{x:Bind ViewModel.IsNoMap, Mode=OneWay}">
-                        <RadioButton x:Name="MapListNoMapRadio" VerticalAlignment="Center" MinWidth="0" IsChecked="True" IsEnabled="False">
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource BodyTextStyle}" Text="No map"/>
-                                <TextBlock Style="{StaticResource CaptionTextStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                           Text="Radar and overlays draw over a blank background"/>
-                            </StackPanel>
-                        </RadioButton>
-                    </Grid>
-                </StackPanel>
-            </prim:SettingsConsoleRow>
+                <ItemsControl x:Name="MapFileRows" IsTabStop="False" ItemsSource="{x:Bind ViewModel.Files}" ItemTemplate="{StaticResource MapFileRowTemplate}"/>
 
-            <!-- Add · free space · what the last Add / Delete did (ONE short line, into the Default column). -->
-            <prim:SettingsConsoleRow AboutKey="map.add" HintSpansDefault="True" Hint="{x:Bind ViewModel.FilesMessage, Mode=OneWay}">
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button x:Name="AddMapFileButton" Content="Add a map file…" Click="OnAddFileClick"/>
-                    <TextBlock VerticalAlignment="Center" Style="{StaticResource SettingsConsoleHintTextStyle}"
+                <!-- While a download runs (from the dialog OR the setup window): bar · one readout line · Cancel. -->
+                <Grid x:Name="MapDownloadProgress" ColumnSpacing="12" RowSpacing="4" Padding="0,8" BorderThickness="0,1,0,0"
+                      BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                      Visibility="{x:Bind ViewModel.IsDownloading, Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <ProgressBar VerticalAlignment="Center" Maximum="100" Value="{x:Bind ViewModel.DownloadPercent, Mode=OneWay}"/>
+                    <Button x:Name="MapDownloadCancelButton" Grid.Column="1" Content="Cancel" Click="{x:Bind ViewModel.CancelDownload}"
+                            ToolTipService.ToolTip="Stops the download. What's downloaded is kept — Download picks it up again."/>
+                    <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap"
+                               Text="{x:Bind ViewModel.DownloadLineText, Mode=OneWay}"/>
+                </Grid>
+
+                <!-- A download that stopped: what happened, and Retry (it picks up what arrived). -->
+                <Grid x:Name="MapDownloadFailed" ColumnSpacing="10" Padding="0,8" BorderThickness="0,1,0,0"
+                      BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                      Visibility="{x:Bind ViewModel.IsDownloadFailed, Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE7BA;" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                    <TextBlock Grid.Column="1" Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" VerticalAlignment="Center"
+                               Text="{x:Bind ViewModel.FailureText, Mode=OneWay}"/>
+                    <Button x:Name="MapDownloadRetryButton" Grid.Column="2" Content="Retry" Click="{x:Bind ViewModel.RetryDownload}"/>
+                </Grid>
+
+                <!-- Download · Add · free space · what the last Add / Delete did (one short line). -->
+                <Grid x:Name="MapFileActions" ColumnSpacing="12" Padding="0,12,0,0" BorderThickness="0,1,0,0"
+                      BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="MapDownloadButton" Content="Download a map…" Click="OnDownloadClick"
+                            IsEnabled="{x:Bind Not(ViewModel.IsDownloading), Mode=OneWay}"/>
+                    <Button x:Name="AddMapFileButton" Grid.Column="1" Content="Add a map file…" Click="OnAddFileClick"/>
+                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Style="{StaticResource SettingsConsoleHintTextStyle}"
                                Text="{x:Bind ViewModel.FreeSpaceText, Mode=OneWay}"/>
-                </StackPanel>
-            </prim:SettingsConsoleRow>
+                    <TextBlock Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis"
+                               Style="{StaticResource SettingsConsoleHintTextStyle}" Text="{x:Bind ViewModel.FilesMessage, Mode=OneWay}"/>
+                </Grid>
+            </StackPanel>
         </StackPanel>
     </prim:SettingsConsolePlate>
 </UserControl>

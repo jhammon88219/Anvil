@@ -82,7 +82,8 @@ namespace Anvil.ViewModels
 
 			Items = new[] { Maps, RadarVolumes, RadarDiagnostics, WeatherData, Logs, UsageHistory };
 
-			// BRUSHING (2026-11-18): hovering a table row dims every OTHER kind's bar segment, so its slice stands out.
+			// BRUSHING (2026-11-18; flipped 2026-11-19, the user's call): the bar rests DULL — every segment dimmed — and only the
+			// kind whose table row is hovered lights up. A full-colour bar at rest read as "everything highlighted".
 			foreach (var item in Items)
 			{
 				item.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(StorageItemViewModel.IsHovered)) { ApplyHover(); } };
@@ -93,7 +94,7 @@ namespace Anvil.ViewModels
 		{
 			StorageItemViewModel? hovered = null;
 			foreach (var item in Items) { if (item.IsHovered) { hovered = item; } }
-			foreach (var item in Items) { item.IsDimmed = hovered is not null && !ReferenceEquals(item, hovered); }
+			foreach (var item in Items) { item.IsDimmed = !ReferenceEquals(item, hovered); }
 		}
 
 		public StorageItemViewModel Maps { get; }

@@ -141,6 +141,48 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public async Task Which_map_to_use_is_online_or_offline_and_offline_comes_back_to_a_file()
+		{
+			var (settings, vm) = Make(new FixedKeys(MapKeyCheck.Works));
+			settings.Settings.UseOnlineTiles = false;              // start with nothing drawn (a fresh settings file may be online)
+			var saveFolder = Path.Combine(_dir, "empty-save-folder");
+			Directory.CreateDirectory(saveFolder);
+			vm.SaveFolder = saveFolder;                            // not the real Anvil Maps folder on this PC (Refreshes)
+			Assert.False(vm.CanUseOffline);                       // no file yet: the Offline radio greys
+			Assert.False(vm.IsOfflineInUse || vm.IsOnlineInUse);   // nothing draws
+
+			var first = MapFile("first.pmtiles", maxZoom: 13, protomaps: true);
+			var second = MapFile("second.pmtiles", maxZoom: 13, protomaps: true);
+			await vm.AddFileAsync(first);
+			await vm.AddFileAsync(second);
+			Assert.True(vm.CanUseOffline);
+
+			vm.UseOffline();                                       // none in use → the FIRST file
+			Assert.True(vm.IsOfflineInUse);
+			Assert.Equal(vm.Files[0].Path, settings.Settings.BasemapFilePath);
+
+			vm.UseFile(vm.Files.Single(r => r.Path == second));    // a file's dot picks another
+			vm.MapKey = "good";
+			Assert.True(await vm.UseOnlineMapAsync());             // the Set up dialog's Use online map
+			Assert.True(vm.IsOnlineInUse);
+			Assert.False(vm.IsOfflineInUse);
+
+			vm.UseOffline();                                       // back to offline → the file last used, not the first
+			Assert.True(vm.IsOfflineInUse);
+			Assert.Equal(second, settings.Settings.BasemapFilePath);
+		}
+
+		[Fact]
+		public async Task A_key_that_fails_keeps_the_online_map_off()
+		{
+			var (settings, vm) = Make(new FixedKeys(MapKeyCheck.Rejected));
+			vm.MapKey = "bad";
+			Assert.False(await vm.UseOnlineMapAsync());            // the dialog stays open
+			Assert.False(settings.Settings.UseOnlineTiles);
+			Assert.False(vm.IsOnlineInUse);
+		}
+
+		[Fact]
 		public void Deleting_the_map_in_use_lets_go_of_it_first()
 		{
 			var (settings, vm) = Make();

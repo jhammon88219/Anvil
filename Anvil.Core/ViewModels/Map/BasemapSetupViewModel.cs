@@ -210,6 +210,10 @@ namespace Anvil.ViewModels
 		/// <summary>Settings → Basemap's "Use online map": test the key; if it works, save it and draw the online map now.</summary>
 		public void UseOnlineMap() => _ = UseOnlineAsync(showReady: false);
 
+		/// <summary>Settings → Storage's "Set up the online map" dialog: test the key; if it works, save it and draw the online
+		/// map now. False = the key didn't work (the dialog stays open, KeyMessage says why).</summary>
+		public Task<bool> UseOnlineMapAsync() => UseOnlineAsync(showReady: false);
+
 		private async Task<bool> CheckKeyAsync()
 		{
 			if (_isCheckingKey) return false;
@@ -239,9 +243,9 @@ namespace Anvil.ViewModels
 			_ => "Couldn't reach the map service. Check your internet connection — or use the offline map instead.",
 		};
 
-		private async Task UseOnlineAsync(bool showReady)
+		private async Task<bool> UseOnlineAsync(bool showReady)
 		{
-			if (!await CheckKeyAsync()) return;
+			if (!await CheckKeyAsync()) return false;
 			_settings.Settings.OnlineTilesUrl = ProtomapsKeys.UrlFor(_mapKey);
 			_settings.Settings.UseOnlineTiles = true; // MapViewModel follows the setting and re-points the map live
 			KeyMessage = "Anvil is using the online map.";
@@ -249,6 +253,7 @@ namespace Anvil.ViewModels
 			{
 				SetReady("Online map · Protomaps", "Streams as you move around the map. Needs internet.");
 			}
+			return true;
 		}
 
 		// ── Offline ─────────────────────────────────────────────────────────────────────────────────────────
@@ -785,6 +790,9 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(CanUseSavedOnline));
 			OnPropertyChanged(nameof(OnlineRowText));
 			OnPropertyChanged(nameof(IsNoMap));
+			OnPropertyChanged(nameof(IsOfflineInUse));
+			OnPropertyChanged(nameof(CanUseOffline));
+			OnPropertyChanged(nameof(OfflineRowText));
 			OnPropertyChanged(nameof(HasNoFiles));
 			OnPropertyChanged(nameof(HasUsableMap));
 			OnPropertyChanged(nameof(ShouldShowAtLaunch));
@@ -825,19 +833,32 @@ namespace Anvil.ViewModels
 		/// <summary>App calls this as Anvil opens: a dev "new user" launch ends here.</summary>
 		public void HandOverToAnvil() => _settings.Settings.DevPretendNoMap = false;
 
-		// ── Which map to use: the online + no-map rows of the ONE pick-one list (2026-11-19) ──
+		// ── Which map to use: TWO choices, Online map | Offline map, the files nested under Offline (2026-11-19, canvas
+		//    "Storage page — fewer plates" board A) ──
 
 		/// <summary>The online map is what Anvil draws now (its radio is on).</summary>
 		public bool IsOnlineInUse => _settings.Settings.UseOnlineTiles && OnlineTileUrls.IsUsable(_settings.Settings.OnlineTilesUrl);
 
-		/// <summary>A working online map is saved, so picking it needs no setup (else its row greys and points at the Online
-		/// map card, which tests the key).</summary>
+		/// <summary>A working online map is saved, so picking it needs no setup (else picking it opens Set up…).</summary>
 		public bool CanUseSavedOnline => OnlineTileUrls.IsUsable(_settings.Settings.OnlineTilesUrl);
 
 		/// <summary>The online row's second line.</summary>
-		public string OnlineRowText => CanUseSavedOnline ? "Protomaps · needs the internet" : "Set up a map key in Online map below";
+		public string OnlineRowText => CanUseSavedOnline
+			? "Protomaps · streams as you move · needs the internet"
+			: "Protomaps · needs a free map key — Set up…";
 
-		/// <summary>Nothing is drawn — shown as its own (checked, inert) row, never a choice.</summary>
+		/// <summary>A map FILE is what Anvil draws now (the Offline radio is on; the file's dot says which).</summary>
+		public bool IsOfflineInUse => !IsOnlineInUse && InUsePath() is not null;
+
+		/// <summary>There's a file to draw — else the Offline radio greys and its line points at Download / Add.</summary>
+		public bool CanUseOffline => Files.Count > 0;
+
+		/// <summary>The offline row's second line.</summary>
+		public string OfflineRowText => CanUseOffline
+			? "From a file on this PC · works with no internet"
+			: "No map file yet · download one or add one you have";
+
+		/// <summary>Nothing is drawn (neither radio on).</summary>
 		public bool IsNoMap => !IsOnlineInUse && InUsePath() is null;
 
 		/// <summary>Picking the online row: draw the SAVED online map now (MapViewModel follows the setting).</summary>
@@ -846,6 +867,17 @@ namespace Anvil.ViewModels
 			if (!CanUseSavedOnline) return;
 			FilesMessage = "";
 			_settings.Settings.UseOnlineTiles = true;
+		}
+
+		/// <summary>Picking the offline row: draw the file last used (the settings' in-use rule), or the first file when that
+		/// one is gone. The file's own dot picks another.</summary>
+		public void UseOffline()
+		{
+			if (!CanUseOffline) return;
+			FilesMessage = "";
+			_settings.Settings.UseOnlineTiles = false;
+			if (InUsePath() is null) _settings.Settings.BasemapFilePath = Files[0].Path;
+			Refresh();
 		}
 
 		/// <summary>Use: make <paramref name="row"/> the map Anvil draws — now (MainWindow re-points the map). Turns the

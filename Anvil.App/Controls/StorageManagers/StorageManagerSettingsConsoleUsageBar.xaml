@@ -6,7 +6,8 @@
                         (no folder key here — removed 2026-11-17; each table row opens its own folder)
        ████████████████████████████▌▌▌▏▏        │ DEFAULT │  ← 14 tall, a segment per kind in the TABLE's row order (Maps
                                          ↑ ends 160 in        first), 2 px apart, rounded 3; ENDS at the KEEP FOR edge
-       hover a TABLE ROW → every OTHER segment dims to 30% (brushing: StorageItemViewModel.IsHovered → IsDimmed)
+       the bar RESTS DULL (every segment 45%); hover a TABLE ROW → ITS segment lights to full (brushing:
+       StorageItemViewModel.IsHovered → IsDimmed; user's call 2026-11-19 — a full bar at rest read as "all highlighted")
 
        hover the bar ↓
        ┌──────────────────────────────────┐
@@ -100,7 +101,7 @@
                     <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.Logs.SizeBytes), Mode=OneWay}"/>
                     <ColumnDefinition MinWidth="3" Width="{x:Bind Star(ViewModel.UsageHistory.SizeBytes), Mode=OneWay}"/>
                 </Grid.ColumnDefinitions>
-                <!-- Hovering a TABLE ROW dims every other segment (Item.IsDimmed), easing over 120 ms. (OpacityTransition is a
+                <!-- Dull at rest; hovering a TABLE ROW lights its segment (Item.IsDimmed false), easing over 120 ms. (OpacityTransition is a
                      plain property, not a DP — a Style can't set it, so each segment declares its own.) -->
                 <Rectangle Grid.Column="0" Fill="{StaticResource StorageMapsBrush}" Opacity="{x:Bind SegmentOpacity(ViewModel.Maps.IsDimmed), Mode=OneWay}">
                     <Rectangle.OpacityTransition><ScalarTransition Duration="0:0:0.12"/></Rectangle.OpacityTransition>

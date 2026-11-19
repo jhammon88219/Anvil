@@ -35,17 +35,17 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public void Hovering_a_row_dims_every_other_bar_segment()
+		public void The_bar_rests_dull_and_only_the_hovered_rows_segment_lights()
 		{
 			var vm = New(new AppSettings());
-			Assert.DoesNotContain(vm.Items, i => i.IsDimmed);
+			Assert.All(vm.Items, i => Assert.True(i.IsDimmed)); // at rest: every segment dull
 
 			vm.RadarVolumes.IsHovered = true;
 			Assert.False(vm.RadarVolumes.IsDimmed);
 			Assert.All(vm.Items.Where(i => i != vm.RadarVolumes), i => Assert.True(i.IsDimmed));
 
 			vm.RadarVolumes.IsHovered = false;
-			Assert.DoesNotContain(vm.Items, i => i.IsDimmed);
+			Assert.All(vm.Items, i => Assert.True(i.IsDimmed)); // back to dull, not full
 		}
 
 		[Fact]

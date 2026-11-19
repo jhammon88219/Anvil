@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OnlineMapDialog — Settings → Storage → Which map to use → "Set up…" on the Online map row (and picking that row before a key
+     is saved): paste + test the free Protomaps map key, then switch (2026-11-19; it replaced the Online map plate).
+
+       ┌─ Set up the online map ────────────────────────────────────┐
+       │ The online map streams from Protomaps at full detail as you │
+       │ move around. It needs the internet and a map key, free for  │
+       │ personal use. Get one at protomaps.com/account              │ ← plain text: a link would need LeaveAnvilDialog,
+       │ MAP KEY  [a1b2c3d4e5f6…                    ]  [ Test ]      │   and a ContentDialog can't open a second one
+       │          That key works.                                    │ ← KeyMessage
+       │                          [ Use online map ] ( Cancel )      │
+       └─────────────────────────────────────────────────────────────┘
+
+     ⚠️ Use online map TESTS the key first (BasemapSetupViewModel.UseOnlineMapAsync): a key that fails keeps the dialog OPEN
+     (deferral + args.Cancel) with KeyMessage saying why; one that works is saved and drawn at once. Plain words only (map key,
+     never API key / tiles). ViewModel is set BEFORE InitializeComponent (x:Bind). -->
+<ContentDialog x:Class="Anvil.Dialogs.OnlineMapDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+               xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+               mc:Ignorable="d"
+               Title="Set up the online map"
+               PrimaryButtonText="Use online map"
+               CloseButtonText="Cancel"
+               DefaultButton="Primary"
+               IsPrimaryButtonEnabled="{x:Bind ViewModel.CanTestKey, Mode=OneWay}"
+               PrimaryButtonClick="OnUseClick">
+
+    <ContentDialog.Resources>
+        <x:Double x:Key="ContentDialogMaxWidth">640</x:Double>
+    </ContentDialog.Resources>
+
+    <StackPanel x:Name="OnlineMapDialogBody" Spacing="6" MinWidth="520">
+        <TextBlock Style="{StaticResource BodyTextStyle}" TextWrapping="Wrap" Margin="0,0,0,10"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Text="The online map streams from Protomaps at full detail as you move around. It needs the internet and a map key, free for personal use. Get one at protomaps.com/account"
+                   IsTextSelectionEnabled="True"/>
+
+        <TextBlock Style="{StaticResource OverlineTextStyle}" Text="MAP KEY"/>
+        <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="OnlineMapDialogKeyTextBox" PlaceholderText="a1b2c3d4e5f6…"
+                     Text="{x:Bind ViewModel.MapKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+            <Button x:Name="OnlineMapDialogTestButton" Grid.Column="1" Content="Test" Click="{x:Bind ViewModel.TestKey}"
+                    IsEnabled="{x:Bind ViewModel.CanTestKey, Mode=OneWay}"/>
+        </Grid>
+        <TextBlock Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.KeyMessage, Mode=OneWay}"/>
+    </StackPanel>
+</ContentDialog>

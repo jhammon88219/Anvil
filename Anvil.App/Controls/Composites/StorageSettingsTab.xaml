@@ -7,18 +7,15 @@
        │ Radar volumes · Radar diagnostics · Weather data · Logs · Your usage)  │   no limits)
        └────────────────────────────────────────────────────────────────────────┘
           12 px of the body's darker ground
-       ┌ Map ───────────────────────────────────────────────────────────────── ┐  StorageSettingsConsoles/StorageSettingsConsoleMap
-       │ In use · Files (Use / folder / delete-asks-inline) · Add a map file…   │
+       ┌ Which map to use ──────────────────────────────────────────────────── ┐  StorageSettingsConsoles/StorageSettingsConsoleMap
+       │ (•) Online map [Full] [Set up…] · ( ) Offline map, its files nested    │  Set up… → Dialogs/OnlineMapDialog
+       │ under it · Download a map… · Add a map file… (+ download progress)     │  Download a map… → Dialogs/DownloadMapDialog
        └────────────────────────────────────────────────────────────────────────┘
-       ┌ Offline map  [Restore defaults] ──────────────────────────── DEFAULT ┐  …ConsoleOfflineMap
-       │ Area · Detail · Save to · File · Download (+ progress / Retry)         │
-       └────────────────────────────────────────────────────────────────────────┘
-       ┌ Online map ────────────────────────────────────────────────────────── ┐  …ConsoleOnlineMap
-       │ Map key · Test · Use online map                                        │
-       └────────────────────────────────────────────────────────────────────────┘
+       TWO plates since 2026-11-19 (the user's call, canvas "Storage page — fewer plates" A): the Offline map + Online map
+       plates were REMOVED — their options open only when you download or set up.
        (Reset all Storage settings = the window's page header, beside the title — this page's ResetAll, ISettingsPage)
 
-     ⚠️ Every reset ASKS first. Reset all = every limit + the Offline map choices; it deletes no map file and keeps the map key.
+     ⚠️ Every reset ASKS first. Reset all = every limit + the download dialog's picks; it deletes no map file and keeps the map key.
      ⚠️ The sizes are only re-measured when this page becomes VISIBLE (MapViewModel.RefreshForSettingsTab) — it walks several
      folders, so it must not run on every Settings open. The map files are re-read on show too (BasemapSetupViewModel.Refresh:
      the folder can change from the setup window or Explorer).
@@ -37,6 +34,5 @@
         <storageManagers:StorageManagerSettingsConsole x:Name="StorageManagerSettingsConsole"
                                                       ViewModel="{x:Bind ViewModel.Storage, Mode=OneWay}"/>
         <storageSettingsConsoles:StorageSettingsConsoleMap x:Name="StorageSettingsConsoleMap" ViewModel="{x:Bind ViewModel.BasemapSetup}"/>
-        <storageSettingsConsoles:StorageSettingsConsoleOfflineMap x:Name="StorageSettingsConsoleOfflineMap" ViewModel="{x:Bind ViewModel.BasemapSetup}"/>
-        <storageSettingsConsoles:StorageSettingsConsoleOnlineMap x:Name="StorageSettingsConsoleOnlineMap" ViewModel="{x:Bind ViewModel.BasemapSetup}"/>    </StackPanel>
+    </StackPanel>
 </UserControl>

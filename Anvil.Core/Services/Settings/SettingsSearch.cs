@@ -57,8 +57,9 @@ namespace Anvil.Services
 			["conn"] = new("Live Data", "Connection"),
 			["storage"] = new("Storage", "Disk usage"),
 			["map"] = new("Storage", "Which map to use"),
-			["offline"] = new("Storage", "Offline map"),
-			["online"] = new("Storage", "Online map"),
+			// The Offline map + Online map plates became dialogs on Which map to use (2026-11-19): their words land there.
+			["offline"] = new("Storage", "Which map to use"),
+			["online"] = new("Storage", "Which map to use"),
 		};
 
 		private static readonly Dictionary<string, SettingsPlace> ByKey = new(StringComparer.Ordinal)
