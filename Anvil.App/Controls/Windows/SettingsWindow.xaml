@@ -5,8 +5,8 @@
      2026-11-11): a raised title BAND, then the raised rail | the body.
 
        ┌──────────────────────────────────────────────────────────────────────────────────────┐
-       │ [logo] Anvil Settings ←35→ VERSION │ BUILD   LICENSE   SOURCE    ░░░ lock pin ─ □ ✕ ░│ ← THE BAND (raised):
-       │ (slot)                     1.0.0.0 │ Debug   AGPL-3.0  GitHub    ░ reserved 220 px ░ │   about-Anvil facts,
+       │ [logo] Anvil Settings ←35→ VERSION │ BUILD   LICENSE   SOURCE            ░░ ─ □ ✕ ░│ ← THE BAND (raised):
+       │ (slot)                     1.0.0.0 │ Debug   AGPL-3.0  GitHub            ░ res. 140 ░ │   about-Anvil facts,
        │░░░░░░░░░░░░░░░░░░╭───────────────────────────────────────────────────────────────────┤   label OVER value
        │   ⏻  General    ░│  (first in the rail — page 6, the old Startup slot)
        │╭─────────────────╯                                                                    │   ← THE JOIN: the selected entry
@@ -82,7 +82,7 @@
 
         <!-- THE BAND — raised, full width, NO line of its own (the body's inset-corner outline below draws the only line).
              The SAME grammar as the Atlas's band: logo slot, name, then each fact as its LABEL over its VALUE,
-             left-aligned. ⚠️ Its right 220 px are RESERVED for the lock, pin and caption buttons over that corner. -->
+             left-aligned. ⚠️ Its right 140 px are RESERVED for the caption buttons (─ □ ✕) over that corner. -->
         <Border x:Name="SettingsBand" Grid.ColumnSpan="2"
                 Background="{ThemeResource OverlayBarSurfaceRaisedBrush}">
             <Grid Padding="16,12,0,12" ColumnSpacing="14">
@@ -91,7 +91,7 @@
                     <ColumnDefinition Width="Auto"/> <!-- name -->
                     <ColumnDefinition Width="Auto"/> <!-- facts -->
                     <ColumnDefinition Width="*"/>    <!-- empty -->
-                    <ColumnDefinition Width="220"/>  <!-- lock / pin / caption corner -->
+                    <ColumnDefinition Width="140"/>  <!-- caption corner (─ □ ✕) -->
                 </Grid.ColumnDefinitions>
 
                 <!-- LOGO SLOT — a placeholder until the app has a logo (the Atlas's, the same size). -->
@@ -370,9 +370,5 @@
                 </Grid>
             </ctl:PanelScroller>
         </Grid>
-
-        <!-- Lock (no move/resize) + pin (keep on top), over the band's reserved corner. -->
-        <ctl:LockToggle Grid.ColumnSpan="2" IsChecked="{x:Bind ViewModel.IsSettingsWindowLocked, Mode=TwoWay}"/>
-        <ctl:PinToggle Grid.ColumnSpan="2" IsChecked="{x:Bind ViewModel.IsSettingsWindowOnTop, Mode=TwoWay}"/>
     </Grid>
 </UserControl>

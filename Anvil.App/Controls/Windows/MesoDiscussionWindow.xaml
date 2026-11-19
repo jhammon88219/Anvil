@@ -4,7 +4,7 @@
      "All N discussions · Open reader") and by clicking a discussion's AREA on the map. Bound to MapViewModel;
      everything it shows is MapViewModel.Discussions (MesoDiscussionsViewModel).
 
-       ┌──────────────────────────────────────────────────────────[lock][pin]  –  □  ✕ ┐
+       ┌──────────────────────────────────────────────────────────────────────  –  □  ✕ ┐
        │ Mesoscale Discussions                                                          │ ← the BAND (raised)
        │ At 4:51 PM · 9 listed for this window                                          │   = the section card's context
        ├──────────────────────┬─────────────────────────────────────────────────────────┤
@@ -79,9 +79,9 @@
             <RowDefinition Height="*"/>    <!-- list | reader -->
         </Grid.RowDefinitions>
 
-        <!-- THE BAND (raised). ⚠️ Right 220 = the lock + pin + caption corner (the Atlas band's rule). -->
+        <!-- THE BAND (raised). ⚠️ Right 124 + the Padding's 16 = the 140 px caption corner (the Atlas band's rule). -->
         <Border Grid.Row="0" Padding="16,12,16,12" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}">
-            <StackPanel Spacing="4" Margin="0,0,220,0">
+            <StackPanel Spacing="4" Margin="0,0,124,0">
                 <TextBlock Text="Mesoscale Discussions" FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                 <TextBlock Text="{x:Bind ViewModel.Discussions.CardContext, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}"
@@ -228,9 +228,5 @@
                 </StackPanel>
             </ctl:PanelScroller>
         </Grid>
-
-        <!-- Lock + pin; both self-position top-right, clearing the caption. -->
-        <ctl:LockToggle Grid.RowSpan="2" IsChecked="{x:Bind ViewModel.IsMesoDiscussionLocked, Mode=TwoWay}"/>
-        <ctl:PinToggle Grid.RowSpan="2" IsChecked="{x:Bind ViewModel.IsMesoDiscussionOnTop, Mode=TwoWay}"/>
     </Grid>
 </UserControl>

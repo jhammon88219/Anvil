@@ -812,8 +812,6 @@ namespace Anvil
 					return settings;
 				},
 				title: "Settings", anchor: WindowAnchor.Center,
-				keepAboveOwner: () => ViewModel.IsSettingsWindowOnTop,
-				isLocked: () => ViewModel.IsSettingsWindowLocked,
 				customChrome: true);
 			_windows.Register(
 				id: "sites",
@@ -821,8 +819,6 @@ namespace Anvil
 				close: () => ViewModel.IsAtlasOpen = false,
 				buildContent: () => new Controls.Windows.AtlasWindow { ViewModel = ViewModel },
 				title: "Anvil Atlas", anchor: WindowAnchor.Center,
-				keepAboveOwner: () => ViewModel.IsAtlasOnTop,
-				isLocked: () => ViewModel.IsAtlasLocked,
 				customChrome: true);
 			// (The three temporal panes are NOT windows any more: they are overlays declared in MainWindow.xaml's
 			// TEMPORAL PANES block, shown by their pane flags. Only their first-draw signal is wired here.)
@@ -837,8 +833,6 @@ namespace Anvil
 				close: () => ViewModel.IsOutlookDiscussionOpen = false,
 				buildContent: () => new Controls.Windows.OutlookDiscussionWindow { ViewModel = ViewModel },
 				title: "Outlook Discussion", anchor: WindowAnchor.Center,
-				keepAboveOwner: () => ViewModel.IsOutlookDiscussionOnTop,
-				isLocked: () => ViewModel.IsOutlookDiscussionLocked,
 				customChrome: true);
 			// SPC MDs + WPC MPDs to read, opened from the Now/Past "Mesoscale discussions" section or a click on a
 			// discussion's area on the map (Discussions.ReaderRequested). Center, like the Outlook Discussion.
@@ -848,8 +842,6 @@ namespace Anvil
 				close: () => ViewModel.IsMesoDiscussionOpen = false,
 				buildContent: () => new Controls.Windows.MesoDiscussionWindow { ViewModel = ViewModel },
 				title: "Mesoscale Discussions", anchor: WindowAnchor.Center,
-				keepAboveOwner: () => ViewModel.IsMesoDiscussionOnTop,
-				isLocked: () => ViewModel.IsMesoDiscussionLocked,
 				customChrome: true);
 			_windows.Register(
 				id: "pipeline",
@@ -857,8 +849,6 @@ namespace Anvil
 				close: () => ViewModel.IsPipelineConsoleOpen = false,
 				buildContent: () => new Controls.Windows.PipelineConsoleWindow { ViewModel = ViewModel },
 				title: "Pipeline Console", anchor: WindowAnchor.Center,
-				keepAboveOwner: () => ViewModel.IsPipelineConsoleOnTop, // user-toggled via the pin in the console
-				isLocked: () => ViewModel.IsPipelineConsoleLocked,
 				customChrome: true); // extend content into the title bar so the dark surface replaces the caption
 			// (The dev tools no longer register a window of their own — they are the Settings window's
 			// Debug-only Dev tab, registered above with everything else.)

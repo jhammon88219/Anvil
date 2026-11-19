@@ -464,72 +464,10 @@ namespace Anvil.ViewModels
 		public PipelineConsoleViewModel PipelineConsole { get; }
 
 		private bool _isPipelineConsoleOpen;
-		private bool _isPipelineConsoleOnTop = true;
 
-		/// <summary>Whether the Pipeline Console window stays above the main window (owned by it — not topmost
-		/// over other apps). User-toggled from the pin in the console's title-bar area; <c>WindowManager</c>
-		/// applies it. Defaults on — the house default for every panel now, not a console quirk (see the
-		/// per-window flags below).</summary>
-		public bool IsPipelineConsoleOnTop
-		{
-			get => _isPipelineConsoleOnTop;
-			set => SetProperty(ref _isPipelineConsoleOnTop, value);
-		}
-
-		// Per-window "keep above Anvil" flags, each driven by that window's title-bar pin. WindowManager makes a
-		// pinned window an OWNED window of the main window — above Anvil only, never topmost over other apps.
-		// ⚠️ ALL DEFAULT ON, deliberately — an UNPINNED panel can slip behind the main window, so pinned-by-
-		// default means a panel you opened is a panel you can see. Unpinning is the opt-out, for parking one on
-		// a second monitor. (A lost panel is also recoverable from its taskbar button now.)
-		// ⚠️ These are the FIELD defaults, not a re-arm on open: unpin a panel and it stays unpinned when you
-		// reopen it this session. Don't "fix" that by re-arming in the open path — a toggle that silently
-		// resets itself is worse than one that remembers.
-		private bool _isSettingsWindowOnTop = true;
-		private bool _isAtlasOnTop = true;
-
-		/// <summary>Whether the Settings window stays on top (title-bar pin).</summary>
-		public bool IsSettingsWindowOnTop
-		{
-			get => _isSettingsWindowOnTop;
-			set => SetProperty(ref _isSettingsWindowOnTop, value);
-		}
-
-		/// <summary>Whether the Radar Atlas window stays on top (title-bar pin).</summary>
-		public bool IsAtlasOnTop
-		{
-			get => _isAtlasOnTop;
-			set => SetProperty(ref _isAtlasOnTop, value);
-		}
-
-		// Per-window LOCK flags, each driven by that window's title-bar lock (LockToggle) and enforced by
-		// WindowManager's window subclass: locked = the window can be neither moved nor resized.
-		// ⚠️ ALL DEFAULT ON — a panel opens in its designated spot (see WindowManager's PLACEMENT block) and
-		// stays there until the user deliberately unlocks it. FIELD defaults, like the pins: an unlocked panel
-		// stays unlocked when reopened this session (it still reopens in its designated spot).
-		private bool _isSettingsWindowLocked = true;
-		private bool _isAtlasLocked = true;
-		private bool _isPipelineConsoleLocked = true;
-
-		/// <summary>Whether the Settings window is locked in place (title-bar lock).</summary>
-		public bool IsSettingsWindowLocked
-		{
-			get => _isSettingsWindowLocked;
-			set => SetProperty(ref _isSettingsWindowLocked, value);
-		}
-
-		/// <summary>Whether the Radar Atlas window is locked in place (title-bar lock).</summary>
-		public bool IsAtlasLocked
-		{
-			get => _isAtlasLocked;
-			set => SetProperty(ref _isAtlasLocked, value);
-		}
-
-		/// <summary>Whether the Pipeline Console window is locked in place (title-bar lock).</summary>
-		public bool IsPipelineConsoleLocked
-		{
-			get => _isPipelineConsoleLocked;
-			set => SetProperty(ref _isPipelineConsoleLocked, value);
-		}
+		// (Every panel window used to carry a title-bar PIN and LOCK, each with an Is…OnTop / Is…Locked flag here.
+		// Both were removed 2026-11-19, the user's call: panels are ordinary windows now — always OWNED by the main
+		// window (above Anvil only), movable, resizable, maximizable. See WindowManager's header.)
 
 		/// <summary>Whether the Pipeline Console window is open. INDEPENDENT of the other windows (it may sit
 		/// alongside them). Forwards to <see cref="PipelineConsoleViewModel.IsOpen"/> so polling runs only
@@ -1298,8 +1236,6 @@ namespace Anvil.ViewModels
 		// section (2026-10-01); the text is still SPC's raw teletype — a readable layout is the next step.
 		// ⚠️ Closed by OnTemporalModesChanged when neither outlook mode runs (nothing left to read).
 		private bool _isOutlookDiscussionOpen;
-		private bool _isOutlookDiscussionOnTop = true;
-		private bool _isOutlookDiscussionLocked = true;
 
 		/// <summary>Whether the Outlook Discussion window is open.</summary>
 		public bool IsOutlookDiscussionOpen
@@ -1308,48 +1244,18 @@ namespace Anvil.ViewModels
 			set => SetProperty(ref _isOutlookDiscussionOpen, value);
 		}
 
-		/// <summary>Whether the Outlook Discussion window stays above Anvil (title-bar pin).</summary>
-		public bool IsOutlookDiscussionOnTop
-		{
-			get => _isOutlookDiscussionOnTop;
-			set => SetProperty(ref _isOutlookDiscussionOnTop, value);
-		}
-
-		/// <summary>Whether the Outlook Discussion window is locked in place (title-bar lock).</summary>
-		public bool IsOutlookDiscussionLocked
-		{
-			get => _isOutlookDiscussionLocked;
-			set => SetProperty(ref _isOutlookDiscussionLocked, value);
-		}
-
 		// ===== The Mesoscale Discussions window =======================================================
 		// SPC MDs + WPC MPDs to READ, out of the Now/Past windows' section (which keeps only the card, the kinds
 		// and what's in effect — the reader there was cramped into a 480 px column, 2026-10-07). Opened by
 		// Discussions.ReaderRequested: a click on an area on the map, or the section's button.
 		// ⚠️ Closed by OnTemporalModesChanged when neither Now nor Past runs (the list is cleared then).
 		private bool _isMesoDiscussionOpen;
-		private bool _isMesoDiscussionOnTop = true;
-		private bool _isMesoDiscussionLocked = true;
 
 		/// <summary>Whether the Mesoscale Discussions window is open.</summary>
 		public bool IsMesoDiscussionOpen
 		{
 			get => _isMesoDiscussionOpen;
 			set => SetProperty(ref _isMesoDiscussionOpen, value);
-		}
-
-		/// <summary>Whether the Mesoscale Discussions window stays above Anvil (title-bar pin).</summary>
-		public bool IsMesoDiscussionOnTop
-		{
-			get => _isMesoDiscussionOnTop;
-			set => SetProperty(ref _isMesoDiscussionOnTop, value);
-		}
-
-		/// <summary>Whether the Mesoscale Discussions window is locked in place (title-bar lock).</summary>
-		public bool IsMesoDiscussionLocked
-		{
-			get => _isMesoDiscussionLocked;
-			set => SetProperty(ref _isMesoDiscussionLocked, value);
 		}
 
 		/// <summary>Which outlook the window is reading — the card headline of the running outlook mode.</summary>

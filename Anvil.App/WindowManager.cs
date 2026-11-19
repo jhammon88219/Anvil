@@ -29,19 +29,19 @@ namespace Anvil
 	// once. Content is a fresh instance of the section control bound to the shared singleton VM, hosted
 	// headerless (the window's own content supplies the title; the native caption supplies the buttons).
 	//
-	// ⚠️ CHROME POLICY — uniform, owned HERE (in OpenWindow), not per-registration: every panel gets a
-	// MINIMIZE + CLOSE caption (maximize off, so Windows greys its box) and a taskbar/Alt-Tab entry. See the
-	// comments in OpenWindow for the full reasoning before changing any of it.
+	// ⭐ ORDINARY WINDOWS (2026-11-19, the user's call): a panel is a plain window — MINIMIZE + MAXIMIZE + CLOSE,
+	// movable, resizable, a taskbar/Alt-Tab entry. The title-bar PIN and LOCK toggles (and the move/size-blocking
+	// window subclass + the "locked panels follow the main window" pass behind them) were REMOVED outright.
 	//
-	// ⚠️ PIN = "ABOVE ANVIL", NOT TOPMOST. A pinned panel is a Win32 OWNED window of the main window
-	// (NativeWindowInterop.SetOwner): it always stacks above Anvil and moves through the z-order WITH it, so
-	// another app covers both, and minimizing Anvil takes pinned panels with it. It used to be
-	// OverlappedPresenter.IsAlwaysOnTop, which floated panels over every app and the desktop — wrong for a
-	// single-monitor user. Unpinned = un-owned, an ordinary window that can fall behind Anvil.
-	// IsAlwaysOnTop is never set. (A future multi-monitor mode may want different rules; not built.)
+	// ⚠️ ALWAYS OWNED BY THE MAIN WINDOW — "above Anvil", NOT topmost. Every panel is a Win32 OWNED window of the
+	// main window (NativeWindowInterop.SetOwner): it always stacks above Anvil and moves through the z-order WITH
+	// it, so another app covers both, and minimizing Anvil takes the panels with it. This is what used to be
+	// "pinned"; it is no longer optional because Anvil runs MAXIMIZED — an un-owned panel fell behind the map the
+	// moment you clicked it (e.g. to see a setting draw live). IsAlwaysOnTop is never set (it floated panels over
+	// every app and the desktop).
 	//
-	// ⚠️ PLACEMENT — every panel opens in a FIXED SPOT measured off the MAIN WINDOW'S client area (never the
-	// monitor), so the spots travel with the main window to whatever screen it is on:
+	// ⚠️ PLACEMENT — every panel OPENS in a FIXED SPOT measured off the MAIN WINDOW'S client area (never the
+	// monitor), so the spot travels with the main window to whatever screen it is on:
 	//
 	//   ┌─ main window ───────────────────────────────────────────────────────────┐
 	//   │┌──────┐            ┌────────────────────────────────┐          ┌──────┐│  ← 5 px margins
@@ -54,27 +54,22 @@ namespace Anvil
 	//   │═══════════════════ map tools tier (or the bar, if hidden) ══════════════│  …the bottom chrome
 	//   └──────────────────────────────────────────────────────────────────────────┘
 	//
-	// ⚠️ MEASURED AT OPEN, and always to the designated spot — a window reopened after being dragged comes back
-	// home, and nothing reflows when other panels open or chrome hides. Overlap is allowed.
-	// ⚠️ …AND RE-MEASURED when the MAIN WINDOW resizes, maximizes, restores or moves — for LOCKED panels only (an
-	// unlocked one is the user's to place). See FOLLOW below (2026-10-07).
+	// ⚠️ MEASURED AT OPEN ONLY, and always to the designated spot — a window reopened after being dragged comes back
+	// home. After it opens the user owns its size and spot: nothing re-places it when the main window resizes or
+	// other panels open. Overlap is allowed.
 	// ⚠️ The centre window has a FLOOR (CenterMinWidth × CenterMinHeight): below it, it stops honouring the
 	// strips and overlaps them, still centred.
 	// ⚠️ Margins are to the VISIBLE frame — Windows 11's invisible resize border is measured and added back
 	// (NativeWindowInterop.PlaceVisibleFrame), or every 5 px gap would really be ~12.
 	//
-	// ⚠️ LOCK — every panel has a title-bar lock (LockToggle) beside its pin, DEFAULT LOCKED. Locked refuses
-	// BOTH moving and resizing, enforced in a window subclass at WM_WINDOWPOSCHANGING — the one choke point
-	// that also catches Aero snap, Win+Arrow and the Alt+Space Move/Size commands, which a click-blocking
-	// overlay would not. The resize-edge hit tests are masked too so a locked frame doesn't offer the arrows.
-	//
 	// ⚠️ MONITOR MODE — everything above is the SINGLE-monitor design (MapViewModel.MonitorMode; only Single is
 	// built). The manager reads the mode at the three points where Multi would differ, each marked
 	// "MONITOR MODE (multi: TODO)" and each running Single's rule for Multi today:
-	//   1. PIN          (ApplyPinned)          — Single: pinned = owned by the main window.
+	//   1. OWNERSHIP    (ApplyOwner)           — Single: always owned by the main window.
 	//   2. PLACEMENT    (TryGetReferenceArea)  — Single: measured off the main window's client area.
-	//   3. CHROME       (OpenWindow)           — Single: minimize + close, taskbar button, never topmost.
+	//   3. CHROME       (OpenWindow)           — Single: minimize + maximize + close, taskbar button, never topmost.
 	// Building Multi = fill in those three branches (and whatever new ones it finds), then enable the mode.
+	// (Multi will likely want panels UN-owned, so one can live on a second screen while Anvil is minimized.)
 	// ============================================================================================
 
 	/// <summary>Where a panel window opens relative to the main window. See the PLACEMENT block above.</summary>
@@ -109,29 +104,11 @@ namespace Anvil
 			public required Func<FrameworkElement> BuildContent; // a fresh section instance bound to the shared VM
 			public required string Title;
 			public WindowAnchor Anchor;
-			public Func<bool> KeepAboveOwner = () => false; // owned by the main window (evaluated live so a pin toggle can flip it)
-			public Func<bool> IsLocked = () => false;    // no move/resize (read live by the subclass, per message)
 			public bool CustomChrome; // extend content into the title bar so the dark surface replaces the caption
-		}
-
-		// One open window's subclass state. The delegate is held HERE so the GC can't collect it while Win32
-		// still calls through it; it is removed at WM_NCDESTROY.
-		private sealed class FrameLock
-		{
-			public required Func<bool> IsLocked;
-			public bool Placing; // our own placement calls pass through even while locked
-			public bool WasIconic; // minimized as of the last WM_WINDOWPOSCHANGED — marks the RESTORE move
-			public SubclassProc? Proc;
 		}
 
 		private readonly Dictionary<string, Registration> _regs = new();
 		private readonly Dictionary<string, Window> _windows = new();
-		// Keyed by INSTANCE, not id: a panel closed and reopened quickly can have its new window's lock attached
-		// before the old HWND's WM_NCDESTROY runs, and removing by id would drop the new window's delegate.
-		private readonly HashSet<FrameLock> _locks = new();
-		// Each OPEN panel's HWND + its lock state, by id — what the FOLLOW pass re-places (see FollowOwner).
-		private readonly Dictionary<string, (IntPtr Hwnd, FrameLock Lock)> _frames = new();
-		private bool _followQueued;
 		// Ids we are closing ourselves (the flag went false elsewhere), so the Closed handler doesn't mistake
 		// it for the user clicking the OS caption's Close and re-fire the Close action.
 		private readonly HashSet<string> _closingProgrammatically = new();
@@ -165,43 +142,6 @@ namespace Anvil
 			_monitorMode = monitorMode;
 			coordinator.PropertyChanged += (_, _) => RequestReconcile();
 			owner.Closed += (_, _) => { _ownerClosed = true; CloseAll(); }; // don't leak panel windows when the app closes
-			// The main window resized, maximized, restored or moved → the locked panels follow (see FOLLOW).
-			owner.AppWindow.Changed += (_, e) => { if (e.DidSizeChange || e.DidPositionChange) RequestFollow(); };
-			// …and again once XAML has laid the new size out: the panels' bottom bound (_availableBottom, the tools
-			// tier's top) is a LAYOUT measurement, and Changed can fire before layout catches up.
-			if (owner.Content is FrameworkElement root) root.SizeChanged += (_, _) => RequestFollow();
-		}
-
-		// ===== FOLLOW — the locked panels go where their anchor says, after the main window changes =====
-		// Restoring the main window from maximized (the bar's caption key) left every panel at its MAXIMIZED spot,
-		// laid over the smaller main window (app note, 2026-10-06). Now a LOCKED panel is re-placed to its anchor,
-		// measured off the main window as it is now. ⚠️ UNLOCKED panels are left alone: unlocking is how you say
-		// "I'll place this one" — and panels are locked by default, so the common case follows.
-		// ⚠️ Size/position changes of the MAIN WINDOW only: panels still don't reflow when another panel opens or the
-		// chrome hides (the PLACEMENT block). A minimized panel, or a minimized main window, is skipped.
-		// Coalesced to one pass per dispatcher turn: a live drag-resize fires Changed many times a second.
-		private void RequestFollow()
-		{
-			if (_dispatcher is null || _followQueued || _frames.Count == 0) return;
-			_followQueued = true;
-			_dispatcher.TryEnqueue(FollowOwner);
-		}
-
-		private void FollowOwner()
-		{
-			_followQueued = false;
-			if (_owner is null || _ownerClosed) return;
-			if (IsIconic(WinRT.Interop.WindowNative.GetWindowHandle(_owner))) return;
-			double scale = (_owner.Content as FrameworkElement)?.XamlRoot?.RasterizationScale ?? 1.0;
-
-			foreach (var (id, frame) in _frames)
-			{
-				if (!_regs.TryGetValue(id, out var reg) || !reg.IsLocked() || IsIconic(frame.Hwnd)) continue;
-				if (ComputePlacement(reg.Anchor, scale) is not { } target) continue;
-				frame.Lock.Placing = true; // our own move — the lock lets it through
-				PlaceVisibleFrame(frame.Hwnd, target.X, target.Y, target.W, target.H);
-				frame.Lock.Placing = false;
-			}
 		}
 
 		/// <summary>
@@ -217,8 +157,6 @@ namespace Anvil
 			Func<FrameworkElement> buildContent,
 			string title,
 			WindowAnchor anchor,
-			Func<bool>? keepAboveOwner = null,
-			Func<bool>? isLocked = null,
 			bool customChrome = false)
 		{
 			_regs[id] = new Registration
@@ -229,8 +167,6 @@ namespace Anvil
 				BuildContent = buildContent,
 				Title = title,
 				Anchor = anchor,
-				KeepAboveOwner = keepAboveOwner ?? (() => false),
-				IsLocked = isLocked ?? (() => false),
 				CustomChrome = customChrome,
 			};
 		}
@@ -254,21 +190,19 @@ namespace Anvil
 				bool have = _windows.ContainsKey(reg.Id);
 				if (want && !have) OpenWindow(reg);
 				else if (!want && have) CloseWindow(reg.Id, programmatic: true);
-				else if (want && have) ApplyPinned(reg, _windows[reg.Id]); // keep an open window's pin in sync
 			}
 		}
 
-		// Own the panel by the main window while pinned, un-own it while not (see PIN in the header). Runs at
-		// open and on every reconcile, so a pin toggle — which flips the VM flag — takes effect immediately.
-		private void ApplyPinned(Registration reg, Window window)
+		// Own the panel by the main window (see ALWAYS OWNED in the header). Set once, at open.
+		private void ApplyOwner(Window window)
 		{
 			if (_owner is null) return;
 			bool ownByMain = _monitorMode() switch
 			{
 				// MONITOR MODE (multi: TODO) — Multi borrows Single's rule until a second screen exists to build it.
-				MonitorMode.Multi => reg.KeepAboveOwner(),
-				// Single: pinned = owned by the main window (above Anvil only).
-				_ => reg.KeepAboveOwner(),
+				MonitorMode.Multi => true,
+				// Single: always owned by the main window (above Anvil only).
+				_ => true,
 			};
 			var owner = ownByMain ? WinRT.Interop.WindowNative.GetWindowHandle(_owner) : IntPtr.Zero;
 			SetOwner(WinRT.Interop.WindowNative.GetWindowHandle(window), owner);
@@ -335,7 +269,6 @@ namespace Anvil
 			}
 
 			var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
-			var frameLock = AttachFrameLock(reg, hwnd);
 
 			switch (_monitorMode())
 			{
@@ -346,21 +279,18 @@ namespace Anvil
 					break;
 			}
 
-			ApplyPinned(reg, window);
+			ApplyOwner(window);
 
 			// Place BEFORE Activate so it opens already-fitted (no default-size flash), then once more after —
 			// see PlaceVisibleFrame for why the second call is what makes the 5 px margins exact.
 			var target = ComputePlacement(reg.Anchor, scale);
-			frameLock.Placing = true;
 			if (target is { } before) PlaceVisibleFrame(hwnd, before.X, before.Y, before.W, before.H);
 
 			window.Closed += (_, _) => OnWindowClosed(reg);
 			_windows[reg.Id] = window;
-			_frames[reg.Id] = (hwnd, frameLock);
 			window.Activate();
 
 			if (target is { } after) PlaceVisibleFrame(hwnd, after.X, after.Y, after.W, after.H);
-			frameLock.Placing = false;
 			TraceOpen(reg.Id, content, clock, buildMs, createMs: clock.ElapsedMilliseconds - buildMs);
 		}
 
@@ -394,35 +324,32 @@ namespace Anvil
 			content.Loaded += OnLoaded;
 		}
 
-		// The single-monitor CHROME POLICY (see the header): taskbar button, minimize + close, never topmost.
+		// The single-monitor CHROME POLICY (see the header): taskbar button, minimize + maximize + close, never topmost.
 		private static void ApplySingleMonitorChrome(Window window, IntPtr hwnd)
 		{
 			if (window.AppWindow is AppWindow appWindow)
 			{
 				// ⚠️ A TASKBAR + ALT-TAB ENTRY, and it is what makes minimize (below) safe: a minimized panel is
-				// found again from its taskbar button. HISTORY: panels were hidden from the switchers while they
-				// were close-only; minimize came back (user's call) to recover a panel lost behind other windows.
-				// ⚠️⚠️ IsShownInSwitchers ALONE IS NOT ENOUGH for a PINNED panel: an owned window never gets a
-				// taskbar button, and minimizing a window with no button collapses it into a small title bar
-				// parked at the bottom-left of the screen (over the radar controls) instead of going to the
+				// found again from its taskbar button.
+				// ⚠️⚠️ IsShownInSwitchers ALONE IS NOT ENOUGH for an OWNED window (every panel is one): an owned window
+				// never gets a taskbar button, and minimizing a window with no button collapses it into a small title
+				// bar parked at the bottom-left of the screen (over the radar controls) instead of going to the
 				// taskbar. WS_EX_APPWINDOW forces the button; it has to land before the first show (Activate).
 				appWindow.IsShownInSwitchers = true;
 				ForceTaskbarButton(hwnd);
 
 				if (appWindow.Presenter is OverlappedPresenter presenter)
 				{
-					// Never topmost — "pinned" is ownership, applied below (see PIN in the header).
+					// Never topmost — "above Anvil" is ownership, applied in ApplyOwner (see the header).
 					presenter.IsAlwaysOnTop = false;
 
-					// MINIMIZE + CLOSE CAPTION. ⚠️ Accepted trade: a minimized panel leaves its bar key LIT with
-					// nothing on screen — the taskbar button is the way back. MAXIMIZE stays off; Windows still
-					// draws its box, greyed, so the caption is THREE buttons wide (PinToggle's inset tracks that).
-					// ⚠️ IsResizable is deliberately LEFT ALONE (defaults true). The LOCK is what stops resizing,
-					// in the subclass — flipping IsResizable would restyle the frame (and change the invisible
-					// border the placement just measured) every time the lock toggled.
-					// Static policy, set once at open — unlike the pin these never belong in the reconcile.
+					// MINIMIZE + MAXIMIZE + CLOSE — an ordinary window's caption (maximize back on 2026-11-19, with the
+					// lock gone). ⚠️ Accepted trade: a minimized panel leaves its menu item ticked with nothing on
+					// screen — the taskbar button is the way back. The caption is THREE buttons, ~140 px: every
+					// window's title band keeps its right 140 px clear for them.
 					presenter.IsMinimizable = true;
-					presenter.IsMaximizable = false;
+					presenter.IsMaximizable = true;
+					presenter.IsResizable = true;
 				}
 			}
 		}
@@ -484,66 +411,9 @@ namespace Anvil
 			}
 		}
 
-		// Subclass the panel's HWND so a LOCKED window refuses to move or resize. Installed before placement
-		// (with Placing set) so our own SetWindowPos calls pass; the lock flag is read live on every message,
-		// so the title-bar toggle needs no push from the reconcile.
-		private FrameLock AttachFrameLock(Registration reg, IntPtr hwnd)
-		{
-			var state = new FrameLock { IsLocked = reg.IsLocked };
-			state.Proc = (h, msg, wParam, lParam, id, refData) =>
-			{
-				bool locked = !state.Placing && state.IsLocked();
-				switch (msg)
-				{
-					case WM_WINDOWPOSCHANGING when locked:
-						// ⚠️ The choke point: drags, snap, Win+Arrow and Alt+Space Move/Size all arrive as a
-						// SetWindowPos. Strip the move + size from it; z-order and show/hide still pass.
-						var pos = System.Runtime.InteropServices.Marshal.PtrToStructure<WINDOWPOS>(lParam);
-						// ⚠️⚠️ MINIMIZE AND RESTORE MUST PASS. Both are moves too (to the -32000 parking spot and
-						// back). Blocking minimize left the window flagged minimized but still on screen, so
-						// WinUI stopped drawing it and an empty frame sat there; blocking restore would strand it
-						// off-screen. Minimizing = iconic now or heading to the parking spot; restoring = was
-						// iconic at the last CHANGED.
-						bool minimizeOrRestore = IsIconic(h) || state.WasIconic
-							|| pos.X <= MinimizedParkingCoordinate || pos.Y <= MinimizedParkingCoordinate;
-						if (!minimizeOrRestore)
-						{
-							pos.Flags |= SWP_NOMOVE | SWP_NOSIZE;
-							System.Runtime.InteropServices.Marshal.StructureToPtr(pos, lParam, false);
-						}
-						break;
-
-					case WM_WINDOWPOSCHANGED:
-						state.WasIconic = IsIconic(h);
-						break;
-
-					case WM_NCHITTEST when locked:
-						// Don't offer resize arrows on a frame that won't resize.
-						var hit = DefSubclassProc(h, msg, wParam, lParam).ToInt32();
-						return hit is >= HTLEFT and <= HTBOTTOMRIGHT ? new IntPtr(HTBORDER) : new IntPtr(hit);
-
-					case WM_SYSCOMMAND when locked:
-						int command = wParam.ToInt32() & 0xFFF0;
-						if (command is SC_MOVE or SC_SIZE) return IntPtr.Zero;
-						break;
-
-					case WM_NCDESTROY:
-						RemoveWindowSubclass(h, state.Proc!, id);
-						_locks.Remove(state);
-						break;
-				}
-				return DefSubclassProc(h, msg, wParam, lParam);
-			};
-
-			SetWindowSubclass(hwnd, state.Proc, UIntPtr.Zero, UIntPtr.Zero);
-			_locks.Add(state);
-			return state;
-		}
-
 		private void OnWindowClosed(Registration reg)
 		{
 			_windows.Remove(reg.Id);
-			_frames.Remove(reg.Id);
 			if (_closingProgrammatically.Remove(reg.Id))
 			{
 				// We closed it (the flag was turned off elsewhere) — the VM is already correct.

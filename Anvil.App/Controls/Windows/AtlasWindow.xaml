@@ -9,8 +9,8 @@
      (A third page, DOW mobile-radar frames, was REMOVED 2026-11-11.)
 
        ┌──────────────────────────────────────────────────────────────────────────────────────┐
-       │ [logo] Anvil Atlas ←35→ RADAR SITES │ NEXRAD TDWR RES.     ░░░ lock pin ─ □ ✕ ░░ │ ← THE BAND (raised), NO
-       │ (slot)                  204         │ 160    45   3         ░ reserved 220 px ░░ │   line: band + rail = ONE
+       │ [logo] Anvil Atlas ←35→ RADAR SITES │ NEXRAD TDWR RES.             ░░ ─ □ ✕ ░░ │ ← THE BAND (raised), NO
+       │ (slot)                  204         │ 160    45   3                ░ res. 140 ░░ │   line: band + rail = ONE
        │░░░░░░░░░░░░░░░░░░╭───────────────────────────────────────────────────────────────────┤   grey L; label OVER count,
        │╭─────────────────╯                                                                   │   counts FOLLOW THE PAGE
        ││ 📡 Radar sites    ← THE JOIN: the selected entry is cut from the page's ground         │   ← SETTINGS' FRAME (2026-11-19):
@@ -128,7 +128,7 @@
      The photo panel is a dummy: nothing feeds it yet (no bundled per-site photos exist).
 
      The OS caption is the only chrome, and content extends into it — which is why the title BAND is drawn
-     here, and why its right corner stays clear for the lock, pin and caption buttons.
+     here, and why its right corner stays clear for the caption buttons.
 
      The list selection FOLLOWS the map's radar site (marker click → that row selected, scrolled into
      view, even while the window is closed), and "Load on map" greys out while the selected row IS the
@@ -180,8 +180,8 @@
 
                 <!-- THE TITLE ROW — full width, over the tabs. Content extends into the title bar (the native
                      caption shows only its buttons), so the band IS the window's title.
-                     ⚠️ Its right 220 px are RESERVED: the lock + pin (Margin 178 / 140 from the right) and the
-                     caption buttons sit over that corner, so the counts end before it.
+                     ⚠️ Its right 140 px are RESERVED: the caption buttons (─ □ ✕) sit over that corner, so the
+                     counts end before it.
                      ⚠️ The counts FOLLOW THE TAB (networks on Radar sites, types on Past events) and describe the
                      WHOLE Atlas, never the filtered list — the result count under the filters answers the search.
                      The TOTAL leads, then a rule, then its parts. Each is its LABEL over its number, both left-aligned
@@ -194,7 +194,7 @@
                         <ColumnDefinition Width="Auto"/> <!-- name -->
                         <ColumnDefinition Width="Auto"/> <!-- counts -->
                         <ColumnDefinition Width="*"/>    <!-- empty -->
-                        <ColumnDefinition Width="220"/>  <!-- lock / pin / caption corner -->
+                        <ColumnDefinition Width="140"/>  <!-- caption corner (─ □ ✕) -->
                     </Grid.ColumnDefinitions>
 
                     <!-- LOGO SLOT — a placeholder until the app has a logo. -->
@@ -1221,9 +1221,5 @@
                     </Grid>
                 </Grid>
             </Grid>
-
-        <!-- Lock (no move/resize) + pin (keep on top). -->
-        <ctl:LockToggle IsChecked="{x:Bind ViewModel.IsAtlasLocked, Mode=TwoWay}"/>
-        <ctl:PinToggle IsChecked="{x:Bind ViewModel.IsAtlasOnTop, Mode=TwoWay}"/>
     </Grid>
 </UserControl>

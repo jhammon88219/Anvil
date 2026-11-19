@@ -3,7 +3,7 @@
      (WindowManager, Center anchor). Opened by the "Discussion." button on the Product row of BOTH outlook
      sections (ForeCast + PastCast); Past excludes Fore, so ONE window serves both and reads whichever runs.
 
-       ┌─────────────────────────────────────────────────────[lock][pin]  –  □  ✕ ┐
+       ┌─────────────────────────────────────────────────────────────────  –  □  ✕ ┐
        │ Day 1 Convective Outlook                                                  │ ← the BAND (raised)
        │                                          ↕ 28                             │
        │ (?) ISSUED        1958Z · 2:58 PM CDT Fri Mar 14, 2025                    │   every part = its "?" hint
@@ -171,9 +171,9 @@
         <!-- THE BAND (raised): the product, then its labelled heading facts. -->
         <Border Grid.Row="0" Padding="16,12,16,12" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}">
             <StackPanel Spacing="8">
-                <!-- ⚠️ Right 220 = the lock + pin + caption corner (the Atlas band's rule). -->
+                <!-- ⚠️ Right 124 + the band's Padding 16 = the 140 px caption corner (the Atlas band's rule). -->
                 <!-- Bottom 20 + the panel's Spacing 8 = 28 under the title (the user's call, 2026-10-02). -->
-                <TextBlock Text="{x:Bind ViewModel.OutlookDiscussion.Title, Mode=OneWay}" Margin="0,0,220,20"
+                <TextBlock Text="{x:Bind ViewModel.OutlookDiscussion.Title, Mode=OneWay}" Margin="0,0,124,20"
                            FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                 <Grid ColumnSpacing="12" RowSpacing="4"
@@ -426,9 +426,5 @@
                 </StackPanel>
             </StackPanel>
         </ctl:PanelScroller>
-
-        <!-- Lock + pin; both self-position top-right, clearing the caption. -->
-        <ctl:LockToggle Grid.RowSpan="2" IsChecked="{x:Bind ViewModel.IsOutlookDiscussionLocked, Mode=TwoWay}"/>
-        <ctl:PinToggle Grid.RowSpan="2" IsChecked="{x:Bind ViewModel.IsOutlookDiscussionOnTop, Mode=TwoWay}"/>
     </Grid>
 </UserControl>
