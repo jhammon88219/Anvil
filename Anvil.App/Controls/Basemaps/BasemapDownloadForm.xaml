@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BasemapDownloadForm — EVERY offline-download option, as the Map files dialog's second page (Dialogs/MapFilesDialog,
+     "Download a map…"; 2026-11-19, canvas "Storage page — fewer plates" layout C). Over BasemapSetupViewModel.
+
+       Pick the areas and the detail. It downloads in the background; your current map stays until you switch.
+       AREAS      [x] Lower 48 states   155 radars …          ← Basemaps/BasemapAreaChecklist (shared with the setup window)
+       DETAIL     [ Standard | Full ]   Streets at city zoom · Lower 48 states · about 4.4 GB   ← SizeSummaryText
+       SAVE TO    C:\Users\you\Anvil Maps                       [Browse…]
+                  Saves as anvil-l48-ak.pmtiles · 212.3 GB free · (duplicate / resume note)
+
+     ⚠️ The dialog owns Download (its primary button → StartDownload) and ‹ Back; this form only edits the picks (the VM's,
+     kept between opens). The folder is READ-ONLY text + Browse… (a hand-typed path fails silently later). -->
+<UserControl x:Class="Anvil.Controls.Basemaps.BasemapDownloadForm"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:basemaps="using:Anvil.Controls.Basemaps"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <StackPanel x:Name="BasemapDownloadFormBody" Spacing="6">
+        <TextBlock Style="{StaticResource BodyTextStyle}" TextWrapping="Wrap" Margin="0,0,0,8"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Text="Pick the areas and the detail. It downloads in the background; your current map stays until you switch."/>
+
+        <TextBlock Style="{StaticResource OverlineTextStyle}" Text="AREAS"/>
+        <basemaps:BasemapAreaChecklist x:Name="BasemapDownloadFormAreaChecklist" ViewModel="{x:Bind ViewModel, Mode=OneWay}" Margin="0,0,0,8"/>
+
+        <TextBlock Style="{StaticResource OverlineTextStyle}" Text="DETAIL"/>
+        <prim:SegmentedPicker x:Name="BasemapDownloadFormDetailPicker" HorizontalAlignment="Left"
+                              ItemsSource="{x:Bind ViewModel.DetailLabels, Mode=OneWay}"
+                              SelectedIndex="{x:Bind ViewModel.DetailIndex, Mode=TwoWay}"/>
+        <TextBlock Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" Margin="0,0,0,8"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.SizeSummaryText, Mode=OneWay}"/>
+
+        <TextBlock Style="{StaticResource OverlineTextStyle}" Text="SAVE TO"/>
+        <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Style="{StaticResource BodyTextStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                       Text="{x:Bind ViewModel.SaveFolder, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind ViewModel.SaveFolder, Mode=OneWay}"/>
+            <Button x:Name="BasemapDownloadFormBrowseButton" Grid.Column="1" Content="Browse…" Click="OnBrowseClick"/>
+        </Grid>
+        <TextBlock Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Text="{x:Bind FileLine(ViewModel.PlannedFileName, ViewModel.FreeSpaceText, ViewModel.DuplicateNote), Mode=OneWay}"/>
+    </StackPanel>
+</UserControl>

@@ -793,6 +793,9 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(IsOfflineInUse));
 			OnPropertyChanged(nameof(CanUseOffline));
 			OnPropertyChanged(nameof(OfflineRowText));
+			OnPropertyChanged(nameof(OfflineDetail));
+			OnPropertyChanged(nameof(HasOfflineDetail));
+			OnPropertyChanged(nameof(MapFilesButtonText));
 			OnPropertyChanged(nameof(HasNoFiles));
 			OnPropertyChanged(nameof(HasUsableMap));
 			OnPropertyChanged(nameof(ShouldShowAtLaunch));
@@ -853,10 +856,21 @@ namespace Anvil.ViewModels
 		/// <summary>There's a file to draw — else the Offline radio greys and its line points at Download / Add.</summary>
 		public bool CanUseOffline => Files.Count > 0;
 
-		/// <summary>The offline row's second line.</summary>
-		public string OfflineRowText => CanUseOffline
-			? "From a file on this PC · works with no internet"
+		/// <summary>The file the Offline row names: the one in use, else the one it would come back to (the first), else null.</summary>
+		private BasemapFileRow? OfflineFile => Files.FirstOrDefault(r => r.IsInUse) ?? Files.FirstOrDefault();
+
+		/// <summary>The offline row's second line — it NAMES the file (2026-11-19, layout C: the files live in the Map files dialog).</summary>
+		public string OfflineRowText => OfflineFile is { } f
+			? $"{f.Name} · {f.SizeText} on this PC · works with no internet"
 			: "No map file yet · download one or add one you have";
+
+		/// <summary>The offline row's tag: that file's detail (Standard / Full), "" when it doesn't say.</summary>
+		public string OfflineDetail => OfflineFile?.Detail ?? "";
+
+		public bool HasOfflineDetail => OfflineDetail.Length > 0;
+
+		/// <summary>The offline row's button: "Map files…", or "Get a map…" while there's none.</summary>
+		public string MapFilesButtonText => CanUseOffline ? "Map files…" : "Get a map…";
 
 		/// <summary>Nothing is drawn (neither radio on).</summary>
 		public bool IsNoMap => !IsOnlineInUse && InUsePath() is null;

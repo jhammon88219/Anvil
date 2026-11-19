@@ -149,6 +149,7 @@ namespace Anvil.Tests
 			Directory.CreateDirectory(saveFolder);
 			vm.SaveFolder = saveFolder;                            // not the real Anvil Maps folder on this PC (Refreshes)
 			Assert.False(vm.CanUseOffline);                       // no file yet: the Offline radio greys
+			Assert.Equal("Get a map…", vm.MapFilesButtonText);
 			Assert.False(vm.IsOfflineInUse || vm.IsOnlineInUse);   // nothing draws
 
 			var first = MapFile("first.pmtiles", maxZoom: 13, protomaps: true);
@@ -160,6 +161,9 @@ namespace Anvil.Tests
 			vm.UseOffline();                                       // none in use → the FIRST file
 			Assert.True(vm.IsOfflineInUse);
 			Assert.Equal(vm.Files[0].Path, settings.Settings.BasemapFilePath);
+			var inUse = vm.Files.Single(r => r.IsInUse);
+			Assert.StartsWith($"{inUse.Name} · {inUse.SizeText}", vm.OfflineRowText); // the Offline row NAMES its file
+			Assert.Equal("Map files…", vm.MapFilesButtonText);
 
 			vm.UseFile(vm.Files.Single(r => r.Path == second));    // a file's dot picks another
 			vm.MapKey = "good";

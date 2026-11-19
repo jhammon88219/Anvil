@@ -8,11 +8,12 @@
        └────────────────────────────────────────────────────────────────────────┘
           12 px of the body's darker ground
        ┌ Which map to use ──────────────────────────────────────────────────── ┐  StorageSettingsConsoles/StorageSettingsConsoleMap
-       │ (•) Online map [Full] [Set up…] · ( ) Offline map, its files nested    │  Set up… → Dialogs/OnlineMapDialog
-       │ under it · Download a map… · Add a map file… (+ download progress)     │  Download a map… → Dialogs/DownloadMapDialog
-       └────────────────────────────────────────────────────────────────────────┘
+       │ (•) Online map [Full] [Set up…]                                        │  Set up… → Dialogs/OnlineMapDialog
+       │ ( ) Offline map [Standard] [Map files…] — names its file (+ dl bar)    │  Map files… → Dialogs/MapFilesDialog
+       └────────────────────────────────────────────────────────────────────────┘     (files + the download form, one dialog)
        TWO plates since 2026-11-19 (the user's call, canvas "Storage page — fewer plates" A): the Offline map + Online map
-       plates were REMOVED — their options open only when you download or set up.
+       plates were REMOVED — their options open only when you download or set up; layout C (same day) moved the
+       file list off the plate into Map files… too.
        (Reset all Storage settings = the window's page header, beside the title — this page's ResetAll, ISettingsPage)
 
      ⚠️ Every reset ASKS first. Reset all = every limit + the download dialog's picks; it deletes no map file and keeps the map key.

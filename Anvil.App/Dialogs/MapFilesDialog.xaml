@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MapFilesDialog — Settings → Storage → Which map to use → "Map files…" (or "Get a map…" while there's none): the offline maps on
+     this PC, and getting more (2026-11-19, canvas "Storage page — fewer plates" layout C — the files left the plate).
+
+       LIST PAGE                                                   DOWNLOAD PAGE ("Download a map…" swaps the body)
+       ┌─ Map files ────────────────────────────────────────┐      ┌─ Download an offline map ─────────────────────┐
+       │ The offline maps on this PC. Pick one to draw it.   │      │ ‹ Back                                         │
+       │    MAP FILE            DETAIL    SIZE   SAVED       │      │ Basemaps/BasemapDownloadForm                   │
+       │ (•) Lower 48 + Alaska  [Standard] 5.0 GB … [📁][🗑] │      │   areas · detail · save to · file line         │
+       │ ⚠ Delete Older USA map · frees 28.8 GB [Keep][Del] │      │                                                │
+       │ ▓▓▓▓░░ Downloading … 1.9 of 4.6 GB       [Cancel]   │      │                       [ Download ] ( Close )   │
+       │ [Download a map…] [Add a map file…] 212 GB free     │      └────────────────────────────────────────────────┘
+       │ Added … · pick it to draw it                ( Close )│
+       └─────────────────────────────────────────────────────┘
+
+     ⚠️ ONE dialog, two pages — WinUI can't open a ContentDialog over another, so Download a map… swaps the body (IsDownloadPage)
+     instead of opening the old download dialog. The primary button exists only on the download page (PrimaryButtonText ""
+     hides it); Download starts the job, keeps the dialog OPEN (args.Cancel) and goes back to the list, where its row shows.
+     ⚠️ Picking a file = its RADIO (UseFile — also switches the plate to Offline map). Each radio sits in its own parent so they
+     never group-uncheck each other; IsChecked comes from the VM on every Refresh. Delete ASKS on its own row first.
+     ⚠️ Column widths are GridLength resources — never x:Double (docs/bugs.md S36). ViewModel is set BEFORE InitializeComponent. -->
+<ContentDialog x:Class="Anvil.Dialogs.MapFilesDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:vm="using:Anvil.ViewModels"
+               xmlns:basemaps="using:Anvil.Controls.Basemaps"
+               xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+               xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+               mc:Ignorable="d"
+               Title="Map files"
+               CloseButtonText="Close"
+               DefaultButton="Close"
+               IsPrimaryButtonEnabled="{x:Bind ViewModel.CanStartDownload, Mode=OneWay}"
+               PrimaryButtonClick="OnDownloadClick">
+
+    <ContentDialog.Resources>
+        <x:Double x:Key="ContentDialogMaxWidth">720</x:Double>
+        <!-- The file list's columns: radio + name * · DETAIL 84 · SIZE 76 · SAVED 100 · buttons 72. Change all together. -->
+        <GridLength x:Key="MapFilesDetailWidth">84</GridLength>
+        <GridLength x:Key="MapFilesSizeWidth">76</GridLength>
+        <GridLength x:Key="MapFilesDateWidth">100</GridLength>
+        <GridLength x:Key="MapFilesButtonsWidth">72</GridLength>
+
+        <Style x:Key="MapFilesTagStyle" TargetType="Border">
+            <Setter Property="Padding" Value="6,1"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{ThemeResource ControlFillColorSecondaryBrush}"/>
+        </Style>
+
+        <!-- One map file. Two faces on one row: the details, or (trash pressed) the delete question. -->
+        <DataTemplate x:Key="MapFilesRowTemplate" x:DataType="vm:BasemapFileRow">
+            <Grid MinHeight="42" BorderThickness="0,1,0,0" BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                  ToolTipService.ToolTip="{x:Bind Tooltip}">
+                <Grid ColumnSpacing="12" Visibility="{x:Bind IsShowingDetails, Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="{StaticResource MapFilesDetailWidth}"/>
+                        <ColumnDefinition Width="{StaticResource MapFilesSizeWidth}"/>
+                        <ColumnDefinition Width="{StaticResource MapFilesDateWidth}"/>
+                        <ColumnDefinition Width="{StaticResource MapFilesButtonsWidth}"/>
+                    </Grid.ColumnDefinitions>
+                    <RadioButton x:Name="MapFilesRowRadio" VerticalAlignment="Center" MinWidth="0" IsChecked="{x:Bind IsInUse}"
+                                 Click="OnUseFileClick" AutomationProperties.Name="{x:Bind Name}">
+                        <TextBlock Style="{StaticResource BodyTextStyle}" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis"/>
+                    </RadioButton>
+                    <Border Grid.Column="1" Style="{StaticResource MapFilesTagStyle}" Visibility="{x:Bind HasDetail}">
+                        <TextBlock Style="{StaticResource CaptionTextStyle}" Text="{x:Bind Detail}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </Border>
+                    <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
+                               Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind SizeText}"/>
+                    <TextBlock Grid.Column="3" VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind DateText}"/>
+                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button Click="OnShowFileClick" ToolTipService.ToolTip="Show in folder" AutomationProperties.Name="Show in folder">
+                            <FontIcon Glyph="&#xE838;" FontSize="14"/>
+                        </Button>
+                        <Button Click="OnAskDeleteClick" ToolTipService.ToolTip="Delete" AutomationProperties.Name="Delete">
+                            <FontIcon Glyph="&#xE74D;" FontSize="14"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <Grid ColumnSpacing="10" Padding="8,0" CornerRadius="4" Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
+                      Visibility="{x:Bind IsConfirmingDelete, Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE7BA;" FontSize="16" VerticalAlignment="Center"
+                              Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                    <TextBlock Grid.Column="1" Style="{StaticResource BodyTextStyle}" Text="{x:Bind DeleteQuestion}"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Button Content="Keep" Click="OnKeepFileClick"/>
+                        <Button Content="Delete" Style="{StaticResource CautionResetButtonStyle}" Click="OnDeleteFileClick"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </DataTemplate>
+    </ContentDialog.Resources>
+
+    <Grid MinWidth="620">
+        <!-- LIST PAGE -->
+        <StackPanel x:Name="MapFilesListPage" Visibility="{x:Bind Shown(IsDownloadPage, x:False), Mode=OneWay}">
+            <TextBlock Style="{StaticResource BodyTextStyle}" TextWrapping="Wrap" Margin="0,0,0,12"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="The offline maps on this PC. Pick one to draw it; Anvil switches at once."/>
+
+            <Grid x:Name="MapFilesHeads" ColumnSpacing="12" Padding="0,0,0,6" Visibility="{x:Bind ViewModel.CanUseOffline, Mode=OneWay}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="{StaticResource MapFilesDetailWidth}"/>
+                    <ColumnDefinition Width="{StaticResource MapFilesSizeWidth}"/>
+                    <ColumnDefinition Width="{StaticResource MapFilesDateWidth}"/>
+                    <ColumnDefinition Width="{StaticResource MapFilesButtonsWidth}"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource OverlineTextStyle}" Text="MAP FILE" Margin="28,0,0,0"/>
+                <TextBlock Grid.Column="1" Style="{StaticResource OverlineTextStyle}" Text="DETAIL"/>
+                <TextBlock Grid.Column="2" Style="{StaticResource OverlineTextStyle}" Text="SIZE" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="3" Style="{StaticResource OverlineTextStyle}" Text="SAVED"/>
+            </Grid>
+
+            <ItemsControl x:Name="MapFilesRows" IsTabStop="False" ItemsSource="{x:Bind ViewModel.Files}" ItemTemplate="{StaticResource MapFilesRowTemplate}"/>
+
+            <TextBlock Style="{StaticResource BodyTextStyle}" Margin="0,4,0,8" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Visibility="{x:Bind ViewModel.HasNoFiles, Mode=OneWay}"
+                       Text="No map files yet. Download one, or add one you have."/>
+
+            <!-- While a download runs (from here OR the setup window): bar · one readout line · Cancel. -->
+            <Grid x:Name="MapFilesDownloadProgress" ColumnSpacing="12" RowSpacing="4" Padding="0,8" BorderThickness="0,1,0,0"
+                  BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                  Visibility="{x:Bind ViewModel.IsDownloading, Mode=OneWay}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <ProgressBar VerticalAlignment="Center" Maximum="100" Value="{x:Bind ViewModel.DownloadPercent, Mode=OneWay}"/>
+                <Button x:Name="MapFilesDownloadCancelButton" Grid.Column="1" Content="Cancel" Click="{x:Bind ViewModel.CancelDownload}"
+                        ToolTipService.ToolTip="Stops the download. What's downloaded is kept — Download picks it up again."/>
+                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap"
+                           Text="{x:Bind ViewModel.DownloadLineText, Mode=OneWay}"/>
+            </Grid>
+
+            <!-- A download that stopped: what happened, and Retry (it picks up what arrived). -->
+            <Grid x:Name="MapFilesDownloadFailed" ColumnSpacing="10" Padding="0,8" BorderThickness="0,1,0,0"
+                  BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                  Visibility="{x:Bind ViewModel.IsDownloadFailed, Mode=OneWay}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <FontIcon Glyph="&#xE7BA;" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                <TextBlock Grid.Column="1" Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" VerticalAlignment="Center"
+                           Text="{x:Bind ViewModel.FailureText, Mode=OneWay}"/>
+                <Button x:Name="MapFilesDownloadRetryButton" Grid.Column="2" Content="Retry" Click="{x:Bind ViewModel.RetryDownload}"/>
+            </Grid>
+
+            <!-- Download · Add · free space, then what the last Add / Delete did. -->
+            <StackPanel x:Name="MapFilesActions" Orientation="Horizontal" Spacing="10" Padding="0,12,0,0" BorderThickness="0,1,0,0"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                <Button x:Name="MapFilesDownloadButton" Content="Download a map…" Click="OnShowDownloadPageClick"
+                        IsEnabled="{x:Bind Not(ViewModel.IsDownloading), Mode=OneWay}"/>
+                <Button x:Name="MapFilesAddButton" Content="Add a map file…" Click="OnAddFileClick"/>
+                <TextBlock VerticalAlignment="Center" Style="{StaticResource CaptionTextStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.FreeSpaceText, Mode=OneWay}"/>
+            </StackPanel>
+            <TextBlock Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" Margin="0,8,0,0"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.FilesMessage, Mode=OneWay}"/>
+        </StackPanel>
+
+        <!-- DOWNLOAD PAGE -->
+        <StackPanel x:Name="MapFilesDownloadPage" Spacing="8" Visibility="{x:Bind Shown(IsDownloadPage, x:True), Mode=OneWay}">
+            <HyperlinkButton x:Name="MapFilesBackButton" Content="‹ Back to map files" Padding="0,2" Click="OnBackClick"/>
+            <basemaps:BasemapDownloadForm x:Name="BasemapDownloadForm" ViewModel="{x:Bind ViewModel}"/>
+        </StackPanel>
+    </Grid>
+</ContentDialog>
