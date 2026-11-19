@@ -2,7 +2,7 @@
 <!-- PastEventsAtlasTab — the Anvil Atlas's PAST EVENTS tab: the saved-event library (ViewModel.SavedEvents)
      as a master–detail browser, the same frame as the Radar sites tab beside it (list 360 | 32 gutter | detail).
 
-       ┌── list column (360) ──────────┐←32→ detail (scrolls, capped 760 wide, centred)
+       ┌── list column (360) ──────────┐←32→ detail (scrolls, FULL WIDTH, left-aligned)
        │ [ Joplin, KTLX or 2011       ] │   Bridge Creek-Moore, OK (● Tornado) [Custom]   [Edit] [▶ Play in PastCast]
        │ [All|Tornado|Hurricane|Derecho|Custom]  May 3, 1999 · F5, May 3 1999 outbreak…      ← DetailLine
        │ Tornado · 10                   │   ┌ 6:23–7:48 PM ┐ ┌ 6:00 PM · 2 hr ┐ ┌ KTLX            ┐
@@ -139,12 +139,11 @@
                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                        Visibility="{x:Bind CollapsedWhen(ViewModel.SavedEvents.HasAtlasSelection), Mode=OneWay}"/>
 
-            <!-- Scrolled + width-capped + CENTRED exactly like the sites detail: PanelScroller bled 12 into the
-                 window margin, Layout/CenteredColumnPanel for the 760 cap. ⚠️ Not MaxWidth on the Grid — this
-                 detail's content is SHORT, and WinUI centred it by that desired width, so it sat far right. -->
+            <!-- Scrolled + FULL WIDTH, LEFT-ALIGNED exactly like the sites detail (and Settings' consoles):
+                 PanelScroller bled 12 into the window margin; the plates stretch across the pane (the 760 px centred
+                 cap was removed 2026-11-19). -->
             <prim:PanelScroller Margin="0,0,-12,0"
                                 Visibility="{x:Bind VisibleWhen(ViewModel.SavedEvents.HasAtlasSelection), Mode=OneWay}">
-                <layout:CenteredColumnPanel ColumnWidth="760">
                 <Grid RowSpacing="12" VerticalAlignment="Top">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -371,7 +370,6 @@
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                Visibility="{x:Bind VisibleWhenText(ViewModel.SavedEvents.Status), Mode=OneWay}"/>
                 </Grid>
-                </layout:CenteredColumnPanel>
             </prim:PanelScroller>
         </Grid>
     </Grid>

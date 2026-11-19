@@ -17,7 +17,7 @@
        │╰─────────────────╮  (TabStrip JoinsBody + PlateOutline.SetJoin, UpdateRailJoin)      │     the only line = the BODY's
        │   ⟲  Past events │  the page, inset 24,18,16,14                                      │     outline (PlateOutline
        └──────────────────┴───────────────────────────────────────────────────────────────────┘     IsInsetCorner, 10 px curve)
-       ┌── list column (360, NO outline) ──┐←32→ detail (scrolls, capped 760 wide, CENTRED)
+       ┌── list column (360, NO outline) ──┐←32→ detail (scrolls, FULL WIDTH, left-aligned — Settings' rule)
        │ [ Search ICAO or name…          ] │   KTLX · Norman, OK  (● Online ⑦) (NEXRAD ⑦) [★] [⌂ Home site] [On map]
        │ [⚙ Filters ▾] [☐ Favorites] [Clear all]  ← THE CONTROLS   WSR-88D · 35.333, -97.278 ⑦   ← SUBTITLE
        │ [NEXRAD +1 ✕] [Online ✕]  118 of 204     ← THE FEEDBACK
@@ -574,13 +574,11 @@
 
                         <!-- Scrolled by Primitives/PanelScroller; Margin right -12 bleeds its gutter into the
                              window's 16 px body margin (the PanelScroller header's rule).
-                             Width-capped + CENTRED by Layout/CenteredColumnPanel: on a wide window the detail stays
-                             one compact block in the middle of the pane instead of spreading its fields (and
-                             stranding the button) across it. ⚠️ Not MaxWidth on the Grid — WinUI centres that by
-                             the content's DESIRED width, so short content drifts right (see the panel). -->
+                             FULL WIDTH, LEFT-ALIGNED — the plates stretch across the pane exactly like Settings' consoles
+                             (2026-11-19, the user's call: the two windows must match when maximized; the old 760 px
+                             centred cap, Layout/CenteredColumnPanel, is gone). -->
                         <ctl:PanelScroller Margin="0,0,-12,0"
                                            Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.HasSelection), Mode=OneWay}">
-                        <layout:CenteredColumnPanel ColumnWidth="760">
                         <Grid RowSpacing="12"
                               VerticalAlignment="Top">
                             <Grid.ColumnDefinitions>
@@ -1216,7 +1214,6 @@
                             </StackPanel>
                             </ctl:SettingsConsolePlate>
                         </Grid>
-                        </layout:CenteredColumnPanel>
                         </ctl:PanelScroller>
                     </Grid>
                 </Grid>
