@@ -11,6 +11,7 @@
        Relies on   │ Iowa State …    │ The NWS itself    │ Only each …        (canvas artboards 31 + 33, 2026-11-18)
        Best for    │ Most people     │ Storm days …      │ Fixing …
        96 label col · three equal columns · │ = a separator before each source, heads to last row
+       ⭐ the two columns NOT picked grey to 45% (each row's PickedIndex ← SourceIndex, 2026-11-19)
        ⚠️ Ends 172 short of the right edge: the rows' hover bleeds 8 px, and this keeps it 6 px clear of the DEFAULT well
        (166 + 6 inset). On THIS plate only — other plates' rows lift across the well, by design.
 
@@ -113,13 +114,18 @@
                 </Grid>
 
                 <!-- "How fast" stays in step with the catalog's hints. -->
+                <!-- PickedIndex greys the two sources you didn't pick. -->
                 <local:LiveDataSettingsConsoleSourceDetailRow x:Name="SourceDetailHowFast" Label="How fast"
+                    PickedIndex="{x:Bind ViewModel.SourceIndex, Mode=OneWay}"
                     Iem="About 15–20 s after issuance" Nwws="Fastest, straight from the NWS" Polling="Up to each layer's polling interval"/>
                 <local:LiveDataSettingsConsoleSourceDetailRow x:Name="SourceDetailAccount" Label="Account"
+                    PickedIndex="{x:Bind ViewModel.SourceIndex, Mode=OneWay}"
                     Iem="None" Nwws="Free NWS account · one computer" Polling="None"/>
                 <local:LiveDataSettingsConsoleSourceDetailRow x:Name="SourceDetailReliesOn" Label="Relies on"
+                    PickedIndex="{x:Bind ViewModel.SourceIndex, Mode=OneWay}"
                     Iem="Iowa State's IEM (best effort)" Nwws="The NWS itself" Polling="Only each layer's own data"/>
                 <local:LiveDataSettingsConsoleSourceDetailRow x:Name="SourceDetailBestFor" Label="Best for"
+                    PickedIndex="{x:Bind ViewModel.SourceIndex, Mode=OneWay}"
                     Iem="Most people" Nwws="Storm days, when every second counts" Polling="Fixing problems · strict networks"/>
             </StackPanel>
         </StackPanel>

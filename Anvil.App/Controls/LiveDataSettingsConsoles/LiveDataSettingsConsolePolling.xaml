@@ -3,7 +3,8 @@
      feed is checked when no live source carries it. Mock-up: the "Polling plate — live tags" Design canvas (2026-11-18).
 
        Polling  [Restore defaults]                                                                       DEFAULT
-       ● Now: IEM connected since 1:58 PM · Live layers wait for it, the rest poll     ← the state line (dot green/amber/grey)
+       These intervals run when Polling only is the source, or while the live source is down. …   ← a FIXED note (the link's
+                                                                       state is the Connection plate's Status row — never repeat it)
        Warnings      [ 30 ⌃⌄]  seconds when IEM is down · min 15 s   [Live]    Waits for IEM · safety check every 10 min  30 s
        …             (one row per feed, LiveDataViewModel.Polling)
        Storm cells   [ 60 ⌃⌄]  seconds · min 30 s                     [Polling] Every 1 min · no live feed carries it     1 min
@@ -18,8 +19,8 @@
      ⚠️ Every row is a Primitives/SettingsConsoleRow (lifts; words = Services/Settings/SettingsText). Each NumberBox is clamped to
      the feed's minimum … 30 min (LivePollRow.Seconds). "Live" = no schedule while connected: the feed fetches when the NWS issues
      one of its products (+ a few re-checks and a 10-min safety — LiveFeedChannel).
-     ⚠️ Tag + dot colours are THEME brushes (SystemFillColorSuccess* / Caution* / ControlFill*) — chrome, not data; three
-     declared Borders / Ellipses, one shown by the row's IsTag* bools. -->
+     ⚠️ Tag colours are THEME brushes (SystemFillColorSuccess* / Caution* / ControlFill*) — chrome, not data; three
+     declared Borders, one shown by the row's IsTag* bools. -->
 <UserControl x:Class="Anvil.Controls.LiveDataSettingsConsoles.LiveDataSettingsConsolePolling"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -74,17 +75,10 @@
         </prim:SettingsConsolePlate.HeaderContent>
 
         <StackPanel>
-            <!-- What the intervals are doing right now (follows the hub). -->
-            <StackPanel x:Name="PollingStateLine" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
-                <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource SystemFillColorSuccessBrush}"
-                         Visibility="{x:Bind local:LiveDataSettingsConsolePolling.Shown(ViewModel.IsLinkConnected), Mode=OneWay}"/>
-                <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource SystemFillColorCautionBrush}"
-                         Visibility="{x:Bind local:LiveDataSettingsConsolePolling.Shown(ViewModel.IsLinkFallback), Mode=OneWay}"/>
-                <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource TextFillColorTertiaryBrush}"
-                         Visibility="{x:Bind local:LiveDataSettingsConsolePolling.Shown(ViewModel.IsLinkOff), Mode=OneWay}"/>
-                <TextBlock Style="{StaticResource SettingsConsoleHintTextStyle}" VerticalAlignment="Center"
-                           Text="{x:Bind ViewModel.PollingStateLine, Mode=OneWay}"/>
-            </StackPanel>
+            <!-- WHEN these intervals run — a fixed note. The link's state lives on the Connection plate's Status row
+                 (it was repeated here until 2026-11-19); each row's tag still says what THAT layer is doing now. -->
+            <TextBlock x:Name="PollingWhenNote" Style="{StaticResource SettingsConsoleHintTextStyle}" Margin="0,0,0,8" TextWrapping="Wrap"
+                       Text="These intervals run when Polling only is the source, or while the live source is down. Storm cells and HRRR always poll."/>
 
             <ItemsControl x:Name="PollRows" IsTabStop="False" ItemsSource="{x:Bind ViewModel.Polling}" ItemTemplate="{StaticResource PollRowTemplate}"/>
 

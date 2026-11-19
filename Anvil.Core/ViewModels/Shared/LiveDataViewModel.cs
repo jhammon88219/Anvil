@@ -29,7 +29,6 @@ namespace Anvil.ViewModels
 		private string _accountMessage = string.Empty;
 		private bool _isTesting, _hasSavedAccount, _isEditingUser, _isEditingPassword, _isDetailsOpen;
 		private string _draftUsername;
-		private string _pollingStateLine = string.Empty;
 		private string _sourceLine = string.Empty, _statusText = string.Empty, _lastProductText = string.Empty, _missedText = string.Empty;
 		private LiveLinkState _linkState;
 
@@ -314,19 +313,7 @@ namespace Anvil.ViewModels
 
 		// ── How the connection stands (Settings → Connection, and the expander's source line) ──
 
-		public LiveLinkState LinkState
-		{
-			get => _linkState;
-			private set
-			{
-				if (SetProperty(ref _linkState, value))
-				{
-					OnPropertyChanged(nameof(IsLinkConnected));
-					OnPropertyChanged(nameof(IsLinkFallback));
-					OnPropertyChanged(nameof(IsLinkOff));
-				}
-			}
-		}
+		public LiveLinkState LinkState { get => _linkState; private set => SetProperty(ref _linkState, value); }
 
 		/// <summary>The activity expander's last line: "Live via IEM · connected since 11:02 AM" · "IEM lost at 12:08:31 PM ·
 		/// polling until it's back" · "Polling only · Settings → Live Data" …</summary>
@@ -363,27 +350,8 @@ namespace Anvil.ViewModels
 				: s.Missed == 0 ? "None this session" : $"{s.Missed} this session · each one caught up";
 			OnPropertyChanged(nameof(AccountHint));     // "Signed in as …" follows the link
 			OnPropertyChanged(nameof(DetailsConnection));
-			PollingStateLine = PollingLineOf(s, name);
-			foreach (var row in Polling) { row.SetLink(s.State, name); }
+			foreach (var row in Polling) { row.SetLink(s.State, name); } // the Polling rows' tags follow the link
 		}
-
-		// The Polling line's dot: green = connected, amber = a live source standing in by polling, grey = Polling only.
-		public bool IsLinkConnected => LinkState == LiveLinkState.Connected;
-		public bool IsLinkFallback => LinkState is LiveLinkState.Connecting or LiveLinkState.Down or LiveLinkState.NeedsAccount;
-		public bool IsLinkOff => !IsLinkConnected && !IsLinkFallback;
-
-		/// <summary>The Polling plate's line under its title: what the intervals are doing right now.</summary>
-		public string PollingStateLine { get => _pollingStateLine; private set => SetProperty(ref _pollingStateLine, value); }
-
-		/// <summary>The Polling plate's line words. Internal for tests.</summary>
-		internal static string PollingLineOf(LiveFeedSnapshot s, string name) => s.State switch
-		{
-			LiveLinkState.Connected => $"Now: {name} connected since {ClockMinutes(s.Since)} · Live layers wait for it, the rest poll",
-			LiveLinkState.Connecting => $"Now: connecting to {name} · every layer polls meanwhile",
-			LiveLinkState.Down => $"Now: {name} lost at {ClockMinutes(s.Since)} · every layer polls until it's back",
-			LiveLinkState.NeedsAccount => $"Now: {name} needs an account · every layer polls",
-			_ => "Now: Polling only · every layer is checked on these intervals",
-		};
 
 		/// <summary>The source line's words. Internal for tests.</summary>
 		internal static string LineOf(LiveFeedSnapshot s, string name) => s.State switch

@@ -11,7 +11,10 @@
 
      ⚠️ The columns MUST match the head row in LiveDataSettingsConsoleSource (96 · * · * · *, ColumnSpacing 12, the -8 bleed +
      8 padding that lets the lift reach past the text the way a SettingsConsoleRow's does).
-     Not clickable: picking a source happens ONLY on the Updates from line (user's call, 2026-11-18). -->
+     Not clickable: picking a source happens ONLY on the Updates from line (user's call, 2026-11-18).
+     ⭐ The two sources NOT picked grey to 45% (PickedIndex ← the plate's SourceIndex, 2026-11-19): the picked column reads
+     at full strength, so the table says "this is what you chose" without another mark. -->
+
 <UserControl x:Class="Anvil.Controls.LiveDataSettingsConsoles.LiveDataSettingsConsoleSourceDetailRow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -66,8 +69,18 @@
 
         <TextBlock x:Name="DetailRowLabel" Style="{StaticResource DetailCellStyle}" Text="{x:Bind Label, Mode=OneWay}"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-        <TextBlock Grid.Column="1" Style="{StaticResource DetailCellStyle}" Text="{x:Bind Iem, Mode=OneWay}"/>
-        <TextBlock Grid.Column="2" Style="{StaticResource DetailCellStyle}" Text="{x:Bind Nwws, Mode=OneWay}"/>
-        <TextBlock Grid.Column="3" Style="{StaticResource DetailCellStyle}" Text="{x:Bind Polling, Mode=OneWay}"/>
+        <!-- The sources you DIDN'T pick grey back (PickedIndex), easing over 120 ms. -->
+        <TextBlock Grid.Column="1" Style="{StaticResource DetailCellStyle}" Text="{x:Bind Iem, Mode=OneWay}"
+                   Opacity="{x:Bind CellOpacity(PickedIndex, 0), Mode=OneWay}">
+            <TextBlock.OpacityTransition><ScalarTransition Duration="0:0:0.12"/></TextBlock.OpacityTransition>
+        </TextBlock>
+        <TextBlock Grid.Column="2" Style="{StaticResource DetailCellStyle}" Text="{x:Bind Nwws, Mode=OneWay}"
+                   Opacity="{x:Bind CellOpacity(PickedIndex, 1), Mode=OneWay}">
+            <TextBlock.OpacityTransition><ScalarTransition Duration="0:0:0.12"/></TextBlock.OpacityTransition>
+        </TextBlock>
+        <TextBlock Grid.Column="3" Style="{StaticResource DetailCellStyle}" Text="{x:Bind Polling, Mode=OneWay}"
+                   Opacity="{x:Bind CellOpacity(PickedIndex, 2), Mode=OneWay}">
+            <TextBlock.OpacityTransition><ScalarTransition Duration="0:0:0.12"/></TextBlock.OpacityTransition>
+        </TextBlock>
     </Grid>
 </UserControl>
