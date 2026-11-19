@@ -9,10 +9,12 @@
        │▌Sulphur, OK [Custom]     2024  │   │ ON THE GROUND │ │ REPLAY WINDOW · │ │ RADAR · LEG 1 OF 1
        │▌El Reno, OK              2013  │   └───────────────┘ └ MAY 3, 1999 ───┘ └─────────────────┘
        │ Hurricane · 5                  │   ⚠ PastCast is playing Joplin, MO (…). Replace it? [Replace and play] [Keep Joplin, MO]
-       │▌Hurricane Ian            2022  │   LEGS
-       └────────────────────────────────┘   ▌KTLX  Norman · OK                 On the ground 6:23 PM
-                                            SOURCE
-                                            NWS Norman event summary: tornado 6:23-7:48 PM CDT …
+       │▌Hurricane Ian            2022  │   ┌ Legs  click one to show it · Play loads the shown leg ┐ ← PLATES
+       └────────────────────────────────┘   │ ▌KTLX  Norman · OK            On the ground 6:23 PM   │   (Primitives/
+                                            └───────────────────────────────────────────────────────┘   SettingsConsolePlate,
+                                            ┌ Source ────────────────────────────────────────────────┐   Settings' casing,
+                                            │ NWS Norman event summary: tornado 6:23-7:48 PM CDT …   │   2026-11-19), 12 apart
+                                            └────────────────────────────────────────────────────────┘
 
      ⚠️ SELECTING A ROW DOES NOT LOAD. The Atlas browses; "Play in PastCast" is the ONE thing that loads
      (MapViewModel.PlayAtlasEvent: PastCast on — which shuts Now + Fore — then the same Apply a PastCast pick
@@ -316,9 +318,13 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- LEGS — one row per radar; clicking one SHOWS it (the tiles follow), never loads it. -->
-                    <StackPanel Grid.Row="3" Spacing="6" Margin="0,4,0,0">
-                        <TextBlock Text="LEGS" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                    <!-- LEGS plate (Settings' casing, 2026-11-19) — one row per radar; clicking one SHOWS it (the tiles
+                         follow), never loads it. -->
+                    <prim:SettingsConsolePlate x:Name="PastEventsAtlasTabLegsPlate" Grid.Row="3" Title="Legs">
+                        <prim:SettingsConsolePlate.HeaderContent>
+                            <TextBlock Text="click one to show it · Play loads the shown leg" Style="{StaticResource CaptionTextStyle}"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                        </prim:SettingsConsolePlate.HeaderContent>
                         <ItemsControl ItemsSource="{x:Bind ViewModel.SavedEvents.AtlasSelection.Legs, Mode=OneWay}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:SavedEventLegRow">
@@ -351,15 +357,14 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </StackPanel>
+                    </prim:SettingsConsolePlate>
 
-                    <StackPanel Grid.Row="4" Spacing="6"
-                                Visibility="{x:Bind ViewModel.SavedEvents.AtlasSelection.HasSource, Mode=OneWay}">
-                        <TextBlock Text="SOURCE" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                    <prim:SettingsConsolePlate x:Name="PastEventsAtlasTabSourcePlate" Grid.Row="4" Title="Source"
+                                               Visibility="{x:Bind ViewModel.SavedEvents.AtlasSelection.HasSource, Mode=OneWay}">
                         <TextBlock Text="{x:Bind ViewModel.SavedEvents.AtlasSelection.SourceText, Mode=OneWay}"
-                                   FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                   Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    </StackPanel>
+                    </prim:SettingsConsolePlate>
 
                     <TextBlock Grid.Row="5" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}"
                                Text="{x:Bind ViewModel.SavedEvents.Status, Mode=OneWay}"

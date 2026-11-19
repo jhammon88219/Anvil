@@ -20,6 +20,28 @@ namespace Anvil.Controls.Windows
 		public AtlasWindow()
 		{
 			InitializeComponent();
+			// A page change (a rail click, or the top bar's Atlas menu moving AtlasTabIndex) moves the join. The strip re-lights
+			// its row through its own binding — measure after it has.
+			AtlasRail.RegisterPropertyChangedCallback(Primitives.TabStrip.SelectedIndexProperty,
+				(_, _) => DispatcherQueue.TryEnqueue(UpdateRailJoin));
+		}
+
+		// ── THE RAIL JOIN (Settings' frame, 2026-11-19): the body outline reaches out round the selected rail entry ──────────
+		// WHY CODE: the join's box is the entry's MEASURED position (computed geometry); the shapes are declared in
+		// PlateOutline.xaml. Re-measured when the selection, the rail's layout or the body's size changes. (No rail scroller
+		// here — two entries never scroll.)
+		private void OnRailJoinMoved(object sender, object e) => UpdateRailJoin();
+
+		private void UpdateRailJoin()
+		{
+			if (AtlasRail.SelectedRowBounds(AtlasBodyOutline) is global::Windows.Foundation.Rect row)
+			{
+				AtlasBodyOutline.SetJoin(row.Left, row.Top, row.Bottom);
+			}
+			else
+			{
+				AtlasBodyOutline.ClearJoin();
+			}
 		}
 
 		// The strip's content, in AtlasTabIndex order. ⚠️ E81C (History) is an UNVERIFIED codepoint — check it
