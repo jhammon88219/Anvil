@@ -175,7 +175,7 @@ namespace Anvil.Tests
 				Assert.True(File.Exists(path));
 				Assert.Contains(path, settings.Settings.BasemapPendingDeletes);
 				Assert.DoesNotContain(vm.Files, r => r.Path == path); // gone, as far as the user is concerned
-				Assert.Contains("next time it opens", vm.FilesMessage);
+				Assert.Contains("next time Anvil opens", vm.FilesMessage);
 			}
 
 			vm.DeletePendingFiles(); // the next launch

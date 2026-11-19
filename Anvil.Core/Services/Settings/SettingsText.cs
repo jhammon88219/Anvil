@@ -335,11 +335,8 @@ namespace Anvil.Services
 				Hint: null),
 
 			// ── Storage → Map ──
-			new("map.inUse", "In use",
-				"The map file Anvil draws now.",
-				Hint: null),
-			new("map.files", "Files",
-				"Every map file Anvil knows about. Pick one to use it; Anvil switches maps at once.",
+			new("map.files", "Maps",
+				"Every map Anvil could draw: the online map, then each map file on this PC. Pick one and Anvil switches at once. Hover a file to see every area it covers and where it is.",
 				Hint: null),
 			new("map.add", "Add a map file",
 				"Adds a map file you already have, without downloading a new one.",

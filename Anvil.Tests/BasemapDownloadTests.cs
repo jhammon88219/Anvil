@@ -36,7 +36,7 @@ namespace Anvil.Tests
 			var planet = Planet.Make();
 			var path = await Service(planet).DownloadAsync(_folder, Area, false, null, CancellationToken.None);
 
-			Assert.Equal("anvil-map-standard-l48.pmtiles", Path.GetFileName(path));
+			Assert.Equal("anvil-l48.pmtiles", Path.GetFileName(path));
 			Assert.Empty(Directory.GetFiles(_folder, "*.part*")); // the part + record are gone once finished
 
 			// The areas PLUS the whole-world overview (zooms 0-7 — all of this little zoom 0-4 planet).
@@ -71,13 +71,13 @@ namespace Anvil.Tests
 				Service(dropping).DownloadAsync(_folder, Area, false, null, CancellationToken.None));
 
 			var svc = Service(planet);
-			Assert.Equal("anvil-map-standard-l48.pmtiles", svc.UnfinishedFileName(_folder, Area, false));
-			Assert.True(File.Exists(Path.Combine(_folder, "anvil-map-standard-l48.pmtiles.part")));
+			Assert.Equal("anvil-l48.pmtiles", svc.UnfinishedFileName(_folder, Area, false));
+			Assert.True(File.Exists(Path.Combine(_folder, "anvil-l48.pmtiles.part")));
 
 			var seen = new List<BasemapDownloadProgress>();
 			var path = await svc.DownloadAsync(_folder, Area, false, new SyncProgress(seen.Add), CancellationToken.None);
 
-			Assert.Equal("anvil-map-standard-l48.pmtiles", Path.GetFileName(path)); // resumed, not "-2"
+			Assert.Equal("anvil-l48.pmtiles", Path.GetFileName(path)); // resumed, not "-2"
 			Assert.Equal(File.ReadAllBytes(clean), File.ReadAllBytes(path));
 			var firstData = seen.First(p => p.Phase == BasemapDownloadPhase.Downloading);
 			Assert.True(firstData.Done > 0, "the second try starts where the first stopped");
@@ -90,7 +90,7 @@ namespace Anvil.Tests
 			var svc = Service(Planet.Make());
 			await svc.DownloadAsync(_folder, Area, false, null, CancellationToken.None);
 			var second = await svc.DownloadAsync(_folder, Area, false, null, CancellationToken.None);
-			Assert.Equal("anvil-map-standard-l48-2.pmtiles", Path.GetFileName(second));
+			Assert.Equal("anvil-l48-2.pmtiles", Path.GetFileName(second));
 		}
 
 		[Fact]

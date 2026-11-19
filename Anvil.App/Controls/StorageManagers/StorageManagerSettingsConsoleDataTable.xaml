@@ -67,7 +67,7 @@
             </StackPanel>
         </Grid>
 
-        <!-- MAPS first — the biggest (2026-11-16). No Clear, no limits: maps are deleted one file at a time in the Map card. -->
+        <!-- MAPS first — the biggest (2026-11-16). No Clear, no limits: maps are deleted one file at a time in the Which map to use card. -->
         <storageManagers:StorageManagerSettingsConsoleDataTableRow x:Name="StorageManagerSettingsConsoleDataTableRowMaps"
             AboutKey="storage.maps" Item="{x:Bind ViewModel.Maps, Mode=OneWay}" Swatch="{StaticResource StorageMapsBrush}"/>
         <storageManagers:StorageManagerSettingsConsoleDataTableRow x:Name="StorageManagerSettingsConsoleDataTableRowRadarVolumes"

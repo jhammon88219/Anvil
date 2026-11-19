@@ -737,8 +737,25 @@ namespace Anvil.ViewModels
 			return _settings.MapDataFilePresent() ? Path.GetFullPath(Path.Combine(_settings.MapDataFolder, _settings.MapDataFileName)) : null;
 		}
 
-		/// <summary>A map file's title: a downloaded map's options in words, else "Offline map".</summary>
-		private static string TitleOf(string path) => BasemapFileNames.TryParse(path)?.Description ?? "Offline map";
+		/// <summary>A map file's SHORT name (2026-11-19): a downloaded map's areas ("Lower 48 + Alaska"), the first download
+		/// "Older USA map", anything else its file name.</summary>
+		internal static string TitleOf(string path) =>
+			BasemapFileNames.TryParse(path)?.ShortName
+			?? (IsLegacyMap(path) ? LegacyMapName : Path.GetFileNameWithoutExtension(path));
+
+		/// <summary>The first download (the older rule's <c>usa_full.pmtiles</c>) on screen.</summary>
+		public const string LegacyMapName = "Older USA map";
+
+		private static bool IsLegacyMap(string path) =>
+			string.Equals(Path.GetFileName(path), SettingsService.LegacyMapDataFileName, StringComparison.OrdinalIgnoreCase);
+
+		// The DETAIL tag: Standard / Full from the name; the older usa_full is the full-detail USA archive; else none.
+		private static string DetailOf(string path) =>
+			BasemapFileNames.TryParse(path)?.DetailName ?? (IsLegacyMap(path) ? "Full" : "");
+
+		// The row's tooltip: every area in full, then where the file is.
+		private static string TooltipOf(string path) =>
+			BasemapFileNames.TryParse(path) is { } o ? $"{o.Description}\n{path}" : path;
 
 		/// <summary>Re-read the folder and the source (the tab calls this when it shows).</summary>
 		public void Refresh()
@@ -752,18 +769,22 @@ namespace Anvil.ViewModels
 				try
 				{
 					var info = new FileInfo(path);
-					var details = $"{GigabytesText(info.Length)} · {UnitFormat.Day(info.LastWriteTime)} · {info.Name}";
-					Files.Add(new BasemapFileRow(path, TitleOf(path), details,
+					Files.Add(new BasemapFileRow(path, TitleOf(path), DetailOf(path), GigabytesText(info.Length),
+						UnitFormat.DateShort(info.LastWriteTime), TooltipOf(path),
 						isInUse: inUse is not null && string.Equals(path, inUse, StringComparison.OrdinalIgnoreCase)));
 				}
 				catch (IOException) { }
 				catch (UnauthorizedAccessException) { }
 			}
 
-			InUseText = _settings.Settings.UseOnlineTiles && OnlineTileUrls.IsUsable(_settings.Settings.OnlineTilesUrl) ? "Online map · Protomaps"
+			InUseText = IsOnlineInUse ? "Online map · Protomaps"
 				: inUse is not null ? $"Offline map · {TitleOf(inUse)}"
 				: "No map. Radar and overlays draw over a blank background.";
 
+			OnPropertyChanged(nameof(IsOnlineInUse));
+			OnPropertyChanged(nameof(CanUseSavedOnline));
+			OnPropertyChanged(nameof(OnlineRowText));
+			OnPropertyChanged(nameof(IsNoMap));
 			OnPropertyChanged(nameof(HasNoFiles));
 			OnPropertyChanged(nameof(HasUsableMap));
 			OnPropertyChanged(nameof(ShouldShowAtLaunch));
@@ -804,6 +825,29 @@ namespace Anvil.ViewModels
 		/// <summary>App calls this as Anvil opens: a dev "new user" launch ends here.</summary>
 		public void HandOverToAnvil() => _settings.Settings.DevPretendNoMap = false;
 
+		// ── Which map to use: the online + no-map rows of the ONE pick-one list (2026-11-19) ──
+
+		/// <summary>The online map is what Anvil draws now (its radio is on).</summary>
+		public bool IsOnlineInUse => _settings.Settings.UseOnlineTiles && OnlineTileUrls.IsUsable(_settings.Settings.OnlineTilesUrl);
+
+		/// <summary>A working online map is saved, so picking it needs no setup (else its row greys and points at the Online
+		/// map card, which tests the key).</summary>
+		public bool CanUseSavedOnline => OnlineTileUrls.IsUsable(_settings.Settings.OnlineTilesUrl);
+
+		/// <summary>The online row's second line.</summary>
+		public string OnlineRowText => CanUseSavedOnline ? "Protomaps · needs the internet" : "Set up a map key in Online map below";
+
+		/// <summary>Nothing is drawn — shown as its own (checked, inert) row, never a choice.</summary>
+		public bool IsNoMap => !IsOnlineInUse && InUsePath() is null;
+
+		/// <summary>Picking the online row: draw the SAVED online map now (MapViewModel follows the setting).</summary>
+		public void UseSavedOnline()
+		{
+			if (!CanUseSavedOnline) return;
+			FilesMessage = "";
+			_settings.Settings.UseOnlineTiles = true;
+		}
+
 		/// <summary>Use: make <paramref name="row"/> the map Anvil draws — now (MainWindow re-points the map). Turns the
 		/// online map off: a file picked here is an offline choice.</summary>
 		public void UseFile(BasemapFileRow row)
@@ -836,12 +880,12 @@ namespace Anvil.ViewModels
 			try
 			{
 				File.Delete(row.Path);
-				FilesMessage = $"Deleted {Path.GetFileName(row.Path)}.";
+				FilesMessage = $"Deleted {row.Name}";
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
 			{
 				_settings.Settings.BasemapPendingDeletes = _settings.Settings.BasemapPendingDeletes.Append(row.Path).ToList();
-				FilesMessage = $"Windows is still using {Path.GetFileName(row.Path)}, so Anvil deletes it the next time it opens.";
+				FilesMessage = $"Windows is still using {row.Name} · it goes the next time Anvil opens";
 			}
 			Refresh();
 		}
@@ -870,7 +914,8 @@ namespace Anvil.ViewModels
 				return;
 			}
 			RememberAddedFile(path);
-			FilesMessage = $"Added {Path.GetFileName(path)} · {check.DetailLine}. {check.CoverLine} Press Use to draw it.";
+			// ONE short line (2026-11-19); what the file covers is the row's tooltip.
+			FilesMessage = $"Added {TitleOf(path)} · pick it to draw it";
 			Refresh();
 		}
 

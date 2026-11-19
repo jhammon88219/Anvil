@@ -15,11 +15,11 @@ namespace Anvil.Tests
 		private static readonly BasemapArea[] L48Ak = { BasemapAreas.Lower48, BasemapAreas.Alaska };
 
 		[Fact]
-		public void The_name_says_the_detail_and_the_areas()
+		public void The_name_says_the_areas_and_full_only_when_it_is()
 		{
-			Assert.Equal("anvil-map-standard-l48-ak.pmtiles",
+			Assert.Equal("anvil-l48-ak.pmtiles",
 				BasemapFileNames.NextFileName(false, L48Ak, Array.Empty<string>()));
-			Assert.Equal("anvil-map-full-l48-ak-hi-pr-gu-ca.pmtiles",
+			Assert.Equal("anvil-l48-ak-hi-pr-gu-ca-full.pmtiles",
 				BasemapFileNames.NextFileName(true, BasemapAreas.All, Array.Empty<string>()));
 		}
 
@@ -27,28 +27,72 @@ namespace Anvil.Tests
 		public void Areas_are_named_in_list_order_whatever_order_they_were_ticked()
 		{
 			var picked = new[] { BasemapAreas.Canada, BasemapAreas.Hawaii, BasemapAreas.Lower48 };
-			Assert.Equal("anvil-map-standard-l48-hi-ca", BasemapFileNames.BaseName(false, picked));
+			Assert.Equal("anvil-l48-hi-ca", BasemapFileNames.BaseName(false, picked));
 		}
 
 		[Fact]
 		public void The_same_options_again_are_kept_beside_with_the_next_free_number()
 		{
-			var existing = new[] { "anvil-map-standard-l48-ak.pmtiles", "ANVIL-MAP-STANDARD-L48-AK-2.PMTILES" };
-			Assert.Equal("anvil-map-standard-l48-ak-3.pmtiles", BasemapFileNames.NextFileName(false, L48Ak, existing));
+			var existing = new[] { "anvil-l48-ak.pmtiles", "ANVIL-L48-AK-2.PMTILES" };
+			Assert.Equal("anvil-l48-ak-3.pmtiles", BasemapFileNames.NextFileName(false, L48Ak, existing));
+			Assert.Equal("anvil-l48-ak-full-2.pmtiles", BasemapFileNames.NextFileName(true, L48Ak, new[] { "anvil-l48-ak-full.pmtiles" }));
 		}
 
 		[Fact]
 		public void A_deleted_middle_copy_is_reused_and_other_options_never_collide()
 		{
-			var existing = new[] { "anvil-map-standard-l48-ak.pmtiles", "anvil-map-standard-l48-ak-3.pmtiles", "anvil-map-full-l48-ak.pmtiles" };
-			Assert.Equal("anvil-map-standard-l48-ak-2.pmtiles", BasemapFileNames.NextFileName(false, L48Ak, existing));
+			var existing = new[] { "anvil-l48-ak.pmtiles", "anvil-l48-ak-3.pmtiles", "anvil-l48-ak-full.pmtiles" };
+			Assert.Equal("anvil-l48-ak-2.pmtiles", BasemapFileNames.NextFileName(false, L48Ak, existing));
 		}
 
 		[Fact]
 		public void With_every_copy_deleted_the_name_resets_to_plain()
 		{
-			Assert.Equal("anvil-map-standard-l48-ak.pmtiles",
-				BasemapFileNames.NextFileName(false, L48Ak, new[] { "usa_full.pmtiles", "anvil-map-full-l48-ak-2.pmtiles" }));
+			Assert.Equal("anvil-l48-ak.pmtiles",
+				BasemapFileNames.NextFileName(false, L48Ak, new[] { "usa_full.pmtiles", "anvil-l48-ak-full-2.pmtiles" }));
+		}
+
+		[Fact]
+		public void An_older_rule_file_holds_its_copy_number_so_two_copies_never_share_a_name()
+		{
+			// anvil-map-standard-l48-ak = copy 1 of these options: the next is -2, not a second "Lower 48 + Alaska".
+			Assert.Equal("anvil-l48-ak-2.pmtiles",
+				BasemapFileNames.NextFileName(false, L48Ak, new[] { "anvil-map-standard-l48-ak.pmtiles" }));
+			Assert.Equal("anvil-l48-ak-3.pmtiles",
+				BasemapFileNames.NextFileName(false, L48Ak, new[] { "anvil-map-standard-l48-ak.pmtiles", "anvil-map-standard-l48-ak-2.pmtiles" }));
+		}
+
+		[Fact]
+		public void Older_rule_names_still_read_back()
+		{
+			var o = BasemapFileNames.TryParse(@"C:\Maps\anvil-map-full-l48-ak-2.pmtiles");
+			Assert.NotNull(o);
+			Assert.True(o!.IsFullDetail);
+			Assert.Equal(L48Ak, o.Areas);
+			Assert.Equal(2, o.Copy);
+			Assert.False(BasemapFileNames.TryParse("anvil-map-standard-l48.pmtiles")!.IsFullDetail);
+		}
+
+		[Theory]
+		[InlineData("anvil-l48.pmtiles", "Lower 48", "Standard")]
+		[InlineData("anvil-l48-ak.pmtiles", "Lower 48 + Alaska", "Standard")]
+		[InlineData("anvil-l48-hi-pr-gu-full.pmtiles", "Lower 48 + 3 more", "Full")]
+		[InlineData("anvil-l48-ak-2.pmtiles", "Lower 48 + Alaska (2)", "Standard")]
+		[InlineData("anvil-pr.pmtiles", "Puerto Rico & VI", "Standard")]
+		[InlineData("anvil-map-full-l48-hi.pmtiles", "Lower 48 + Hawaii", "Full")]
+		public void A_map_shows_a_short_name_and_a_detail_tag(string file, string shortName, string detail)
+		{
+			var o = BasemapFileNames.TryParse(file)!;
+			Assert.Equal(shortName, o.ShortName);
+			Assert.Equal(detail, o.DetailName);
+		}
+
+		[Fact]
+		public void Files_name_themselves_on_screen()
+		{
+			Assert.Equal("Lower 48 + Alaska", BasemapSetupViewModel.TitleOf(@"C:\Maps\anvil-l48-ak.pmtiles"));
+			Assert.Equal(BasemapSetupViewModel.LegacyMapName, BasemapSetupViewModel.TitleOf(@"D:\Data\usa_full.pmtiles"));
+			Assert.Equal("my-own-map", BasemapSetupViewModel.TitleOf(@"D:\Data\my-own-map.pmtiles"));
 		}
 
 		[Fact]
@@ -60,7 +104,7 @@ namespace Anvil.Tests
 		[Fact]
 		public void A_name_reads_back_as_its_options()
 		{
-			var o = BasemapFileNames.TryParse(@"C:\Maps\anvil-map-full-l48-ak-2.pmtiles");
+			var o = BasemapFileNames.TryParse(@"C:\Maps\anvil-l48-ak-full-2.pmtiles");
 			Assert.NotNull(o);
 			Assert.True(o!.IsFullDetail);
 			Assert.Equal(L48Ak, o.Areas);
@@ -70,6 +114,11 @@ namespace Anvil.Tests
 
 		[Theory]
 		[InlineData("usa_full.pmtiles")]
+		[InlineData("anvil-full.pmtiles")]                   // no area
+		[InlineData("anvil-l48-zz.pmtiles")]                 // no such area
+		[InlineData("anvil-ak-l48.pmtiles")]                 // not list order
+		[InlineData("anvil-l48-1.pmtiles")]                  // copy numbers start at 2
+		[InlineData("anvil-l48-full-full.pmtiles")]          // "full" once, at the end
 		[InlineData("anvil-map-standard.pmtiles")]          // no area
 		[InlineData("anvil-map-huge-l48.pmtiles")]           // no such detail
 		[InlineData("anvil-map-standard-l48-zz.pmtiles")]    // no such area

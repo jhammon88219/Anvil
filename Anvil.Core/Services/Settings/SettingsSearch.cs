@@ -56,7 +56,7 @@ namespace Anvil.Services
 			["polling"] = new("Live Data", "Polling"),
 			["conn"] = new("Live Data", "Connection"),
 			["storage"] = new("Storage", "Disk usage"),
-			["map"] = new("Storage", "Map"),
+			["map"] = new("Storage", "Which map to use"),
 			["offline"] = new("Storage", "Offline map"),
 			["online"] = new("Storage", "Online map"),
 		};

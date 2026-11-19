@@ -29,7 +29,8 @@ namespace Anvil.Controls.StorageSettingsConsoles
 		// A row button's DataContext is its BasemapFileRow (the ItemsControl's item).
 		private static BasemapFileRow? RowOf(object sender) => (sender as FrameworkElement)?.DataContext as BasemapFileRow;
 
-		private void OnUseFileClick(object sender, RoutedEventArgs e) { if (RowOf(sender) is { } r) ViewModel?.UseFile(r); }
+		private void OnUseFileClick(object sender, RoutedEventArgs e) { if (RowOf(sender) is { } r && !r.IsInUse) ViewModel?.UseFile(r); }
+		private void OnUseOnlineClick(object sender, RoutedEventArgs e) { if (ViewModel is { IsOnlineInUse: false } vm) vm.UseSavedOnline(); }
 		private void OnShowFileClick(object sender, RoutedEventArgs e) { if (RowOf(sender) is { } r) BasemapPickers.ShowInFolder(r.Path); }
 		private void OnAskDeleteClick(object sender, RoutedEventArgs e) { if (RowOf(sender) is { } r) ViewModel?.AskDelete(r); }
 		private void OnKeepFileClick(object sender, RoutedEventArgs e) { if (RowOf(sender) is { } r) ViewModel?.KeepFile(r); }

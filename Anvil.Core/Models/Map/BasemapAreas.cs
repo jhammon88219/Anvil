@@ -18,10 +18,14 @@ namespace Anvil.Models
 	/// <param name="FullMegabytes">The same at Full detail.</param>
 	/// <param name="RadarsComingSoon">Anvil has no radars here YET (Canada) — the row says "Radars coming soon"
 	/// instead of a count, so a user can include the map ahead of them.</param>
+	/// <param name="Short">The area in a map's SHORT name ("Lower 48"); null = <paramref name="Name"/>.</param>
 	public sealed record BasemapArea(string Code, string Name, IReadOnlyList<BasemapBox> Boxes,
-		double StandardMegabytes, double FullMegabytes, bool RadarsComingSoon = false)
+		double StandardMegabytes, double FullMegabytes, bool RadarsComingSoon = false, string? Short = null)
 	{
 		public bool Contains(double latitude, double longitude) => Boxes.Any(b => b.Contains(latitude, longitude));
+
+		/// <summary>The area as a map's short name uses it ("Lower 48", "Puerto Rico &amp; VI").</summary>
+		public string ShortName => Short ?? Name;
 	}
 
 	/// <summary>Two areas whose boxes touch and the tiles they share, MB at each detail (<see cref="BasemapAreas.Overlaps"/>).
@@ -45,7 +49,7 @@ namespace Anvil.Models
 	public static class BasemapAreas
 	{
 		public static readonly BasemapArea Lower48 = new("l48", "Lower 48 states",
-			new[] { new BasemapBox(-127.0, 23.5, -65.0, 50.0) }, 4400, 19399);
+			new[] { new BasemapBox(-127.0, 23.5, -65.0, 50.0) }, 4400, 19399, Short: "Lower 48");
 
 		// The far Aleutians sit past the date line — a second box, one checkbox.
 		public static readonly BasemapArea Alaska = new("ak", "Alaska",
@@ -55,7 +59,7 @@ namespace Anvil.Models
 			new[] { new BasemapBox(-161.0, 18.5, -154.0, 22.5) }, 6.8, 32);
 
 		public static readonly BasemapArea PuertoRico = new("pr", "Puerto Rico and U.S. Virgin Islands",
-			new[] { new BasemapBox(-68.0, 17.5, -64.3, 18.8) }, 11, 75);
+			new[] { new BasemapBox(-68.0, 17.5, -64.3, 18.8) }, 11, 75, Short: "Puerto Rico & VI");
 
 		public static readonly BasemapArea Guam = new("gu", "Guam",
 			new[] { new BasemapBox(144.5, 13.1, 145.1, 13.8) }, 0.7, 3.1);
