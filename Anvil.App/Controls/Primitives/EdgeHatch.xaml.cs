@@ -109,6 +109,27 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(Dots), typeof(bool), typeof(EdgeHatch),
 				new PropertyMetadata(false, (d, _) => ((EdgeHatch)d).Rebuild()));
 
+		/// <summary>THE MAP FRAME: cut the band's START at 45° so it TURNS into the neighbouring side (EdgeMitre). START =
+		/// the left end for Up/Down, the top for Right, the bottom for Left.</summary>
+		public bool MitreStart
+		{
+			get => (bool)GetValue(MitreStartProperty);
+			set => SetValue(MitreStartProperty, value);
+		}
+		public static readonly DependencyProperty MitreStartProperty =
+			DependencyProperty.Register(nameof(MitreStart), typeof(bool), typeof(EdgeHatch),
+				new PropertyMetadata(false, (d, _) => ((EdgeHatch)d).Rebuild()));
+
+		/// <summary>As <see cref="MitreStart"/>, for the band's other end.</summary>
+		public bool MitreEnd
+		{
+			get => (bool)GetValue(MitreEndProperty);
+			set => SetValue(MitreEndProperty, value);
+		}
+		public static readonly DependencyProperty MitreEndProperty =
+			DependencyProperty.Register(nameof(MitreEnd), typeof(bool), typeof(EdgeHatch),
+				new PropertyMetadata(false, (d, _) => ((EdgeHatch)d).Rebuild()));
+
 		/// <summary>x:Bind: a dot is a near-zero segment, round-capped into a circle; lines stay flat-ended.</summary>
 		public PenLineCap Cap(bool dots) => dots ? PenLineCap.Round : PenLineCap.Flat;
 
@@ -152,13 +173,13 @@ namespace Anvil.Controls.Primitives
 		{
 			double w = ActualWidth, h = ActualHeight;
 			if (w <= 0 || h <= 0) { EdgeHatchPath.Data = null; return; }
-			bool up = Direction == EdgeHatchDirection.Up;
-			double length = up ? w : h, depth = up ? h : w;
+			bool across = Direction is EdgeHatchDirection.Up or EdgeHatchDirection.Down;
+			double length = across ? w : h, depth = across ? h : w;
 
 			var geometry = new PathGeometry();
-			var segments = Dots
-				? EdgeHatchGeometry.BuildDots(length, depth, Spacing, Thin)
-				: EdgeHatchGeometry.Build(length, depth, Spacing, Thin);
+			var segments = EdgeMitre.Clip(
+				Dots ? EdgeHatchGeometry.BuildDots(length, depth, Spacing, Thin) : EdgeHatchGeometry.Build(length, depth, Spacing, Thin),
+				length, MitreStart, MitreEnd);
 			foreach (var s in segments)
 			{
 				var figure = new PathFigure { StartPoint = new Point(s.X1, depth - s.Y1), IsClosed = false, IsFilled = false };
@@ -172,6 +193,8 @@ namespace Anvil.Controls.Primitives
 				EdgeHatchDirection.Right => new MatrixTransform { Matrix = new Matrix { M11 = 0, M12 = 1, M21 = -1, M22 = 0, OffsetX = depth, OffsetY = 0 } },
 				// Up (x, y) → Left: (y, length − x) — the bottom edge becomes the right edge.
 				EdgeHatchDirection.Left => new MatrixTransform { Matrix = new Matrix { M11 = 0, M12 = -1, M21 = 1, M22 = 0, OffsetX = 0, OffsetY = length } },
+				// Up (x, y) → Down: (x, depth − y) — the bottom edge becomes the top edge (under a pane header).
+				EdgeHatchDirection.Down => new MatrixTransform { Matrix = new Matrix { M11 = 1, M12 = 0, M21 = 0, M22 = -1, OffsetX = 0, OffsetY = depth } },
 				_ => null,
 			};
 		}

@@ -17,8 +17,9 @@
      a temporal pane (else the strip runs under the pane and the pane stops above it). So the clock block is a FIXED width
      (its text trims) and the scan line a RESERVED width — a width that followed the text would make the panes jump.
      ⚠️ ONE SCAN LINE (was three labelled lines): "VCP 212 · precip · MESO-SAILS ×2", each part cut by ScanValue from the
-     ONE rule's string (RadarViewModel.ScanStrategyText, shared with the Atlas); a missing part is its placeholder (—, none,
-     n/a, off, pre-SAILS). The glossary tooltip (RadarGlossary) explains it on hover.
+     ONE rule's string (RadarViewModel.ScanStrategyText, shared with the Atlas). WORDS, not codes (2026-11-20): no rescans
+     of any kind ("off", "none", "pre-SAILS") reads "no rescans"; a part with nothing to say ("—", TDWR's "n/a") is left
+     out with its separator (ScanTail). The glossary tooltip (RadarGlossary) explains the rest on hover.
 
      THE ORGANIZING RULE: the strip holds what does NOT repeat per pane — one site, one camera, one time cursor. Per-pane
      controls (product, ramp, tilt) are each pane's HEADER (Composites/PaneHeader), not here.
@@ -188,7 +189,7 @@
                            TextTrimming="CharacterEllipsis"
                            Style="{StaticResource BodyTextStyle}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}">
-                    <Run Text="VCP " Foreground="{ThemeResource TextFillColorTertiaryBrush}"/><Run Text="{x:Bind ScanValue(ViewModel.RadarModeText, 0), Mode=OneWay}" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/><Run Text=" · " Foreground="{ThemeResource TextFillColorTertiaryBrush}"/><Run Text="{x:Bind ScanValue(ViewModel.RadarModeText, 1), Mode=OneWay}"/><Run Text=" · " Foreground="{ThemeResource TextFillColorTertiaryBrush}"/><Run Text="{x:Bind ScanValue(ViewModel.RadarModeText, 2), Mode=OneWay}"/>
+                    <Run Text="VCP " Foreground="{ThemeResource TextFillColorTertiaryBrush}"/><Run Text="{x:Bind ScanValue(ViewModel.RadarModeText, 0), Mode=OneWay}" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/><Run Text="{x:Bind ScanTail(ViewModel.RadarModeText), Mode=OneWay}"/>
                 </TextBlock>
             </Grid>
         </Grid>

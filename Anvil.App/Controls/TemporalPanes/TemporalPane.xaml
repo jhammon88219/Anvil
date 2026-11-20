@@ -71,24 +71,13 @@
             <!-- THE ACTIVITY EXPANDER: this mode's activity (MapViewModel.ActivityFor(Mode)). ONE declaration for all three
                  modes, outside the Content, so it spans the pane edge to edge; declared after the Content so its shadow
                  and tab paint over the list. -->
-            <tp:TemporalPaneActivityExpander x:Name="TemporalPaneActivityExpander" Grid.Row="1" Activity="{x:Bind PaneActivity}"/>
+            <!-- IsRightPane: ForeCast's one-line summary is RIGHT-aligned (2026-11-20), away from the time strip's scan
+                 line, which ends at this pane's left edge. -->
+            <tp:TemporalPaneActivityExpander x:Name="TemporalPaneActivityExpander" Grid.Row="1" Activity="{x:Bind PaneActivity}"
+                                             IsRightPane="{x:Bind IsFore}"/>
         </Grid>
 
-        <!-- EDGE-HATCH (experimental bolt-on): the hatch on the pane's MAP side, hung OUTSIDE the pane on a negative margin
-             (Past/Now: off the right edge, running right; Fore: off the left edge, running left). Click-through, full pane
-             height; Settings → Edges ("Hatch the panes' map-side edges"). -->
-        <prim:EdgeHatch x:Name="EdgeHatchPaneEdge"
-                        HorizontalAlignment="{x:Bind HatchAlignment(IsFore)}"
-                        Direction="{x:Bind HatchDirection(IsFore)}"
-                        Width="{x:Bind ViewModel.EdgeHatch.Width, Mode=OneWay}"
-                        Margin="{x:Bind HatchMargin(IsFore, ViewModel.EdgeHatch.Width), Mode=OneWay}"
-                        Spacing="{x:Bind ViewModel.EdgeHatch.Spacing, Mode=OneWay}"
-                        Weight="{x:Bind ViewModel.EdgeHatch.Weight, Mode=OneWay}"
-                        Thin="{x:Bind ViewModel.EdgeHatch.Thins, Mode=OneWay}"
-                        Fade="{x:Bind ViewModel.EdgeHatch.Fades, Mode=OneWay}"
-                        Dots="{x:Bind ViewModel.EdgeHatch.IsDots, Mode=OneWay}"
-                        Ink="{x:Bind ViewModel.EdgeHatch.ColorHex, Mode=OneWay}"
-                       LineOpacity="{x:Bind ViewModel.EdgeHatch.LineOpacity, Mode=OneWay}"
-                        Visibility="{x:Bind HatchVisibility(ViewModel.EdgeHatch.IsPaneHatch), Mode=OneWay}"/>
+        <!-- (The pane's MAP-SIDE edge effect is the MAP FRAME's since 2026-11-20 — MainWindow's MapEdgeFrame — so it
+             turns into the header's and the strip's at the corners. The pane draws none of its own.) -->
     </Grid>
 </UserControl>

@@ -32,6 +32,11 @@ namespace Anvil.Controls.Primitives
 		/// glued tiers would hold them apart and let the map show through the gap.
 		/// </summary>
 		InsetShadow,
+		/// <summary>
+		/// NOTHING drawn at the edge — another element owns it. The top bar while the MAP FRAME (Composites/MapEdgeFrame,
+		/// 2026-11-20) traces the effect along its foot, so the two never stack. (ApplyChrome: no rule, no shadow.)
+		/// </summary>
+		None,
 	}
 
 	/// <summary>

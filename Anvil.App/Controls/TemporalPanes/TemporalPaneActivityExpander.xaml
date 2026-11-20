@@ -160,7 +160,10 @@
                 <!-- ===== HIDDEN without a radar line (ForeCast, PastCast): the one-line feed summary. NowCast's Hidden
                      is the radar line ALONE (one line, 2026-10-21) — a failed feed is its red dot. ===== -->
                 <!-- No top margin: it never follows the radar line now, and 11 + 20 + 11 = the radar line's Hidden height. -->
+                <!-- RIGHT-aligned in ForeCast's pane (IsRightPane, 2026-11-20): clear of the time strip's scan line, which
+                     ends at that pane's left edge. -->
                 <StackPanel x:Name="FeedSummary" Orientation="Horizontal" Spacing="7" MinHeight="20" Margin="6,0"
+                            HorizontalAlignment="{x:Bind SummaryAlignment(IsRightPane), Mode=OneWay}"
                             Visibility="{x:Bind SummaryShown(Activity.IsHidden, Activity.HasSummary, Activity.HasRadar), Mode=OneWay}">
                     <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="#FFF85149"
                              Visibility="{x:Bind Shown(Activity.SummaryHasFailure), Mode=OneWay}"/>

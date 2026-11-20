@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MapEdgeFrame — the EDGE EFFECT traced ONCE round a map OPENING (2026-11-20, the user's call: "anything touching up
+     against the map should have the edge effect … it should always TURN with the corner"). It replaced each piece's own
+     band (the rail's, the strip's, a pane header's, a temporal pane's map side and the top bar's cast shadow), which
+     overlapped into doubled squares at the corners.
+
+          ┌ top side: a pane header's foot (raised), or the top bar's (ground) ──────────────┐
+          │╲░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░╱│
+          │░╲                                                                            ╱░│ ← each side's band is a
+          │░░                     …the map…                                              ░░│   TRAPEZOID: cut at 45°
+          │░╱                                                                            ╲░│   where it meets a
+          │╱░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░╲│   neighbour (a MITRE),
+          └ bottom side: the time strip's top (raised) ──────────────────────────────────────┘   so the effect TURNS
+            ↑ left side: the rail (raised) or a left pane (ground)    ↑ right side: the ForeCast pane (ground)
+
+     BLACK SHADOW style: four Paths, each a trapezoid (EdgeMitre.Trapezoid) filled with the side's ShadowFade* brush —
+     the brush maps to the trapezoid's bounds, so it fades away from that side's edge. HATCH style: four EdgeHatch bands
+     (Down / Right / Left / Up) with MitreStart / MitreEnd (EdgeMitre.Clip); each band's "surface" ink follows the chrome
+     it hangs on (Raised). A side whose neighbour is the WINDOW's edge (no chrome) draws NOTHING, and the corners beside it
+     stay square.
+     ⚠️ Sides + where the frame sits are the HOST's (MainWindow.LayoutMapEdges, SetSides): only it knows what is beyond
+     each edge. Click-through. Host contract: ViewModel (EdgeHatchViewModel — Settings → Appearance → Edges). -->
+<UserControl x:Class="Anvil.Controls.Composites.MapEdgeFrame"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:models="using:Anvil.Models"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             IsHitTestVisible="False"
+             IsTabStop="False">
+
+    <Grid x:Name="MapEdgeFrameRoot" SizeChanged="OnSizeChanged">
+        <!-- ===== BLACK SHADOW: four mitred trapezoids (Data from code) ===== -->
+        <Grid x:Name="MapEdgeFrameShade"
+              Opacity="{ThemeResource OverlayBarShadowOpacity}"
+              Visibility="{x:Bind ShadeVisibility(ViewModel.IsHatch), Mode=OneWay}">
+            <Path x:Name="MapEdgeFrameShadeTop" Fill="{StaticResource ShadowFadeDown}"/>
+            <Path x:Name="MapEdgeFrameShadeLeft" Fill="{StaticResource ShadowFadeLeft}"/>
+            <Path x:Name="MapEdgeFrameShadeRight" Fill="{StaticResource ShadowFadeRight}"/>
+            <Path x:Name="MapEdgeFrameShadeBottom" Fill="{StaticResource ShadowFadeUp}"/>
+        </Grid>
+
+        <!-- ===== HATCH: four mitred bands (mitres + Raised + Visibility from code) ===== -->
+        <Grid x:Name="MapEdgeFrameHatch" Visibility="{x:Bind HatchVisibility(ViewModel.IsHatch), Mode=OneWay}">
+            <prim:EdgeHatch x:Name="MapEdgeFrameHatchTop"
+                            VerticalAlignment="Top"
+                            Direction="Down"
+                            Height="{x:Bind ViewModel.Width, Mode=OneWay}"
+                            Spacing="{x:Bind ViewModel.Spacing, Mode=OneWay}"
+                            Weight="{x:Bind ViewModel.Weight, Mode=OneWay}"
+                            Thin="{x:Bind ViewModel.Thins, Mode=OneWay}"
+                            Fade="{x:Bind ViewModel.Fades, Mode=OneWay}"
+                            Dots="{x:Bind ViewModel.IsDots, Mode=OneWay}"
+                            Ink="{x:Bind ViewModel.ColorHex, Mode=OneWay}"
+                            LineOpacity="{x:Bind ViewModel.LineOpacity, Mode=OneWay}"/>
+            <prim:EdgeHatch x:Name="MapEdgeFrameHatchLeft"
+                            HorizontalAlignment="Left"
+                            Direction="Right"
+                            Width="{x:Bind ViewModel.Width, Mode=OneWay}"
+                            Spacing="{x:Bind ViewModel.Spacing, Mode=OneWay}"
+                            Weight="{x:Bind ViewModel.Weight, Mode=OneWay}"
+                            Thin="{x:Bind ViewModel.Thins, Mode=OneWay}"
+                            Fade="{x:Bind ViewModel.Fades, Mode=OneWay}"
+                            Dots="{x:Bind ViewModel.IsDots, Mode=OneWay}"
+                            Ink="{x:Bind ViewModel.ColorHex, Mode=OneWay}"
+                            LineOpacity="{x:Bind ViewModel.LineOpacity, Mode=OneWay}"/>
+            <prim:EdgeHatch x:Name="MapEdgeFrameHatchRight"
+                            HorizontalAlignment="Right"
+                            Direction="Left"
+                            Width="{x:Bind ViewModel.Width, Mode=OneWay}"
+                            Spacing="{x:Bind ViewModel.Spacing, Mode=OneWay}"
+                            Weight="{x:Bind ViewModel.Weight, Mode=OneWay}"
+                            Thin="{x:Bind ViewModel.Thins, Mode=OneWay}"
+                            Fade="{x:Bind ViewModel.Fades, Mode=OneWay}"
+                            Dots="{x:Bind ViewModel.IsDots, Mode=OneWay}"
+                            Ink="{x:Bind ViewModel.ColorHex, Mode=OneWay}"
+                            LineOpacity="{x:Bind ViewModel.LineOpacity, Mode=OneWay}"/>
+            <prim:EdgeHatch x:Name="MapEdgeFrameHatchBottom"
+                            VerticalAlignment="Bottom"
+                            Direction="Up"
+                            Height="{x:Bind ViewModel.Width, Mode=OneWay}"
+                            Spacing="{x:Bind ViewModel.Spacing, Mode=OneWay}"
+                            Weight="{x:Bind ViewModel.Weight, Mode=OneWay}"
+                            Thin="{x:Bind ViewModel.Thins, Mode=OneWay}"
+                            Fade="{x:Bind ViewModel.Fades, Mode=OneWay}"
+                            Dots="{x:Bind ViewModel.IsDots, Mode=OneWay}"
+                            Ink="{x:Bind ViewModel.ColorHex, Mode=OneWay}"
+                            LineOpacity="{x:Bind ViewModel.LineOpacity, Mode=OneWay}"/>
+        </Grid>
+    </Grid>
+</UserControl>

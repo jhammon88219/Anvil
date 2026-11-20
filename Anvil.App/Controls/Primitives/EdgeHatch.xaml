@@ -2,7 +2,9 @@
 <!-- EdgeHatch — EDGE-HATCH (experimental bolt-on, grep EDGE-HATCH): a cross-hatch band where the chrome meets the map, in
      place of the black cast shadow. Click-through; drawn over the map.
 
-       Direction = Up (above the bottom tiers)          Direction = Right (a left pane's map side; Left mirrors it)
+       Direction = Up (above the time strip; Down       Direction = Right (the rail's / a left pane's map side; Left
+       mirrors it under a pane header)                   mirrors it). MitreStart / MitreEnd cut an end at 45° so the
+                                                         MAP FRAME's bands TURN at its corners (Models/Map EdgeMitre).
        ╱╲  ╱╲      ╱    ╲      ╱╲          ╱╲           │╲╱╲╱ ╲╱  ╲
        ╱╲╱╲╱╲╱╲  ╱╲╱╲  ╱╲╱╲  ╱╲╱╲╱╲╱╲  ╱╲╱╲            │╱╲╱╲ ╱╲    ← the lines THIN out (1 in 2 stops at ¼, 1 in 4
        ╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱             │╲╱╲╱ ╲╱  ╲     at ½ …) and/or FADE toward the map

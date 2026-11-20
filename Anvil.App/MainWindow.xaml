@@ -19,8 +19,9 @@
           CENTRED top to bottom; on the window's left edge, or DOCKED to the NowCast / PastCast pane's right edge. It hangs
           under the top row's pane header and stands on the strip: headers + rail + strip FRAME the map as one raised surface.
 
-          ↑ NO RULES ANYWHERE — every seam is a soft SHADOW (or the EDGE-HATCH), drawn by whichever side owns it: the top bar
-            and each pane header cast theirs down, the rail its own right, the strip its own up.
+          ↑ NO RULES ANYWHERE. Where chrome meets the MAP: the edge effect (soft SHADOW or EDGE-HATCH) traced ONCE round the map
+            opening, TURNING at every corner — the MAP FRAME (Composites/MapEdgeFrame, 2026-11-20). Where chrome meets chrome:
+            the same face FLOWS IN (no seam); different faces just meet.
           ↑ THE TIME STRIP runs from the left temporal pane (or the window edge) to the ForeCast pane (or the window edge),
             under the rail. The SCRUBBER is the WINDOW's midpoint (the user's call, 2026-11-20 — "play = midpoint" is gone).
             A side too short for its block (RadarControls.LeftNeed / RightNeed) runs to the window edge and THAT side's pane
@@ -300,6 +301,27 @@
                 <TextBlock Text="{x:Bind ViewModel.ShortRange.ModelPaneLabel, Mode=OneWay}"
                            FontSize="{StaticResource CaptionFontSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Border>
+        </Grid>
+
+        <!-- ===== THE MAP FRAME (the user's call, 2026-11-20 — canvas "Edges — the map framed") =====
+             The EDGE EFFECT (black shadow or EDGE-HATCH, Settings → Appearance → Edges) traced ONCE round each map OPENING,
+             its sides mitred so it TURNS at every corner — Composites/MapEdgeFrame. It replaced the per-piece bands (the
+             rail's, the strip's, each pane header's, each temporal pane's map side, the top bar's cast shadow), which
+             overlapped into doubled squares.
+
+               ┌ top bar ──────────────────────────────────────────────────────┐
+               │ NowCast  │▓▓▓▓▓▓▓▓▓ pane header ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│ ForeCast │
+               │          ├──┬╲░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░╱│          │   MapEdgeFrameUpper = the opening
+               │          │▤ │░          …the map…              ░│          │   between header, rail, strip and the
+               │          │⛶ │╱░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░╲│          │   ForeCast pane (Single / Double; Quad's
+               ├──────────┴──┴──────────── time strip ────────────┴──────────┤   TOP row — MapEdgeFrameLower is its
+               └──────────────────────────────────────────────────────────────┘   bottom row, under the crossing headers)
+
+             Where it sits and what is beyond each side (raised chrome, ground chrome, or the window's edge = no effect) is
+             MainWindow.LayoutMapEdges. Over the map and the pane headers' map, UNDER the loop gate's frost and the panes. -->
+        <Grid x:Name="MapEdgeLayer" Grid.Row="0" Grid.RowSpan="2" IsHitTestVisible="False">
+            <comp:MapEdgeFrame x:Name="MapEdgeFrameUpper" ViewModel="{x:Bind ViewModel.EdgeHatch}"/>
+            <comp:MapEdgeFrame x:Name="MapEdgeFrameLower" ViewModel="{x:Bind ViewModel.EdgeHatch}" Visibility="Collapsed"/>
         </Grid>
 
         <!-- LOOP HOLDING GATE — PastCast's loading screen (Composites/LoopHoldingGate). It dims the map and the pane
@@ -677,8 +699,8 @@
                                                                      clock block doesn't fit beside it)
                    48 wide, the top bar's foot to the TIME STRIP's top (or the window bottom while the strip is hidden),
                    the tools CENTRED top to bottom (Composites/MapControlsStrip). RAISED face — the SAME surface as the
-                   strip, so the two read as ONE L; its map side casts the light 14 px shade (ShadowFadeLeft), or —
-                   EDGE-HATCH (bolt-on) — the hatch instead. View → Map tools hides it.
+                   strip, so the two read as ONE L; its map side's effect is the MAP FRAME's (MapEdgeLayer), turning into
+                   the header's and the strip's. View → Map tools hides it.
                    ⚠️ ITS MARGIN IS CODE'S (MainWindow.LayoutRadarStrip): left = the left pane's width while Now's or Past's
                    pane shows, bottom = the strip's height while the strip shows.
                    ⚠️ IN THIS LAYER ON PURPOSE: it shares the panes' top inset, and declared after them it covers a
@@ -687,28 +709,7 @@
                   Width="48"
                   HorizontalAlignment="Left"
                   Visibility="{x:Bind PaneVisibility(ViewModel.IsMapControlsStripVisible), Mode=OneWay}">
-                <Rectangle x:Name="MapToolsRailShadow"
-                           Width="14" HorizontalAlignment="Right" Margin="0,0,-14,0"
-                           Fill="{StaticResource ShadowFadeLeft}"
-                           Opacity="{ThemeResource OverlayBarShadowOpacity}"
-                           IsHitTestVisible="False"
-                           Visibility="{x:Bind HiddenWhen(ViewModel.EdgeHatch.IsHatch), Mode=OneWay}"/>
-                <!-- EDGE-HATCH (experimental bolt-on): the hatch on the rail's map side, in place of the shade. -->
-                <ctl:EdgeHatch x:Name="EdgeHatchMapToolsRail"
-                               HorizontalAlignment="Right"
-                               Direction="Right"
-                               Raised="True"
-                               IsHitTestVisible="False"
-                               Width="{x:Bind ViewModel.EdgeHatch.Width, Mode=OneWay}"
-                               Margin="{x:Bind MapToolsRailHatchMargin(ViewModel.EdgeHatch.Width), Mode=OneWay}"
-                               Spacing="{x:Bind ViewModel.EdgeHatch.Spacing, Mode=OneWay}"
-                               Weight="{x:Bind ViewModel.EdgeHatch.Weight, Mode=OneWay}"
-                               Thin="{x:Bind ViewModel.EdgeHatch.Thins, Mode=OneWay}"
-                               Fade="{x:Bind ViewModel.EdgeHatch.Fades, Mode=OneWay}"
-                               Dots="{x:Bind ViewModel.EdgeHatch.IsDots, Mode=OneWay}"
-                               Ink="{x:Bind ViewModel.EdgeHatch.ColorHex, Mode=OneWay}"
-                               LineOpacity="{x:Bind ViewModel.EdgeHatch.LineOpacity, Mode=OneWay}"
-                               Visibility="{x:Bind PaneVisibility(ViewModel.EdgeHatch.IsHatch), Mode=OneWay}"/>
+                <!-- Its map-side effect is the MAP FRAME's (MapEdgeFrameUpper's left side), not the rail's own. -->
                 <Border x:Name="MapToolsRailSurface" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
                 <comp:MapControlsStrip x:Name="ToolsStrip"
                                        HorizontalAlignment="Left"
@@ -721,15 +722,14 @@
 
                    ┌ top bar ───────────────────────────────────────────────────────────────────────────────────┐
                    │ NowCast  │▤ │ …map…                                                          │ ForeCast │
-                   │  pane    │⛶ │░░░░░░░░░░░░░░░░░░░░ light 14 px shade up ░░░░░░░░░░░░░░░░░░░░░░│  pane    │
+                   │  pane    │⛶ │╱░░░░░░░░░░░ the MAP FRAME's bottom side (turns at the corners) ░░░╲│  pane    │
                    │          ├──┴── 1:07 PM · 2 min ago │▮▮▮▮ scrubber ▮▮▮▮│ ◀ ▶ ▶ 22/30 ⟳ ·· VCP 212 · …┤          │
                    └──────────┴────────────────────────────── ↑ the WINDOW's midpoint ──────────────┴──────────┘
                               ↑ the strip's LEFT end = the left pane's edge (or the window's); it runs UNDER the rail,
                                 which stops on its top: rail + strip = ONE raised L. RIGHT end = the ForeCast pane's edge
                                 (or the window's).
 
-                 40 tall (Styles.xaml RadarStripHeight), RAISED face, its map side casts the light 14 px shade up
-                 (ShadowFadeUp) or — EDGE-HATCH (bolt-on) — the hatch. The CONTENT (RadarControls, ModelConsole over it in
+                 40 tall (Styles.xaml RadarStripHeight), RAISED face; its map-side effect is the MAP FRAME's. The CONTENT (RadarControls, ModelConsole over it in
                  MODEL MODE) is laid out over the WHOLE window width so the scrubber sits on the window's midpoint; its
                  SideInsets keep the side blocks inside the strip's ends.
                  ⚠️ A SIDE THAT DOESN'T FIT: when the gap between the scrubber and a temporal pane is shorter than that side's
@@ -747,27 +747,7 @@
                   VerticalAlignment="Bottom"
                   Height="{StaticResource RadarStripHeight}"
                   Visibility="{x:Bind ConsoleVisibility(ViewModel.IsRadarConsoleVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}">
-                <Rectangle x:Name="RadarStripShade"
-                           Height="14" VerticalAlignment="Top"
-                           Fill="{StaticResource ShadowFadeUp}"
-                           Opacity="{ThemeResource OverlayBarShadowOpacity}"
-                           IsHitTestVisible="False"
-                           Visibility="{x:Bind HiddenWhen(ViewModel.EdgeHatch.IsHatch), Mode=OneWay}"/>
-                <!-- EDGE-HATCH (experimental bolt-on): the hatch on the strip's map side, in place of the shade. -->
-                <ctl:EdgeHatch x:Name="EdgeHatchRadarStrip"
-                               VerticalAlignment="Top"
-                               Direction="Up"
-                               Raised="True"
-                               IsHitTestVisible="False"
-                               Height="{x:Bind ViewModel.EdgeHatch.Width, Mode=OneWay}"
-                               Spacing="{x:Bind ViewModel.EdgeHatch.Spacing, Mode=OneWay}"
-                               Weight="{x:Bind ViewModel.EdgeHatch.Weight, Mode=OneWay}"
-                               Thin="{x:Bind ViewModel.EdgeHatch.Thins, Mode=OneWay}"
-                               Fade="{x:Bind ViewModel.EdgeHatch.Fades, Mode=OneWay}"
-                               Dots="{x:Bind ViewModel.EdgeHatch.IsDots, Mode=OneWay}"
-                               Ink="{x:Bind ViewModel.EdgeHatch.ColorHex, Mode=OneWay}"
-                               LineOpacity="{x:Bind ViewModel.EdgeHatch.LineOpacity, Mode=OneWay}"
-                               Visibility="{x:Bind PaneVisibility(ViewModel.EdgeHatch.IsHatch), Mode=OneWay}"/>
+                <!-- Its map-side effect is the MAP FRAME's (MapEdgeFrameUpper / Lower's bottom side), not the strip's own. -->
                 <Border x:Name="RadarStripSurface" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
                 <Grid x:Name="RadarStripContent">
                     <comp:RadarControls x:Name="TimeModule"

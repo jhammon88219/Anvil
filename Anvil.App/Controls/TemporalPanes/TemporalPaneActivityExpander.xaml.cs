@@ -53,6 +53,19 @@ namespace Anvil.Controls.TemporalPanes
 		// Hidden's summary line only where there's no radar line to be the one line (ForeCast, PastCast).
 		public Visibility SummaryShown(bool hidden, bool has, bool radar) => hidden && has && !radar ? Visibility.Visible : Visibility.Collapsed;
 
+		/// <summary>This expander is the RIGHT-edge pane's (ForeCast): its Hidden one-line summary sits RIGHT-aligned, clear of
+		/// the time strip's scan line that ends at the pane's left edge (the user's call, 2026-11-20). Set once by the pane.</summary>
+		public bool IsRightPane
+		{
+			get => (bool)GetValue(IsRightPaneProperty);
+			set => SetValue(IsRightPaneProperty, value);
+		}
+
+		public static readonly DependencyProperty IsRightPaneProperty =
+			DependencyProperty.Register(nameof(IsRightPane), typeof(bool), typeof(TemporalPaneActivityExpander), new PropertyMetadata(false));
+
+		public HorizontalAlignment SummaryAlignment(bool right) => right ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+
 		public bool Not(bool value) => !value;
 
 		public string TabHint(bool opensMore, bool past) => !opensMore ? "Show less" : past ? "Show what this event downloaded" : "Show every feed's times";

@@ -195,6 +195,24 @@ namespace Anvil.Controls.Composites
 		private const string RescansOffPart = "rescans off";
 		private const string PreSailsPart = "pre-SAILS";
 
+		// ===== THE SCAN LINE's tail: " · precip · MRLE ×4" (the VCP is its own Run) =====
+		// Words the user can read (2026-11-20): no rescans of any kind — "rescans off", "pre-SAILS", or counted and zero —
+		// says "no rescans"; a part with nothing to say (unknown "—", TDWR's "n/a") is LEFT OUT, separator and all.
+		public string ScanTail(string mode)
+		{
+			var tail = string.Empty;
+			var regime = ScanValue(mode, 1);
+			if (regime != "—") { tail += " · " + regime; }
+			var rescans = ScanValue(mode, 2) switch
+			{
+				"off" or "none" or PreSailsPart => "no rescans",
+				"—" or "n/a" => string.Empty,
+				var scheme => scheme,
+			};
+			if (rescans.Length > 0) { tail += " · " + rescans; }
+			return tail;
+		}
+
 		public string ScanValue(string mode, int line)
 		{
 			var parts = RadarVcpText(mode).Split(" · ");

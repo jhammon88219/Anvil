@@ -140,6 +140,64 @@ namespace Anvil.Models
 		Right,
 		/// <summary>Left from its right edge (ForeCast's map side).</summary>
 		Left,
+		/// <summary>Down from its top edge (under a pane header — the map frame's top side, 2026-11-20).</summary>
+		Down,
+	}
+
+	/// <summary>
+	/// THE MAP FRAME's corners (2026-11-20, the user's call: "the effect should always TURN with the corner"). Each side's
+	/// band is cut at 45° where it meets the next side — a MITRE — so two bands meet on the diagonal instead of
+	/// overlapping into a doubled square. Pure, so it's tested. Band coordinates as <see cref="HatchSegment"/>: the edge
+	/// along y = 0, x ∈ [0, length], y grows into the map; START = x 0, END = x length.
+	/// </summary>
+	public static class EdgeMitre
+	{
+		/// <summary>The band's outline as a trapezoid (edge first, then the far side): a mitred end steps in by the depth.</summary>
+		public static (double X, double Y)[] Trapezoid(double length, double depth, bool mitreStart, bool mitreEnd) =>
+			new[]
+			{
+				(0.0, 0.0),
+				(length, 0.0),
+				(mitreEnd ? Math.Max(0, length - depth) : length, depth),
+				(mitreStart ? Math.Min(length, depth) : 0.0, depth),
+			};
+
+		/// <summary>The hatch lines kept inside the mitres (each segment clipped to x ≥ y at a mitred start and x ≤ length − y
+		/// at a mitred end); a DOT (a segment shorter than 2 × <see cref="EdgeHatchGeometry.DotNudge"/>) is kept or dropped
+		/// whole, never shortened.</summary>
+		public static IReadOnlyList<HatchSegment> Clip(IReadOnlyList<HatchSegment> segments, double length, bool mitreStart, bool mitreEnd)
+		{
+			if (!mitreStart && !mitreEnd) { return segments; }
+			var kept = new List<HatchSegment>(segments.Count);
+			foreach (var s in segments)
+			{
+				bool dot = Math.Abs(s.X2 - s.X1) + Math.Abs(s.Y2 - s.Y1) < 2 * EdgeHatchGeometry.DotNudge;
+				if (dot)
+				{
+					if ((!mitreStart || s.X1 >= s.Y1) && (!mitreEnd || s.X1 <= length - s.Y1)) { kept.Add(s); }
+					continue;
+				}
+				double t0 = 0, t1 = 1;
+				// Half-planes a·x + b·y + c ≥ 0: start x − y ≥ 0; end −x − y + length ≥ 0.
+				if (mitreStart && !ClipTo(s, 1, -1, 0, ref t0, ref t1)) { continue; }
+				if (mitreEnd && !ClipTo(s, -1, -1, length, ref t0, ref t1)) { continue; }
+				double dx = s.X2 - s.X1, dy = s.Y2 - s.Y1;
+				kept.Add(new HatchSegment(s.X1 + dx * t0, s.Y1 + dy * t0, s.X1 + dx * t1, s.Y1 + dy * t1));
+			}
+			return kept;
+		}
+
+		// Narrows [t0, t1] to the part of the segment where a·x + b·y + c ≥ 0; false = nothing left.
+		private static bool ClipTo(HatchSegment s, double a, double b, double c, ref double t0, ref double t1)
+		{
+			double f0 = a * s.X1 + b * s.Y1 + c;
+			double f1 = a * s.X2 + b * s.Y2 + c;
+			if (f0 < 0 && f1 < 0) { return false; }
+			if (f0 >= 0 && f1 >= 0) { return t1 > t0; }
+			double t = f0 / (f0 - f1);
+			if (f0 < 0) { t0 = Math.Max(t0, t); } else { t1 = Math.Min(t1, t); }
+			return t1 > t0;
+		}
 	}
 
 	/// <summary>One hatch line, in BAND coordinates: the edge runs along y = 0, x ∈ [0, length]; y grows into the map.</summary>

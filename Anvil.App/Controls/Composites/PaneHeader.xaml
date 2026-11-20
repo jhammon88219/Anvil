@@ -7,7 +7,7 @@
        │                    ▪▫  Ref ˅ │ -30   dBZ   75 │ 0.5° ˅                              │  RAISED face
        │                        ^^^^^   ▓▓▒▒░░░░▒▒▓▓▓▓   ^^^^^                               │
        └──────────────────────────────────────────────────────────────────────────────────────┘
-         ░░░░░░░░░░░░░░░░ light 14 px cast shade onto the map (ShadowFadeDown) ░░░░░░░░░░░░░░░
+         ░░░░░░░░ the edge effect under it is the MAP FRAME's (MainWindow MapEdgeFrame), not drawn here ░░░░░░░░
           ^ which-pane MARK (multi-pane only): the layout's cells, THIS pane's lit
                 ^ PaneNotchContent, unchanged: product · the legend · TILT — tilt stays BESIDE the ramp (the user's
                   rule), so it is never hunted for
@@ -29,14 +29,7 @@
              mc:Ignorable="d">
 
     <Grid VerticalAlignment="Top">
-        <!-- The cast shade hangs BELOW the bar; it reserves no layout (negative margin) and takes no input. -->
-        <Rectangle x:Name="PaneHeaderShade"
-                   Height="14"
-                   VerticalAlignment="Bottom"
-                   Margin="0,0,0,-14"
-                   Fill="{StaticResource ShadowFadeDown}"
-                   Opacity="{ThemeResource OverlayBarShadowOpacity}"
-                   IsHitTestVisible="False"/>
+        <!-- Its map-side effect is the MAP FRAME's (MainWindow's MapEdgeFrame top side), not the header's own. -->
         <Border x:Name="PaneHeaderSurface" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
 
         <!-- ⚠️ ITS MARGIN IS THE HOST'S (ContentPadding, MainWindow.PlacePaneHeaders): one side padded so the row's centre

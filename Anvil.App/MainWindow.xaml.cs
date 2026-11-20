@@ -71,11 +71,8 @@ namespace Anvil
 			var stripLeft = leftFits ? leftPane : 0;
 			var stripRight = rightFits ? rightPane : 0;
 
-			// The strip's face spans its ends; the shade / hatch fall on the MAP only (from the rail's right edge to the
-			// ForeCast pane), never on a pane or the rail.
+			// The strip's face spans its ends (its map-side effect is the MAP FRAME's — LayoutMapEdges).
 			RadarStripSurface.Margin = new Thickness(stripLeft, 0, stripRight, 0);
-			RadarStripShade.Margin = new Thickness(leftPane + railWidth, -RadarStripShade.Height, rightPane, 0);
-			EdgeHatchRadarStrip.Margin = new Thickness(leftPane + railWidth, -EdgeHatchRadarStrip.ActualHeight, rightPane, 0);
 			var insets = new Thickness(stripLeft, 0, stripRight, 0);
 			TimeModule.SideInsets = insets;
 			ModelConsole.SideInsets = insets;
@@ -89,6 +86,70 @@ namespace Anvil
 			TemporalPanePastCast.Margin = new Thickness(0, 0, 0, leftPaneBottom);
 			TemporalPaneNowCast.Margin = new Thickness(0, 0, 0, leftPaneBottom);
 			TemporalPaneForeCast.Margin = new Thickness(0, 0, 0, stripShown && !rightFits ? stripHeight : 0);
+
+			LayoutMapEdges();
+		}
+
+		// ===== THE MAP FRAME (2026-11-20): the edge effect traced once round each map OPENING, turning at its corners =====
+		// The opening = the map you can see: right of the rail (or a left pane), left of the ForeCast pane, under the pane
+		// headers (or the top bar), over the time strip. Each side says what is beyond it — RAISED chrome (header, rail,
+		// strip), GROUND chrome (a temporal pane, the top bar) or the WINDOW's edge (no effect). Quad with headers shown
+		// has TWO openings, split by the bottom row's headers on the crossing. Called from LayoutRadarStrip and
+		// PlacePaneHeaders, which between them see every change that moves an edge.
+		private void LayoutMapEdges()
+		{
+			var width = PaneNotchLayer.ActualWidth;
+			var height = PaneNotchLayer.ActualHeight;
+			if (width <= 0 || height <= 0)
+			{
+				return;
+			}
+
+			// The top bar draws its own shadow only where it OVERLAYS the map (full screen); otherwise the frame owns that edge.
+			TopChrome.EdgeStyle = IsTopBarOverlaid ? BarEdgeStyle.CastShadow : BarEdgeStyle.None; // FULL-SCREEN (bolt-on)
+
+			var headersShown = ArePaneHeadersShown;
+			var stripShown = RadarStrip.Visibility == Visibility.Visible;
+			var leftPane = ViewModel.IsPastPaneShown || ViewModel.IsNowPaneShown ? LeftPaneWidth : 0;
+			var railWidth = MapToolsRail.Visibility == Visibility.Visible ? MapToolsRail.Width : 0;
+			var rightPane = ViewModel.IsForePaneShown ? TemporalPaneForeCast.Width : 0;
+			var barBottom = IsTopBarOverlaid ? 0 : TopChrome.SurfaceHeight;
+
+			var left = leftPane + railWidth;
+			var right = width - rightPane;
+			var bottom = height - (stripShown ? RadarStrip.Height : 0);
+			var leftSide = railWidth > 0 ? MapEdgeSide.Raised : leftPane > 0 ? MapEdgeSide.Ground : MapEdgeSide.None;
+			var rightSide = rightPane > 0 ? MapEdgeSide.Ground : MapEdgeSide.None;
+			var bottomSide = stripShown ? MapEdgeSide.Raised : MapEdgeSide.None;
+			// Under the headers: raised. No headers: the top bar's foot (ground) — or, full screen, the screen's top (none).
+			var top = barBottom + TopPaneHeaderHeight();
+			var topSide = headersShown ? MapEdgeSide.Raised : IsTopBarOverlaid ? MapEdgeSide.None : MapEdgeSide.Ground;
+
+			var quadSplit = headersShown && ViewModel.Radar.PaneLayout == PaneLayout.Quad;
+			if (!quadSplit)
+			{
+				PlaceMapEdgeFrame(MapEdgeFrameUpper, left, top, right, bottom, topSide, leftSide, rightSide, bottomSide);
+				MapEdgeFrameLower.Visibility = Visibility.Collapsed;
+				return;
+			}
+
+			// QUAD: the bottom row's headers sit on the crossing (grid row 2 starts after the groove) and split the map.
+			var rowTwoTop = (height - PaneLayoutInfo.GutterPx) / 2 + PaneLayoutInfo.GutterPx;
+			var rowTwoHeader = Math.Max(PaneHeaderPane0.ActualHeight, PaneHeaderPane1.ActualHeight);
+			PlaceMapEdgeFrame(MapEdgeFrameUpper, left, top, right, rowTwoTop, topSide, leftSide, rightSide, MapEdgeSide.Raised);
+			PlaceMapEdgeFrame(MapEdgeFrameLower, left, rowTwoTop + rowTwoHeader, right, bottom, MapEdgeSide.Raised, leftSide, rightSide, bottomSide);
+			MapEdgeFrameLower.Visibility = Visibility.Visible;
+		}
+
+		private static void PlaceMapEdgeFrame(MapEdgeFrame frame, double left, double top, double right, double bottom,
+			MapEdgeSide topSide, MapEdgeSide leftSide, MapEdgeSide rightSide, MapEdgeSide bottomSide)
+		{
+			frame.HorizontalAlignment = HorizontalAlignment.Left;
+			frame.VerticalAlignment = VerticalAlignment.Top;
+			frame.Margin = new Thickness(left, top, 0, 0);
+			frame.Width = Math.Max(0, right - left);
+			frame.Height = Math.Max(0, bottom - top);
+			frame.SetSides(topSide, leftSide, rightSide, bottomSide);
 		}
 
 		// The time module's transport block got its width (RightNeed is 0 until then).
@@ -97,10 +158,6 @@ namespace Anvil
 		// The left panes' declared width (Styles.xaml TemporalPaneWidth — read off the declared pane, so the two can't disagree).
 		private double LeftPaneWidth => TemporalPaneNowCast?.Width ?? 480;
 
-		// EDGE-HATCH (bolt-on): the rail's hatch hangs OFF its map-side edge, like a pane's.
-		public Thickness MapToolsRailHatchMargin(double width) => new(0, 0, -width, 0);
-
-		public Visibility HiddenWhen(bool on) => on ? Visibility.Collapsed : Visibility.Visible;
 
 		// ===== PANE MODE (top menu bar) =====
 		// Greyed while the PastCast loading screen is up (Radar.AreControlsLocked) — Isolation too.
@@ -320,6 +377,8 @@ namespace Anvil
 			var labelTop = top + PaneHeaderPane0.ActualHeight + CompareLabelGap;
 			CompareRadarPaneLabel.Margin = new Thickness(12 + leftPane + railWidth, labelTop, 0, 0);
 			CompareModelPaneLabel.Margin = new Thickness(12, labelTop, 0, 0);
+
+			LayoutMapEdges();
 		}
 
 		// (AlignCentreSection is GONE, 2026-11-04: the console's top row it edge-aligned went when Inspect + rings/ruler moved
@@ -863,7 +922,6 @@ namespace Anvil
 				LayoutRadarStrip();
 				PlacePaneHeaders();
 			});
-			EdgeHatchRadarStrip.SizeChanged += (_, _) => LayoutRadarStrip();
 			// The headers showing / hiding (one rule for all four, IsNotchShown) moves the rail's top.
 			PaneHeaderPane0.RegisterPropertyChangedCallback(UIElement.IsHitTestVisibleProperty, (_, _) => LayoutRadarStrip());
 
