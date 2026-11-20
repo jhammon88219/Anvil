@@ -80,8 +80,9 @@ namespace Anvil
 			TimeModule.SideInsets = insets;
 			ModelConsole.SideInsets = insets;
 
-			// The rail: docked to the left pane, standing ON the strip.
-			MapToolsRail.Margin = new Thickness(leftPane, 0, 0, stripShown ? stripHeight : 0);
+			// The rail: docked to the left pane, standing ON the strip and hanging UNDER the top row's pane header — the
+			// headers, rail and strip frame the map as one raised surface.
+			MapToolsRail.Margin = new Thickness(leftPane, TopPaneHeaderHeight(), 0, stripShown ? stripHeight : 0);
 
 			// A side the strip had to run under: that side's pane stops on the strip's top.
 			var leftPaneBottom = stripShown && !leftFits ? stripHeight : 0;
@@ -217,12 +218,13 @@ namespace Anvil
 		public string ForePaneAccel(bool canPick) => canPick ? "Ctrl+3" : "Turn on ForeCast first";
 
 
-		// ===== PANE HEADERS — each across the top of its pane's VISIBLE part (the user's call, 2026-11-20) =====
+		// ===== PANE HEADERS — each across the top of its pane, BETWEEN the temporal panes (the user's call, 2026-11-20) =====
 		// The top row sits under the top bar (its MEASURED height, or the screen top while full screen overlays the bar);
-		// the bottom row on the crossing. Each header's left/right is inset so it starts at the map-tools rail / a left
-		// temporal pane and ends at the ForeCast pane: its CENTRED content centres on what you can see, never under a pane.
-		// The elements are declared in XAML (PaneHeaderPane0…3); this only sets their margins. Compare with radar's corner
-		// labels move under the headers here too.
+		// the bottom row on the crossing. Each bar FLOWS INTO the temporal panes (the strip's rule: left pane's edge or the
+		// window's → ForeCast pane's edge or the window's) and the rail hangs under the top row. Its content centres on the
+		// PANE CELL's centre (Single = the window's, the scrubber's line) via ContentPadding, sliding only to stay on the
+		// visible map. The elements are declared in XAML (PaneHeaderPane0…3); this sets their margins + padding. Compare with
+		// radar's corner labels move under the headers here too.
 		private const double CompareLabelGap = 8;
 
 		// The top bar's PLACE SEARCH is as wide as pane 0's header CONTENT (the old selector's width rule, 2026-11-03) — and
@@ -236,6 +238,39 @@ namespace Anvil
 			}
 		}
 
+		// A header's row changed size: re-centre it (its width) and re-dock the rail under the top row (its height).
+		private void OnPaneHeaderRowSizeChanged(object? sender, EventArgs e)
+		{
+			PlacePaneHeaders();
+			LayoutRadarStrip();
+		}
+
+		private PaneHeader[] PaneHeaders => new[] { PaneHeaderPane0, PaneHeaderPane1, PaneHeaderPane2, PaneHeaderPane3 };
+
+		// The headers show (one rule for all four — IsNotchShown, bound in XAML) — the rail then stands under the top row.
+		private bool ArePaneHeadersShown => PaneHeaderPane0.IsHitTestVisible;
+
+		/// <summary>The TOP row's header height while the headers show (the tallest top-row one), else 0 — where the map-tools
+		/// rail's top stands (LayoutRadarStrip), so rail + headers + strip frame the map with no seam.</summary>
+		private double TopPaneHeaderHeight()
+		{
+			if (!ArePaneHeadersShown)
+			{
+				return 0;
+			}
+			var layout = ViewModel.Radar.PaneLayout;
+			var height = 0.0;
+			var headers = PaneHeaders;
+			for (var i = 0; i < headers.Length; i++)
+			{
+				if (headers[i].Visibility == Visibility.Visible && layout.CellOf(i).Row == 0)
+				{
+					height = Math.Max(height, headers[i].ActualHeight);
+				}
+			}
+			return height;
+		}
+
 		private void PlacePaneHeaders()
 		{
 			var width = PaneNotchLayer.ActualWidth;
@@ -246,12 +281,13 @@ namespace Anvil
 
 			var layout = ViewModel.Radar.PaneLayout;
 			var top = IsTopBarOverlaid ? 0 : TopChrome.SurfaceHeight; // FULL-SCREEN (bolt-on): bar overlaid
-			// The map's visible run: right of the rail (and a left pane), left of the ForeCast pane.
+			// The bars FLOW INTO the temporal panes (the strip's rule): from the left pane's edge (or 0) to the ForeCast
+			// pane's edge (or the window's). The rail stands UNDER a top-row header, so it hides only bottom-row ones.
+			var leftPane = ViewModel.IsPastPaneShown || ViewModel.IsNowPaneShown ? LeftPaneWidth : 0;
 			var railWidth = MapToolsRail.Visibility == Visibility.Visible ? MapToolsRail.Width : 0;
-			var visibleLeft = (ViewModel.IsPastPaneShown || ViewModel.IsNowPaneShown ? LeftPaneWidth : 0) + railWidth;
-			var visibleRight = width - (ViewModel.IsForePaneShown ? TemporalPaneForeCast.Width : 0);
+			var rightEdge = width - (ViewModel.IsForePaneShown ? TemporalPaneForeCast.Width : 0);
 
-			var headers = new[] { PaneHeaderPane0, PaneHeaderPane1, PaneHeaderPane2, PaneHeaderPane3 };
+			var headers = PaneHeaders;
 			var columnWidth = (width - PaneLayoutInfo.GutterPx) / 2;
 			for (var i = 0; i < headers.Length; i++)
 			{
@@ -259,16 +295,30 @@ namespace Anvil
 				// The cell's x run in the [*, gutter, *] grid (a span of 3 = the whole width).
 				var cellLeft = cell.Column == 0 ? 0 : columnWidth + PaneLayoutInfo.GutterPx;
 				var cellRight = cell.ColumnSpan == 3 || cell.Column == 2 ? width : columnWidth;
-				headers[i].Margin = new Thickness(
-					Math.Max(0, visibleLeft - cellLeft),
-					cell.Row == 0 ? top : 0,
-					Math.Max(0, cellRight - visibleRight),
-					0);
+				var barLeft = Math.Max(cellLeft, leftPane);
+				var barRight = Math.Min(cellRight, rightEdge);
+				headers[i].Margin = new Thickness(barLeft - cellLeft, cell.Row == 0 ? top : 0, cellRight - barRight, 0);
+
+				// CENTRE on the cell's centre (Single = the window's, the scrubber's line); slide only as far as needed to
+				// keep the row on the map you can see (past the rail where it covers this bar, clear of a pane).
+				var seenLeft = cell.Row == 0 ? barLeft : Math.Max(barLeft, leftPane + railWidth);
+				var row = headers[i].RowWidth;
+				var centre = (cellLeft + cellRight) / 2;
+				if (row > 0 && row <= barRight - seenLeft)
+				{
+					centre = Math.Clamp(centre, seenLeft + row / 2, barRight - row / 2);
+				}
+				else if (row > 0)
+				{
+					centre = (seenLeft + barRight) / 2; // doesn't fit at all: the middle of what's seen
+				}
+				var skew = 2 * (centre - (barLeft + barRight) / 2); // + = pad left, − = pad right
+				headers[i].ContentPadding = new Thickness(Math.Max(0, skew), 0, Math.Max(0, -skew), 0);
 			}
 
-			// Compare with radar (two across): each corner label just under its pane's header, inside the visible part.
+			// Compare with radar (two across): each corner label just under its pane's header, clear of the rail / a pane.
 			var labelTop = top + PaneHeaderPane0.ActualHeight + CompareLabelGap;
-			CompareRadarPaneLabel.Margin = new Thickness(12 + Math.Max(0, visibleLeft), labelTop, 0, 0);
+			CompareRadarPaneLabel.Margin = new Thickness(12 + leftPane + railWidth, labelTop, 0, 0);
 			CompareModelPaneLabel.Margin = new Thickness(12, labelTop, 0, 0);
 		}
 
@@ -814,6 +864,8 @@ namespace Anvil
 				PlacePaneHeaders();
 			});
 			EdgeHatchRadarStrip.SizeChanged += (_, _) => LayoutRadarStrip();
+			// The headers showing / hiding (one rule for all four, IsNotchShown) moves the rail's top.
+			PaneHeaderPane0.RegisterPropertyChangedCallback(UIElement.IsHitTestVisibleProperty, (_, _) => LayoutRadarStrip());
 
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs

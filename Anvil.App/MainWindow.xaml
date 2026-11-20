@@ -5,19 +5,19 @@
      radar console, which read as warts on the map).
 
        ┌ Atlas View Settings Temporal Mode Pane Mode Isolation Radar ─ [ Search places ✕ ] ─ drag ─ – □ ✕ ┐  TOP MENU BAR
-       ├──┬────────────────────────────────────────────┬──────────────────────────────────────────────────┤  (Radar = the
-       │◗▸│▓▓▓▓ ▪▫ CC ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│▓▓▓▓▓▓▓ ▫▪ SRV ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│  site picker)
-       │▤▸│  map pane 2                                │  map pane 3                                      │  PANE HEADERS —
-       │⁘ │                                            │                                                  │  full width of the
-       │⛶ ├────────────────────────────────────────────┼──────────────────────────────────────────────────┤  pane's VISIBLE part,
-       │↻ │▓▓▓▓ ▫▫ Ref ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓│▓▓▓▓▓▓▓ ▫▫ Vel ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│  content CENTRED,
-       │◍ │  map pane 0  (MAIN)                        │  map pane 1                                      │  tilt beside the ramp
-       │⊚ │                                            │                                                  │
-       ├──┴─────────── 1:07 PM · 2 min ago │▮▮▮▮▮ scrubber ▮▮▮▮▮│ ◀ ▶ ▶ 22/30 ⟳ ········ VCP 212 · precip · SAILS ×1 ┤  TIME STRIP (40)
-       └──────────────────────────────────────────────── ↑ window midpoint ──────────────────────────────────┘
+       ├───────────────────────────────────────────────┬──────────────────────────────────────────────────┤  (Radar = the
+       │▓▓▓▓▓▓▓ ▪▫ CC ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│▓▓▓▓▓▓▓ ▫▪ SRV ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│  site picker)
+       ├──┬────────────────────────────────────────────┤                                                  │  PANE HEADERS —
+       │▤▸│  map pane 2                                │  map pane 3                                      │  between the temporal
+       │⛶ ├────────────────────────────────────────────┼──────────────────────────────────────────────────┤  panes (rail hangs
+       │↻ │▓▓▓▓ ▫▫ Ref ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓│▓▓▓▓▓▓▓ ▫▫ Vel ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│  under the top row),
+       │◍ │  map pane 0  (MAIN)                        │  map pane 1                                      │  content CENTRED on
+       │⊚ │                                            │                                                  │  the PANE's centre,
+       ├──┴─────────── 1:07 PM · 2 min ago │▮▮▮▮▮ scrubber ▮▮▮▮▮│ ◀ ▶ ▶ 22/30 ⟳ ········ VCP 212 · precip · SAILS ×1 ┤  tilt beside the ramp
+       └──────────────────────────────────────────────── ↑ window midpoint ──────────────────────────────────┘  TIME STRIP (40)
         ↑ the MAP-TOOLS RAIL: radar networks · map layers · fit · reset north · markers · location · inspect · rings/ruler,
-          CENTRED top to bottom; on the window's left edge, or DOCKED to the NowCast / PastCast pane's right edge. It stops on
-          the strip's top: rail + strip are ONE raised L (same surface, no seam).
+          CENTRED top to bottom; on the window's left edge, or DOCKED to the NowCast / PastCast pane's right edge. It hangs
+          under the top row's pane header and stands on the strip: headers + rail + strip FRAME the map as one raised surface.
 
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW (or the EDGE-HATCH), drawn by whichever side owns it: the top bar
             and each pane header cast theirs down, the rail its own right, the strip its own up.
@@ -70,10 +70,11 @@
      "bar" for the per-pane controls mean the pane header now; the time module is the TIME STRIP.) -->
      <!-- TOP OF WINDOW (2026-11-20):
        ┌ Atlas View … Radar ─────────── drag ───────────────────────── – □ ✕ ┐
-       ├──────────┬──┬──────────────────────────────────────────┬──────────┤
-       │ PastCast │  │▓▓▓▓▓ Ref ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│ ForeCast │  temporal panes under the bar; each map
-       │ /NowCast │▤ │                                          │          │  pane's HEADER spans its visible part,
-       │          │⛶ │                                          │          │  between the rail and the ForeCast pane
+       ├──────────┬─────────────────────────────────────────────┬──────────┤
+       │ PastCast │▓▓▓▓▓▓▓▓ Ref ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│ ForeCast │  temporal panes under the bar; each map
+       │ /NowCast ├──┬──────────────────────────────────────────┤          │  pane's HEADER runs pane edge to pane edge
+       │          │▤ │                                          │          │  (the rail hangs under it), content centred
+       │          │⛶ │                                          │          │  on the PANE's centre
      -->
 <Window
     x:Class="Anvil.MainWindow"
@@ -155,11 +156,13 @@
         </controls:WebView2>
 
         <!-- ===== PANE HEADERS (the user's call, 2026-11-20 — canvas "Pane headers + L strip") =====
-             One per pane: Composites/PaneHeader, a full-width RAISED bar across the top of the pane's VISIBLE part, its
-             product · legend · TILT (PaneNotchContent) CENTRED on that part, plus a which-pane mark in Double / Quad. The
-             top bar's View → Pane headers shows / hides all four (ArePaneSelectorsVisible). It replaced the floating pane
-             selectors (OverlayBar islands). PLACEMENT is MainWindow.PlacePaneHeaders (code: the top bar's measured height
-             and the temporal panes / rail decide the visible part):
+             One per pane: Composites/PaneHeader, a RAISED bar across the top of its pane that FLOWS INTO the temporal panes
+             (left pane's edge or the window's → ForeCast pane's edge or the window's — the time strip's rule; the map-tools
+             rail hangs UNDER a top-row header), its product · legend · TILT (PaneNotchContent) CENTRED on the PANE CELL's
+             centre (Single = the window's, the scrubber's line) — it slides only as far as it must to stay on the visible
+             map — plus a which-pane mark in Double / Quad. The top bar's View → Pane headers shows / hides all four
+             (ArePaneSelectorsVisible). It replaced the floating pane selectors (OverlayBar islands). PLACEMENT is
+             MainWindow.PlacePaneHeaders (code: the top bar's measured height + which temporal panes show):
 
              SINGLE                              TWO ACROSS                        QUAD
              ═══════════ top bar ════════════    ══════════ top bar ═══════════    ══════════ top bar ═══════════
@@ -181,7 +184,7 @@
              rect (Row 0 + RowSpan 2, matching the WebView above), so its cells coincide with the page's
              pane rects — both sides split the same area the same way, both using PaneLayoutInfo.GutterPx.
              Each header is placed in its cell by PaneLayoutInfo.CellOf via the x:Bind functions below; its margins
-             (the top bar's foot for the top row, the visible part's insets) are PlacePaneHeaders'.
+             (the top bar's foot for the top row, the temporal panes' insets) and content padding are PlacePaneHeaders'.
 
              ⚠️ The pane ARRANGEMENT (pane 0 = main = bottom-left) is expressed twice: here through CellOf,
              and in map.js paneRects() which lays out the real maps. Same rule, opposite sides of the WebView
@@ -225,6 +228,7 @@
 
             <comp:PaneHeader x:Name="PaneHeaderPane0"
                              ContentWidthChanged="OnPaneHeaderContentWidthChanged"
+                             RowSizeChanged="OnPaneHeaderRowSizeChanged"
                              VerticalAlignment="Top"
                              Pane="{x:Bind ViewModel.Radar.Pane0}"
                              Radar="{x:Bind ViewModel.Radar}"
@@ -237,6 +241,7 @@
                              Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
                              Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"/>
             <comp:PaneHeader x:Name="PaneHeaderPane1"
+                             RowSizeChanged="OnPaneHeaderRowSizeChanged"
                              VerticalAlignment="Top"
                              Pane="{x:Bind ViewModel.Radar.Pane1}"
                              Radar="{x:Bind ViewModel.Radar}"
@@ -249,6 +254,7 @@
                              Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
                              Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"/>
             <comp:PaneHeader x:Name="PaneHeaderPane2"
+                             RowSizeChanged="OnPaneHeaderRowSizeChanged"
                              VerticalAlignment="Top"
                              Pane="{x:Bind ViewModel.Radar.Pane2}"
                              Radar="{x:Bind ViewModel.Radar}"
@@ -261,6 +267,7 @@
                              Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
                              Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"/>
             <comp:PaneHeader x:Name="PaneHeaderPane3"
+                             RowSizeChanged="OnPaneHeaderRowSizeChanged"
                              VerticalAlignment="Top"
                              Pane="{x:Bind ViewModel.Radar.Pane3}"
                              Radar="{x:Bind ViewModel.Radar}"

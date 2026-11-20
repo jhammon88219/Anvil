@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- PaneHeader — one map pane's HEADER (2026-11-20, canvas "Pane headers + L strip"; it replaced the FLOATING pane
      selector, an OverlayBar island that read as a wart on the map). A full-width raised bar across the TOP of its pane's
-     VISIBLE part, everything in it CENTRED on that part:
+     part between the temporal panes, its content CENTRED on the PANE's centre (Single = the window's — the scrubber's line):
 
        ┌──────────────────────────────────────────────────────────────────────────────────────┐
        │                    ▪▫  Ref ˅ │ -30   dBZ   75 │ 0.5° ˅                              │  RAISED face
@@ -14,8 +14,10 @@
 
      Single = one header; Double = one per column; Quad = four (two over the crossing). The content is the COMPACT form
      in Quad (no scale numbers) — the same rule the floating selector had (IsCompact = layout is Quad).
-     ⚠️ "VISIBLE PART": MainWindow.PlacePaneHeaders insets the header's left/right so it starts at the map-tools rail /
-     a left temporal pane and ends at the ForeCast pane — the content centres on what you can SEE, never under a pane.
+     ⚠️ ENDS + CENTRE are MainWindow.PlacePaneHeaders' (2026-11-20, the time strip's rule): the bar runs from the left
+     temporal pane (or the window edge) to the ForeCast pane (or the window edge) — it FLOWS INTO them, and the map-tools
+     rail stands under a top-row header. The content centres on the pane cell's centre (ContentPadding), and slides only
+     as far as it must to stay on the visible map (past the rail, clear of a pane).
      ⚠️ HIDDEN = INVISIBLE, NOT COLLAPSED (the old selector's rule): the place search copies pane 0's content width.
      Host contract: Pane (RadarPaneViewModel), Radar (RadarViewModel), Model (ShortRangeViewModel). -->
 <UserControl x:Class="Anvil.Controls.Composites.PaneHeader"
@@ -37,12 +39,17 @@
                    IsHitTestVisible="False"/>
         <Border x:Name="PaneHeaderSurface" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
 
+        <!-- ⚠️ ITS MARGIN IS THE HOST'S (ContentPadding, MainWindow.PlacePaneHeaders): one side padded so the row's centre
+             lands on the PANE CELL's centre (Single = the window's, the scrubber's line), not on this bar's own middle —
+             the bar ends at the temporal panes, which would otherwise drag the content off centre. -->
         <StackPanel x:Name="PaneHeaderRow"
                     Orientation="Horizontal"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Spacing="12"
-                    Padding="0,6">
+                    Padding="0,6"
+                    Margin="{x:Bind ContentPadding, Mode=OneWay}"
+                    SizeChanged="OnRowSizeChanged">
             <!-- WHICH PANE: the layout's cells as 6 px squares, THIS pane's at full strength. Double shows the top row
                  only (two cells); Single hides the mark. Opacity, not brushes: a theme brush is never picked in C#. -->
             <Grid x:Name="PaneHeaderMark"

@@ -47,6 +47,24 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ModelProperty =
 			DependencyProperty.Register(nameof(Model), typeof(ShortRangeViewModel), typeof(PaneHeader), new PropertyMetadata(null));
 
+		/// <summary>One side's padding so the row centres on the pane cell's centre, not this bar's middle (set by the host).</summary>
+		public Thickness ContentPadding
+		{
+			get => (Thickness)GetValue(ContentPaddingProperty);
+			set => SetValue(ContentPaddingProperty, value);
+		}
+
+		public static readonly DependencyProperty ContentPaddingProperty =
+			DependencyProperty.Register(nameof(ContentPadding), typeof(Thickness), typeof(PaneHeader), new PropertyMetadata(default(Thickness)));
+
+		/// <summary>The whole centred row's width (mark + content), for the host's centring. 0 before layout.</summary>
+		public double RowWidth => PaneHeaderRow.ActualWidth;
+
+		/// <summary>The row's size changed — the host re-centres (its width) and re-docks the rail (its height).</summary>
+		public event EventHandler? RowSizeChanged;
+
+		private void OnRowSizeChanged(object sender, SizeChangedEventArgs e) => RowSizeChanged?.Invoke(this, EventArgs.Empty);
+
 		/// <summary>The centred content's width changed — MainWindow copies pane 0's onto the place search box.</summary>
 		public event EventHandler<double>? ContentWidthChanged;
 
