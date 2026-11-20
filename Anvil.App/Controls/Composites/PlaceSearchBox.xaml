@@ -46,7 +46,7 @@
     </UserControl.Resources>
 
     <!-- ⚠️ THE HOST SETS THE WIDTH (the user's call, 2026-11-03): MainWindow sizes this control to the SINGLE-pane
-         selector's width (OnPaneSelectorSizeChanged) and keeps it through the other layouts; the box stretches to it. -->
+         header content's width (MainWindow.OnPaneHeaderContentWidthChanged) and keeps it through the other layouts; the box stretches to it. -->
     <AutoSuggestBox x:Name="PlaceSearchBoxInput"
                     HorizontalAlignment="Stretch" VerticalAlignment="Center"
                     PlaceholderText="Search places"

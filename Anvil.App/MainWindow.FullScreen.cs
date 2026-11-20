@@ -98,7 +98,7 @@ namespace Anvil
 		private bool _startFullScreenChecked;
 
 		// The panes' + selectors' top in full screen: the screen's top (the bar slides OVER them). Read by
-		// ApplyPaneLayerMargin / PlacePaneSelectors (tagged hooks).
+		// ApplyPaneLayerMargin / PlacePaneHeaders (tagged hooks).
 		private bool IsTopBarOverlaid => _isFullScreen;
 
 		/// <summary>Enter or leave full screen. Queued: it never runs inside key / menu processing or a windowing callback.</summary>
@@ -213,7 +213,7 @@ namespace Anvil
 			}
 			CaptionKey.IsMaximized = (AppWindow.Presenter as OverlappedPresenter)?.State == OverlappedPresenterState.Maximized;
 			ApplyPaneLayerMargin();
-			PlacePaneSelectors();
+			PlacePaneHeaders();
 			UpdateCaptionBand();
 			UpdateNotchInputRegions();
 		}

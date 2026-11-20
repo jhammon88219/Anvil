@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PaneHeader — one map pane's HEADER (2026-11-20, canvas "Pane headers + L strip"; it replaced the FLOATING pane
+     selector, an OverlayBar island that read as a wart on the map). A full-width raised bar across the TOP of its pane's
+     VISIBLE part, everything in it CENTRED on that part:
+
+       ┌──────────────────────────────────────────────────────────────────────────────────────┐
+       │                    ▪▫  Ref ˅ │ -30   dBZ   75 │ 0.5° ˅                              │  RAISED face
+       │                        ^^^^^   ▓▓▒▒░░░░▒▒▓▓▓▓   ^^^^^                               │
+       └──────────────────────────────────────────────────────────────────────────────────────┘
+         ░░░░░░░░░░░░░░░░ light 14 px cast shade onto the map (ShadowFadeDown) ░░░░░░░░░░░░░░░
+          ^ which-pane MARK (multi-pane only): the layout's cells, THIS pane's lit
+                ^ PaneNotchContent, unchanged: product · the legend · TILT — tilt stays BESIDE the ramp (the user's
+                  rule), so it is never hunted for
+
+     Single = one header; Double = one per column; Quad = four (two over the crossing). The content is the COMPACT form
+     in Quad (no scale numbers) — the same rule the floating selector had (IsCompact = layout is Quad).
+     ⚠️ "VISIBLE PART": MainWindow.PlacePaneHeaders insets the header's left/right so it starts at the map-tools rail /
+     a left temporal pane and ends at the ForeCast pane — the content centres on what you can SEE, never under a pane.
+     ⚠️ HIDDEN = INVISIBLE, NOT COLLAPSED (the old selector's rule): the place search copies pane 0's content width.
+     Host contract: Pane (RadarPaneViewModel), Radar (RadarViewModel), Model (ShortRangeViewModel). -->
+<UserControl x:Class="Anvil.Controls.Composites.PaneHeader"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:comp="using:Anvil.Controls.Composites"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid VerticalAlignment="Top">
+        <!-- The cast shade hangs BELOW the bar; it reserves no layout (negative margin) and takes no input. -->
+        <Rectangle x:Name="PaneHeaderShade"
+                   Height="14"
+                   VerticalAlignment="Bottom"
+                   Margin="0,0,0,-14"
+                   Fill="{StaticResource ShadowFadeDown}"
+                   Opacity="{ThemeResource OverlayBarShadowOpacity}"
+                   IsHitTestVisible="False"/>
+        <Border x:Name="PaneHeaderSurface" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+
+        <StackPanel x:Name="PaneHeaderRow"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="12"
+                    Padding="0,6">
+            <!-- WHICH PANE: the layout's cells as 6 px squares, THIS pane's at full strength. Double shows the top row
+                 only (two cells); Single hides the mark. Opacity, not brushes: a theme brush is never picked in C#. -->
+            <Grid x:Name="PaneHeaderMark"
+                  VerticalAlignment="Center"
+                  ColumnSpacing="2" RowSpacing="2"
+                  Visibility="{x:Bind MarkVisibility(Radar.PaneLayout), Mode=OneWay}"
+                  ToolTipService.ToolTip="Which pane this is">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="6"/>
+                    <ColumnDefinition Width="6"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="6"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Rectangle x:Name="PaneHeaderMarkTopLeft" Grid.Row="0" Grid.Column="0" RadiusX="1" RadiusY="1"
+                           Fill="{ThemeResource TextFillColorPrimaryBrush}"
+                           Opacity="{x:Bind CellOpacity(Radar.PaneLayout, Pane.Index, 0, 0), Mode=OneWay}"/>
+                <Rectangle x:Name="PaneHeaderMarkTopRight" Grid.Row="0" Grid.Column="1" RadiusX="1" RadiusY="1"
+                           Fill="{ThemeResource TextFillColorPrimaryBrush}"
+                           Opacity="{x:Bind CellOpacity(Radar.PaneLayout, Pane.Index, 0, 2), Mode=OneWay}"/>
+                <Rectangle x:Name="PaneHeaderMarkBottomLeft" Grid.Row="1" Grid.Column="0" Height="6" RadiusX="1" RadiusY="1"
+                           Fill="{ThemeResource TextFillColorPrimaryBrush}"
+                           Visibility="{x:Bind BottomRowVisibility(Radar.PaneLayout), Mode=OneWay}"
+                           Opacity="{x:Bind CellOpacity(Radar.PaneLayout, Pane.Index, 2, 0), Mode=OneWay}"/>
+                <Rectangle x:Name="PaneHeaderMarkBottomRight" Grid.Row="1" Grid.Column="1" Height="6" RadiusX="1" RadiusY="1"
+                           Fill="{ThemeResource TextFillColorPrimaryBrush}"
+                           Visibility="{x:Bind BottomRowVisibility(Radar.PaneLayout), Mode=OneWay}"
+                           Opacity="{x:Bind CellOpacity(Radar.PaneLayout, Pane.Index, 2, 2), Mode=OneWay}"/>
+            </Grid>
+
+            <comp:PaneNotchContent x:Name="PaneHeaderContent"
+                                   Pane="{x:Bind Pane}"
+                                   Radar="{x:Bind Radar}"
+                                   Model="{x:Bind Model}"
+                                   IsCompact="{x:Bind IsQuad(Radar.PaneLayout), Mode=OneWay}"
+                                   SizeChanged="OnContentSizeChanged"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

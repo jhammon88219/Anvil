@@ -1,42 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MainWindow — the app shell. The map fills the whole window; the UI is a MENU BAR over its top edge, a vertical
-     MAP-TOOLS RAIL down its left (or beside the left temporal pane), a small FLOATING pane selector per map pane and the
-     FLOATING radar console. There is NO bottom chrome (2026-11-04).
+<!-- MainWindow — the app shell. The map fills the whole window; the UI is a MENU BAR over its top edge, a HEADER across
+     the top of each map pane, and an L down the left and along the bottom: the vertical MAP-TOOLS RAIL joined to the
+     TIME STRIP (2026-11-20, canvas "Pane headers + L strip" — they replaced the floating pane selectors and the floating
+     radar console, which read as warts on the map).
 
-       ┌ Atlas View Settings Temporal Mode Pane Mode Isolation ── [ Search places ✕ ⌕ ] ── drag ── – □ ✕ ┐  TOP MENU BAR
-       ├──┬──────────────────────────────────────────────────────────────────────────────────────────────┤  (always shown,
-       │◗▸│                           ┃                              │  no tab); search CENTRED, its box + margins
-       │▤▸│              ╭─────────╮┃╭─────────╮                   │  set the bar's height (46)
-       │⁘ │  map pane 2  │SRV ▓▒░  │┃│CC  ▓▒░  │   map pane 3      │  FLOATING PANE SELECTORS — product, colour-ramp
-       │⛶ ├━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┤  legend, tilt. Quad shown: all four at the
-       │↻ │              │Ref ▓▒░  │┃│Vel ▓▒░  │                   │  CROSSING; two across = against the divider;
-       │⁘ │              ╰─────────╯┃╰─────────╯                   │  single = centred under the bar.
-       │◍ │  map pane 0  (MAIN)     ┃        map pane 1            │  View → Pane selectors hides all.
-       │⊚ │                  ╭────────────────────╮           │  SITE TAB (RadarConsoleSiteTab) — home +
-       │⁘ │                  │ ⌂ KTLX Oklahoma ˅  │           │  favorites, centred on the console's top
-       │⌕ │       ╭──────────┴────────────────────┴─────────╮ │  FLOATING RADAR CONSOLE (2026-11-03) —
-       │◎▸│       │ 1:07 PM ═══ scrubber ═══ ◀ ▶ ▶ ↺  VCP: 212 │ │  rounded, centred (play = the midpoint),
-       │  │       │ 2 min ago      3/10        Mode: precip   │ │  SelectorGap above the window bottom.
-       │  │       ╰──────────────────────────────────────────╯ │  View → Radar console. Site needed.
-       └──┴──────────────────────── ↑ window midpoint ─────────────┘
-        ↑ the MAP-TOOLS RAIL (2026-11-04): radar networks · map layers · fit · reset north · markers · location ·
-          inspect · rings/ruler, CENTRED top to bottom;
-          on the window's left edge, DOCKED to the NowCast / PastCast pane's right edge while one shows (TEMPORAL PANES block).
+       ┌ Atlas View Settings Temporal Mode Pane Mode Isolation Radar ─ [ Search places ✕ ] ─ drag ─ – □ ✕ ┐  TOP MENU BAR
+       ├──┬────────────────────────────────────────────┬──────────────────────────────────────────────────┤  (Radar = the
+       │◗▸│▓▓▓▓ ▪▫ CC ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│▓▓▓▓▓▓▓ ▫▪ SRV ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│  site picker)
+       │▤▸│  map pane 2                                │  map pane 3                                      │  PANE HEADERS —
+       │⁘ │                                            │                                                  │  full width of the
+       │⛶ ├────────────────────────────────────────────┼──────────────────────────────────────────────────┤  pane's VISIBLE part,
+       │↻ │▓▓▓▓ ▫▫ Ref ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓│▓▓▓▓▓▓▓ ▫▫ Vel ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│  content CENTRED,
+       │◍ │  map pane 0  (MAIN)                        │  map pane 1                                      │  tilt beside the ramp
+       │⊚ │                                            │                                                  │
+       ├──┴─────────── 1:07 PM · 2 min ago │▮▮▮▮▮ scrubber ▮▮▮▮▮│ ◀ ▶ ▶ 22/30 ⟳ ········ VCP 212 · precip · SAILS ×1 ┤  TIME STRIP (40)
+       └──────────────────────────────────────────────── ↑ window midpoint ──────────────────────────────────┘
+        ↑ the MAP-TOOLS RAIL: radar networks · map layers · fit · reset north · markers · location · inspect · rings/ruler,
+          CENTRED top to bottom; on the window's left edge, or DOCKED to the NowCast / PastCast pane's right edge. It stops on
+          the strip's top: rail + strip are ONE raised L (same surface, no seam).
 
-          ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, drawn by whichever side owns it: the top bar casts its
-            own down, the rail its own onto the map; the floating selectors and the console cast rounded halos.
-          ↑ THE BOTTOM TOOLS STRIP IS GONE (2026-11-04, the user's call): its map tools became the left RAIL
-            (Composites/MapControlsStrip, vertical now); its pane-layout key became the top bar's PANE MODE menu and its
-            isolation picker the top bar's ISOLATION item. So the temporal panes and the rail run to the window bottom.
-          ↑ The console never shrinks; in a narrow window it overlaps the panes' bottoms (it is declared after them).
-          ↑ [⌂ KTLX ˅] = the SITE PICKER (home + favorites), the console's centred TAB (back 2026-11-04, after a day as the
-            centre of a console top row whose other tools moved to the rail). It replaced the old bar's Home key AND the side
-            car that used to hang off the Atlas key — two doors to one list. See Composites/RadarConsoleSiteTab. Don't
+          ↑ NO RULES ANYWHERE — every seam is a soft SHADOW (or the EDGE-HATCH), drawn by whichever side owns it: the top bar
+            and each pane header cast theirs down, the rail its own right, the strip its own up.
+          ↑ THE TIME STRIP runs from the left temporal pane (or the window edge) to the ForeCast pane (or the window edge),
+            under the rail. The SCRUBBER is the WINDOW's midpoint (the user's call, 2026-11-20 — "play = midpoint" is gone).
+            A side too short for its block (RadarControls.LeftNeed / RightNeed) runs to the window edge and THAT side's pane
+            stops on the strip's top instead (MainWindow.LayoutRadarStrip).
+          ↑ "Radar" (Composites/RadarMenu) = the SITE PICKER (home + favorites) — it was the floating console's tab. Don't
             re-add a Home key.
           ↑ Atlas, Settings and the temporal modes are TOP MENU BAR items (2026-11-03); activity shows in each temporal
             pane's ACTIVITY EXPANDER (TemporalPaneActivityExpander, 2026-10-16).
-          ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map (notches included; the top
-            bar, the rail and the console paint over it) is frosted behind "Loading the loop" + progress bars + Cancel load
+          ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map (pane headers included; the top
+            bar, the rail and the strip paint over it) is frosted behind "Loading the loop" + progress bars + Cancel load
             (no escape since 2026-10-10). See Composites/LoopHoldingGate.
 
      ⚠️ WHAT REPEATS PER PANE IS NOT IN THE BAR ANY MORE. It used to be: the bar's left cluster carried a
@@ -72,13 +66,14 @@
      ⚠️ THE TOP BAR IS BACK (the user's call, 2026-11-01) — as a MENU bar this time (View menu, the window's caption
      drag run, – □ ✕), with its own centred "Menu" tab to hide it, so the stripe of map it covers is the user's
      choice. (A full-width top bar existed once to hold per-window controls, and went because the band was pure cost.)
-     The pane notches are now FLOATING pane selectors — see the PANE NOTCHES block. -->
-     <!-- TOP OF WINDOW (2026-11-01):
-       ┌ View ──────────────────────── drag ───────────────────────── – □ ✕ ┐
-       ├──────────┬────────────────────────────────────────────┬──────────┤
-       │ PastCast │      ╭────────────────╮                    │ ForeCast │  temporal panes under the bar,
-       │ /NowCast │      │Ref˅│▓▒░▒▓│0.5°│  a floating pane    │          │  selectors floating (see below)
-       │          │      ╰────────────────╯  selector           │          │
+     The pane notches are now PANE HEADERS — see the PANE HEADERS block. (Older paragraphs above that say "notch" or
+     "bar" for the per-pane controls mean the pane header now; the time module is the TIME STRIP.) -->
+     <!-- TOP OF WINDOW (2026-11-20):
+       ┌ Atlas View … Radar ─────────── drag ───────────────────────── – □ ✕ ┐
+       ├──────────┬──┬──────────────────────────────────────────┬──────────┤
+       │ PastCast │  │▓▓▓▓▓ Ref ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│ ForeCast │  temporal panes under the bar; each map
+       │ /NowCast │▤ │                                          │          │  pane's HEADER spans its visible part,
+       │          │⛶ │                                          │          │  between the rail and the ForeCast pane
      -->
 <Window
     x:Class="Anvil.MainWindow"
@@ -159,21 +154,21 @@
             </FlyoutBase.AttachedFlyout>
         </controls:WebView2>
 
-        <!-- ===== PANE NOTCHES — now FLOATING PANE SELECTORS (the user's call, 2026-11-01) =====
-             One per pane: a small FLOATING box holding everything that describes THAT pane — its product, its
-             colour-ramp legend, its tilt. Attached to nothing (OverlayBar IsFloating: every corner rounded), no tab
-             of its own: the top bar's View → Pane selectors shows / hides all four (ArePaneSelectorsVisible).
-             PLACEMENT is MainWindow.PlacePaneSelectors (code: it depends on the top bar's measured height), 8 px gaps:
+        <!-- ===== PANE HEADERS (the user's call, 2026-11-20 — canvas "Pane headers + L strip") =====
+             One per pane: Composites/PaneHeader, a full-width RAISED bar across the top of the pane's VISIBLE part, its
+             product · legend · TILT (PaneNotchContent) CENTRED on that part, plus a which-pane mark in Double / Quad. The
+             top bar's View → Pane headers shows / hides all four (ArePaneSelectorsVisible). It replaced the floating pane
+             selectors (OverlayBar islands). PLACEMENT is MainWindow.PlacePaneHeaders (code: the top bar's measured height
+             and the temporal panes / rail decide the visible part):
 
-             SINGLE                         TWO ACROSS                       QUAD
-             ════════ top bar ════════      ════════ top bar ════════        ═════════ top bar ═════════
-                 ╭───────────────╮          ╭──────────╮┃╭──────────╮        ┃         ┃
-                 │Ref˅│▓▒░▒▓│0.5°│          │Ref ▓▒░ 0.5°│┃│Vel ▓▒░ 0.5°│     ╭──────╮┃╭──────╮
-                 ╰───────────────╯          ╰──────────╯┃╰──────────╯        │ SRV  │┃│  CC  │   top row: hangs
-                 centred, under the bar     against the divider, under      ━━━━━━━━━━╋━━━━━━━━━━   UP (Edge Bottom)
-                                            the bar                          │ Ref  │┃│ Vel  │   bottom row: DOWN
-                                                                             ╰──────╯┃╰──────╯   all at the crossing
-             (The top bar has no Menu tab since 2026-11-04, so it is always there to sit under.)
+             SINGLE                              TWO ACROSS                        QUAD
+             ═══════════ top bar ════════════    ══════════ top bar ═══════════    ══════════ top bar ═══════════
+             ▓▓▓▓▓ Ref ˅ │▓▒░▒▓│ 0.5° ˅ ▓▓▓▓▓    ▓ ▪▫ Ref ˅ … ▓│▓ ▫▪ Vel ˅ … ▓    ▓ ▪▫ CC  ▓│▓ ▫▪ SRV ▓   top row: under
+                                                           │                           │            the bar
+                                                           │                 ──────────┼──────────
+                                                           │                 ▓ ▫▫ Ref ▓│▓ ▫▫ Vel ▓   bottom row: on
+                                                           │                           │            the crossing
+             Headers sit OVER the map (the map is not resized — the panes' pane rects are unchanged).
 
              ⚠️ THE WATERMARK IS GONE. Each pane used to carry a big ghosted product label in its top-left
              corner, because every control lived in the bottom bar and the pane had no other way to say what
@@ -185,8 +180,8 @@
              SAME OVERLAY GRID AS THE WATERMARKS USED: a 3x3 [*, gutter, *] laid over EXACTLY the WebView's
              rect (Row 0 + RowSpan 2, matching the WebView above), so its cells coincide with the page's
              pane rects — both sides split the same area the same way, both using PaneLayoutInfo.GutterPx.
-             Each notch is placed in its cell by PaneLayoutInfo.CellOf via the x:Bind functions below; WHERE in
-             the cell (alignment, margin, shadow edge) is PlacePaneSelectors' (the sketch above).
+             Each header is placed in its cell by PaneLayoutInfo.CellOf via the x:Bind functions below; its margins
+             (the top bar's foot for the top row, the visible part's insets) are PlacePaneHeaders'.
 
              ⚠️ The pane ARRANGEMENT (pane 0 = main = bottom-left) is expressed twice: here through CellOf,
              and in map.js paneRects() which lays out the real maps. Same rule, opposite sides of the WebView
@@ -194,15 +189,13 @@
 
              ⚠️ NO IsHitTestVisible="False" on this grid, unlike the watermark grid it replaces: these are
              real controls now. The grid itself has no Background, so its EMPTY areas still hit-test straight
-             through to the map — only the notches themselves catch the pointer. Declared BEFORE the bottom
-             bar so the bar draws over it and stays clickable where the two overlap.
+             through to the map — only the headers themselves catch the pointer.
 
-             ⚠️ NO SITE, NO SELECTOR (the user's call, 2026-11-04): a selector shows only while a radar site is selected
+             ⚠️ NO SITE, NO HEADER (the user's call, 2026-11-04, kept): a header shows only while a radar site is selected
              (Radar.HasRadarLoop, Now and Past alike) or a ForeCast model draws (its read-only model form) — IsNotchShown.
-             ⚠️ "Hidden" is Opacity 0 + not hit-testable, NOT Collapsed: the selector stays laid out, so the top bar's place
-             search always knows its width (OnPaneSelectorSizeChanged). Visibility only drops a pane that isn't in the layout.
-             ⚠️ ONE show/hide for all four now (View → Pane selectors, persisted) — the per-notch tabs went with
-             the attachment (2026-11-01). They used to be four independent view-state toggles. -->
+             ⚠️ "Hidden" is Opacity 0 + not hit-testable, NOT Collapsed: the header stays laid out, so the top bar's place
+             search always knows pane 0's content width (OnPaneHeaderContentWidthChanged). Visibility only drops a pane that
+             isn't in the layout. ONE show/hide for all four (View → Pane headers, persisted). -->
         <!-- ⚠️ THE SITE CHECK TOAST IS GONE from the map band: the announced site check now shows in the NowCast
              window's ACTIVITY EXPANDER (TemporalPaneActivityExpander, fed by BarActivityViewModel.WatchSiteCheck). Don't re-add it here. -->
 
@@ -230,94 +223,55 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <ctl:OverlayBar x:Name="Notch0" Edge="Top"
-                            SizeChanged="OnPaneSelectorSizeChanged"
-                            IsFloating="True"
-                            ShowTab="False"
-                            EdgeStyle="CastShadow"
-                            IsRaised="True"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Top"
-                            Visibility="{x:Bind PaneVisibility(ViewModel.Radar.Pane0.IsVisible), Mode=OneWay}"
-                            Opacity="{x:Bind NotchOpacity(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
-                            IsHitTestVisible="{x:Bind IsNotchShown(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
-                            Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
-                            Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
-                            Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
-                            Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}">
-                <ctl:OverlayBar.BarContent>
-                    <comp:PaneNotchContent Pane="{x:Bind ViewModel.Radar.Pane0}"
-                                           Radar="{x:Bind ViewModel.Radar}"
-                                           Model="{x:Bind ViewModel.ShortRange}"
-                                           IsCompact="{x:Bind NotchCompact(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
-                </ctl:OverlayBar.BarContent>
-            </ctl:OverlayBar>
-
-            <ctl:OverlayBar x:Name="Notch1" Edge="Top"
-                            IsFloating="True"
-                            ShowTab="False"
-                            EdgeStyle="CastShadow"
-                            IsRaised="True"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Top"
-                            Visibility="{x:Bind PaneVisibility(ViewModel.Radar.Pane1.IsVisible), Mode=OneWay}"
-                            Opacity="{x:Bind NotchOpacity(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
-                            IsHitTestVisible="{x:Bind IsNotchShown(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
-                            Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
-                            Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
-                            Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
-                            Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}">
-                <ctl:OverlayBar.BarContent>
-                    <comp:PaneNotchContent Pane="{x:Bind ViewModel.Radar.Pane1}"
-                                           Radar="{x:Bind ViewModel.Radar}"
-                                           Model="{x:Bind ViewModel.ShortRange}"
-                                           IsCompact="{x:Bind NotchCompact(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
-                </ctl:OverlayBar.BarContent>
-            </ctl:OverlayBar>
-
-            <ctl:OverlayBar x:Name="Notch2" Edge="Top"
-                            IsFloating="True"
-                            ShowTab="False"
-                            EdgeStyle="CastShadow"
-                            IsRaised="True"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Top"
-                            Visibility="{x:Bind PaneVisibility(ViewModel.Radar.Pane2.IsVisible), Mode=OneWay}"
-                            Opacity="{x:Bind NotchOpacity(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
-                            IsHitTestVisible="{x:Bind IsNotchShown(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
-                            Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
-                            Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
-                            Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
-                            Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}">
-                <ctl:OverlayBar.BarContent>
-                    <comp:PaneNotchContent Pane="{x:Bind ViewModel.Radar.Pane2}"
-                                           Radar="{x:Bind ViewModel.Radar}"
-                                           Model="{x:Bind ViewModel.ShortRange}"
-                                           IsCompact="{x:Bind NotchCompact(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
-                </ctl:OverlayBar.BarContent>
-            </ctl:OverlayBar>
-
-            <ctl:OverlayBar x:Name="Notch3" Edge="Top"
-                            IsFloating="True"
-                            ShowTab="False"
-                            EdgeStyle="CastShadow"
-                            IsRaised="True"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Top"
-                            Visibility="{x:Bind PaneVisibility(ViewModel.Radar.Pane3.IsVisible), Mode=OneWay}"
-                            Opacity="{x:Bind NotchOpacity(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
-                            IsHitTestVisible="{x:Bind IsNotchShown(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
-                            Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
-                            Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
-                            Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
-                            Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}">
-                <ctl:OverlayBar.BarContent>
-                    <comp:PaneNotchContent Pane="{x:Bind ViewModel.Radar.Pane3}"
-                                           Radar="{x:Bind ViewModel.Radar}"
-                                           Model="{x:Bind ViewModel.ShortRange}"
-                                           IsCompact="{x:Bind NotchCompact(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
-                </ctl:OverlayBar.BarContent>
-            </ctl:OverlayBar>
+            <comp:PaneHeader x:Name="PaneHeaderPane0"
+                             ContentWidthChanged="OnPaneHeaderContentWidthChanged"
+                             VerticalAlignment="Top"
+                             Pane="{x:Bind ViewModel.Radar.Pane0}"
+                             Radar="{x:Bind ViewModel.Radar}"
+                             Model="{x:Bind ViewModel.ShortRange}"
+                             Visibility="{x:Bind PaneVisibility(ViewModel.Radar.Pane0.IsVisible), Mode=OneWay}"
+                             Opacity="{x:Bind NotchOpacity(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                             IsHitTestVisible="{x:Bind IsNotchShown(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
+                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
+                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
+                             Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"/>
+            <comp:PaneHeader x:Name="PaneHeaderPane1"
+                             VerticalAlignment="Top"
+                             Pane="{x:Bind ViewModel.Radar.Pane1}"
+                             Radar="{x:Bind ViewModel.Radar}"
+                             Model="{x:Bind ViewModel.ShortRange}"
+                             Visibility="{x:Bind PaneVisibility(ViewModel.Radar.Pane1.IsVisible), Mode=OneWay}"
+                             Opacity="{x:Bind NotchOpacity(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                             IsHitTestVisible="{x:Bind IsNotchShown(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
+                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
+                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
+                             Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"/>
+            <comp:PaneHeader x:Name="PaneHeaderPane2"
+                             VerticalAlignment="Top"
+                             Pane="{x:Bind ViewModel.Radar.Pane2}"
+                             Radar="{x:Bind ViewModel.Radar}"
+                             Model="{x:Bind ViewModel.ShortRange}"
+                             Visibility="{x:Bind PaneVisibility(ViewModel.Radar.Pane2.IsVisible), Mode=OneWay}"
+                             Opacity="{x:Bind NotchOpacity(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                             IsHitTestVisible="{x:Bind IsNotchShown(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
+                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
+                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
+                             Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"/>
+            <comp:PaneHeader x:Name="PaneHeaderPane3"
+                             VerticalAlignment="Top"
+                             Pane="{x:Bind ViewModel.Radar.Pane3}"
+                             Radar="{x:Bind ViewModel.Radar}"
+                             Model="{x:Bind ViewModel.ShortRange}"
+                             Visibility="{x:Bind PaneVisibility(ViewModel.Radar.Pane3.IsVisible), Mode=OneWay}"
+                             Opacity="{x:Bind NotchOpacity(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                             IsHitTestVisible="{x:Bind IsNotchShown(ViewModel.ArePaneSelectorsVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                             Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
+                             Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
+                             Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
+                             Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"/>
 
             <!-- COMPARE WITH RADAR's pane labels (ShortRange.IsCompareActive only): which side is which, in each pane's
                  TOP-LEFT corner — "KTLX · live radar" | "HRRR 15Z · valid 6:00 PM". Words only, click-through. -->
@@ -352,7 +306,7 @@
 
         <!-- ===== TOP MENU BAR (the user's call, 2026-11-01) =====
 
-               ┌ Atlas View Settings Temporal Mode Pane Mode Isolation ── [ Search places ✕ ⌕ ] ── drag ── – □ ✕ ┐  46 tall
+               ┌ Atlas View Settings Temporal Mode Pane Mode Isolation Radar ─ [ Search places ✕ ⌕ ] ─ drag ─ – □ ✕ ┐  46 tall
                └──────────────────────────────────────────────────────────────────────────────────────────────┘  full width
                  ░░░ light cast shadow ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    ALWAYS shown
 
@@ -364,7 +318,8 @@
              • Pane Mode: Single / Double / Quad Pane (was the tools strip's pane-layout key). Isolation: the isolation
                picker drawn as a menu title (was the tools strip's picker). Both grey while the loop holding gate is up.
              • View: the three temporal panes (TogglePane: a running mode's pane open ⇄ hidden; while Now OR Fore runs, the
-               other's item turns that mode on), then Pane selectors. Ctrl+1/2/3 = the panes. An item that can't act is
+               other's item turns that mode on), then Pane headers · Time strip · Map tools. Ctrl+1/2/3 = the panes.
+             • Radar (LAST, 2026-11-20): the site picker — Composites/RadarMenu. An item that can't act is
                DISABLED (CanPick*Pane) with "Turn on X first" in its shortcut column.
              • The EMPTY run is the window's CAPTION (drag, double-click maximize, snap) — MainWindow.UpdateCaptionBand
                sets the bar's rect as the Caption region; the menu items (MenuBarMenus) and the caption key are Passthrough holes.
@@ -472,9 +427,9 @@
                                         </ToggleMenuFlyoutItem.KeyboardAccelerators>
                                     </ToggleMenuFlyoutItem>
                                     <MenuFlyoutSeparator/>
-                                    <ToggleMenuFlyoutItem x:Name="ViewPaneSelectorsItem" Text="Pane selectors"
+                                    <ToggleMenuFlyoutItem x:Name="ViewPaneHeadersItem" Text="Pane headers"
                                                           IsChecked="{x:Bind ViewModel.ArePaneSelectorsVisible, Mode=TwoWay}"/>
-                                    <ToggleMenuFlyoutItem x:Name="ViewRadarConsoleItem" Text="Radar console"
+                                    <ToggleMenuFlyoutItem x:Name="ViewTimeStripItem" Text="Time strip"
                                                           IsChecked="{x:Bind ViewModel.IsRadarConsoleVisible, Mode=TwoWay}"/>
                                     <!-- The tools strip had its own "Tools" tab until 2026-11-03; this item replaced it. -->
                                     <ToggleMenuFlyoutItem x:Name="ViewMapToolsItem" Text="Map tools"
@@ -632,11 +587,19 @@
                                 </DataTemplate>
                             </ctl:SectionedComboBox.ItemTemplate>
                         </ctl:SectionedComboBox>
+
+                        <!-- ===== RADAR (the user's call, 2026-11-20 — LAST on the bar) =====
+                             The radar SITE PICKER (home + favorites), drawn as a menu title like Isolation — it was the
+                             floating console's site tab. Composites/RadarMenu has the sketch and the rules. -->
+                        <comp:RadarMenu x:Name="RadarMenu"
+                                        VerticalAlignment="Stretch"
+                                        Margin="0,3"
+                                        ViewModel="{x:Bind ViewModel}"/>
                     </StackPanel>
 
                     <!-- PLACE SEARCH, CENTRED on the window (spans every column; declared before the caption key so the
                          window buttons stay on top in a very narrow window). A Passthrough hole (UpdateNotchInputRegions). -->
-                    <!-- Width: AS WIDE AS THE SINGLE-PANE SELECTOR right under it (OnPaneSelectorSizeChanged, the user's
+                    <!-- Width: AS WIDE AS PANE 0's HEADER CONTENT (OnPaneHeaderContentWidthChanged; was the selector, the user's
                          call 2026-11-03); other layouts keep the last single-pane width. 236 is only the first value. -->
                     <comp:PlaceSearchBox x:Name="PlaceSearchBox"
                                          Width="236"
@@ -697,21 +660,25 @@
                    │▤▸│░  ← map layers (key + car)                │    or    │▤▸│░   DOCKED to the left pane's
                    │⁘ │░                                          │ PastCast │⁘ │░   RIGHT edge while Now or
                    │⛶ │░  ← fit to view                           │          │⛶ │░   Past's pane shows
-                   │↻ │░  ← reset north                           │          │↻ │░   (MapToolsRailMargin)
+                   │↻ │░  ← reset north                           │          │↻ │░   (LayoutRadarStrip)
                    │⁘ │░                                          │          │⁘ │░
                    │◍ │░  ← markers (placeholder)                 │          │◍ │░
                    │⊚ │░  ← location                              │          │⊚ │░
                    │  │░                                          │          │  │░
-                   └──┘ no left pane: the window's left edge      └──────────┴──┘
-                   48 wide, the top bar's foot to the window bottom (this layer's margins), the tools CENTRED top to
-                   bottom (Composites/MapControlsStrip). RAISED face; its map side casts the light 14 px shade
-                   (ShadowFadeLeft), or — EDGE-HATCH (bolt-on) — the hatch instead. View → Map tools hides it.
-                   ⚠️ IN THIS LAYER ON PURPOSE: it shares the panes' top/bottom insets, and declared after them it covers a
+                   ├──┴──────── the TIME STRIP ────────────        ├──────────┴──┴──── the TIME STRIP ─────────
+                   └─ no left pane: the window's left edge        └ (the strip runs under the pane only when its
+                                                                     clock block doesn't fit beside it)
+                   48 wide, the top bar's foot to the TIME STRIP's top (or the window bottom while the strip is hidden),
+                   the tools CENTRED top to bottom (Composites/MapControlsStrip). RAISED face — the SAME surface as the
+                   strip, so the two read as ONE L; its map side casts the light 14 px shade (ShadowFadeLeft), or —
+                   EDGE-HATCH (bolt-on) — the hatch instead. View → Map tools hides it.
+                   ⚠️ ITS MARGIN IS CODE'S (MainWindow.LayoutRadarStrip): left = the left pane's width while Now's or Past's
+                   pane shows, bottom = the strip's height while the strip shows.
+                   ⚠️ IN THIS LAYER ON PURPOSE: it shares the panes' top inset, and declared after them it covers a
                    left pane's map-side hatch (the rail is the map side then). Past and Now never show together. -->
             <Grid x:Name="MapToolsRail"
                   Width="48"
                   HorizontalAlignment="Left"
-                  Margin="{x:Bind MapToolsRailMargin(ViewModel.IsPastPaneShown, ViewModel.IsNowPaneShown), Mode=OneWay}"
                   Visibility="{x:Bind PaneVisibility(ViewModel.IsMapControlsStripVisible), Mode=OneWay}">
                 <Rectangle x:Name="MapToolsRailShadow"
                            Width="14" HorizontalAlignment="Right" Margin="0,0,-14,0"
@@ -742,64 +709,67 @@
                                        Margin="8,0,0,0"
                                        ViewModel="{x:Bind ViewModel}"/>
             </Grid>
-        </Grid>
 
-        <!-- ===== THE FLOATING RADAR CONSOLE (the user's call, 2026-11-03 — canvas option C, "mirror") =====
+            <!-- ===== THE TIME STRIP (the user's call, 2026-11-20 — canvas "Pane headers + L strip", scan option 1) =====
 
-                 ┌ Menu bar ─────────────────────────────────────────────────────────────────────────────┐
-                 │◗│                            ╭──────────────────╮   ← floating pane selector(s)
-                 │▤│
-                 │⛶│                ...map...
-                 │↻│                ╭──────────────────────────────╮
-                 │◍│                │  ⌂ KTLX  Oklahoma City     ˅ │      ← the SITE TAB (RadarConsoleSiteTab), centred
-                 │⊚│ ╭──────────────┴──────────────────────────────┴───────────╮
-                 │⌕│ │ 1:07 PM  ▮▮▮▮▮▮▮▮▮▮ scrubber ▮▮▮▮▮▮▮▮▮  ◀ ▶ ▶ ↺  VCP: 212    │  ← THIS: the console exactly as it
-                 │◎│ │ 2 min ago                              3/10      Mode: precip │    was on the bar, rounded, floating
-                 │ │ ╰──────────────────────────────────────────────────────────╯
-                 └─┘ ↑ the map-tools rail (left)                                     SelectorGap above the window bottom
+                   ┌ top bar ───────────────────────────────────────────────────────────────────────────────────┐
+                   │ NowCast  │▤ │ …map…                                                          │ ForeCast │
+                   │  pane    │⛶ │░░░░░░░░░░░░░░░░░░░░ light 14 px shade up ░░░░░░░░░░░░░░░░░░░░░░│  pane    │
+                   │          ├──┴── 1:07 PM · 2 min ago │▮▮▮▮ scrubber ▮▮▮▮│ ◀ ▶ ▶ 22/30 ⟳ ·· VCP 212 · …┤          │
+                   └──────────┴────────────────────────────── ↑ the WINDOW's midpoint ──────────────┴──────────┘
+                              ↑ the strip's LEFT end = the left pane's edge (or the window's); it runs UNDER the rail,
+                                which stops on its top: rail + strip = ONE raised L. RIGHT end = the ForeCast pane's edge
+                                (or the window's).
 
-             Centred on the window (play = the midpoint, RadarControls.CentreOnPlay), SelectorGap (8) above the window
-             bottom — there is no bottom chrome since 2026-11-04 (its tools are the left RAIL). Same look as
-             the pane selectors (raised face, near-white hairline, rounded shadow). It never shrinks: in a window
-             too narrow for both edge panes it overlaps their bottoms — DECLARED AFTER the temporal panes so it paints over
-             them and stays clickable, and after the loop holding gate, so it stays live over the frost like the bar did.
-             View → Radar console hides it (IsRadarConsoleVisible, persisted).
-             ⚠️ NO SITE, NO CONSOLE (the user's call, 2026-11-04): in NowCast AND PastCast it shows only while a radar site
-             is selected (Radar.HasRadarLoop) — pick a site on the map to bring it up. The one exception is MODEL MODE
-             (ShortRange.IsModelConsoleShown): ModelConsole plays a ForeCast run here with or without a site.
-             (MainWindow.ConsoleVisibility.)
-             ⚠️ THE SITE TAB IS BACK (2026-11-04, the user's call): the console's short-lived TOP ROW (RadarConsoleHeader:
-             networks · site · Inspect + rings/ruler) is gone — its tools moved to the map-tools rail, leaving only the site
-             picker, so it stands on the console as a tab again. Centred by layout, so nothing is measured.
-             ⚠️ MODEL MODE: while ForeCast's Short Range draws, ModelConsole plays the run IN THIS SAME CELL, over
-             RadarControls — NOT while comparing with radar (ShortRange.IsModelConsoleShown): then radar's console runs and
-             the model follows it. RadarControls stays LAID OUT underneath (Opacity 0, not hit-testable — never Collapsed),
-             so the console keeps its width, and ModelConsole has its exact widths.
-             ⚠️ CENTRED ONLY BECAUSE IT IS A FIXED WIDTH: the clock reserves a two-digit hour (RadarControls). -->
-        <!-- THE CASING is Primitives/RadarConsolePlate (2026-11-12): tab + console drawn as ONE outline (PlateOutline — the
-             same drawing the pane selectors wear, raised face + near-white hairline + rounded shadow). It replaced an
-             OverlayBar with a separately-drawn tab overlapping it, whose seams showed (docs/bugs.md S30, S31). This file
-             only fills its two slots. -->
-        <ctl:RadarConsolePlate x:Name="RadarConsolePlate"
-                               Grid.Row="0" Grid.RowSpan="2"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Bottom"
-                               Margin="0,0,0,8"
-                               Visibility="{x:Bind ConsoleVisibility(ViewModel.IsRadarConsoleVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}">
-            <ctl:RadarConsolePlate.TabContent>
-                <comp:RadarConsoleSiteTab x:Name="RadarConsoleSiteTab"
-                                          ViewModel="{x:Bind ViewModel}"/>
-            </ctl:RadarConsolePlate.TabContent>
-            <ctl:RadarConsolePlate.ConsoleContent>
-                <Grid x:Name="RadarConsoleContent">
+                 40 tall (Styles.xaml RadarStripHeight), RAISED face, its map side casts the light 14 px shade up
+                 (ShadowFadeUp) or — EDGE-HATCH (bolt-on) — the hatch. The CONTENT (RadarControls, ModelConsole over it in
+                 MODEL MODE) is laid out over the WHOLE window width so the scrubber sits on the window's midpoint; its
+                 SideInsets keep the side blocks inside the strip's ends.
+                 ⚠️ A SIDE THAT DOESN'T FIT: when the gap between the scrubber and a temporal pane is shorter than that side's
+                 block (RadarControls.LeftNeed / RightNeed), the strip runs to the WINDOW edge on that side and the pane there
+                 STOPS ON THE STRIP'S TOP — nothing is covered. All of it is MainWindow.LayoutRadarStrip (code: it reads the
+                 window width + which panes show), which also sets the rail's margin.
+                 ⚠️ NO SITE, NO STRIP (the user's call, 2026-11-04, kept): it shows only while a radar site is selected
+                 (Radar.HasRadarLoop, Now and Past alike) or a ForeCast model plays in it (ShortRange.IsModelConsoleShown);
+                 View → Time strip hides it (IsRadarConsoleVisible, persisted). Hidden, the rail runs to the window bottom.
+                 ⚠️ MODEL MODE: ModelConsole plays the run IN THIS SAME CELL, over RadarControls — NOT while comparing with
+                 radar: then radar's console runs and the model follows it. RadarControls stays LAID OUT underneath (Opacity 0,
+                 not hit-testable — never Collapsed). Same fixed widths, so nothing moves on the swap.
+                 ⚠️ IN THIS LAYER ON PURPOSE (after the loop holding gate): it stays live over the frost, like the rail. -->
+            <Grid x:Name="RadarStrip"
+                  VerticalAlignment="Bottom"
+                  Height="{StaticResource RadarStripHeight}"
+                  Visibility="{x:Bind ConsoleVisibility(ViewModel.IsRadarConsoleVisible, ViewModel.Radar.HasRadarLoop, ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}">
+                <Rectangle x:Name="RadarStripShade"
+                           Height="14" VerticalAlignment="Top"
+                           Fill="{StaticResource ShadowFadeUp}"
+                           Opacity="{ThemeResource OverlayBarShadowOpacity}"
+                           IsHitTestVisible="False"
+                           Visibility="{x:Bind HiddenWhen(ViewModel.EdgeHatch.IsHatch), Mode=OneWay}"/>
+                <!-- EDGE-HATCH (experimental bolt-on): the hatch on the strip's map side, in place of the shade. -->
+                <ctl:EdgeHatch x:Name="EdgeHatchRadarStrip"
+                               VerticalAlignment="Top"
+                               Direction="Up"
+                               Raised="True"
+                               IsHitTestVisible="False"
+                               Height="{x:Bind ViewModel.EdgeHatch.Width, Mode=OneWay}"
+                               Spacing="{x:Bind ViewModel.EdgeHatch.Spacing, Mode=OneWay}"
+                               Weight="{x:Bind ViewModel.EdgeHatch.Weight, Mode=OneWay}"
+                               Thin="{x:Bind ViewModel.EdgeHatch.Thins, Mode=OneWay}"
+                               Fade="{x:Bind ViewModel.EdgeHatch.Fades, Mode=OneWay}"
+                               Dots="{x:Bind ViewModel.EdgeHatch.IsDots, Mode=OneWay}"
+                               Ink="{x:Bind ViewModel.EdgeHatch.ColorHex, Mode=OneWay}"
+                               LineOpacity="{x:Bind ViewModel.EdgeHatch.LineOpacity, Mode=OneWay}"
+                               Visibility="{x:Bind PaneVisibility(ViewModel.EdgeHatch.IsHatch), Mode=OneWay}"/>
+                <Border x:Name="RadarStripSurface" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+                <Grid x:Name="RadarStripContent">
                     <comp:RadarControls x:Name="TimeModule"
-                                        HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
+                                        SizeChanged="OnTimeModuleSizeChanged"
                                         Opacity="{x:Bind RadarConsoleOpacity(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
                                         IsHitTestVisible="{x:Bind IsRadarConsoleLive(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
                                         ViewModel="{x:Bind ViewModel.Radar}"/>
                     <comp:ModelConsole x:Name="ModelConsole"
-                                       HorizontalAlignment="Center"
                                        VerticalAlignment="Center"
                                        Visibility="{x:Bind ModelConsoleVisibility(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
                                        UseDotMatrix="{x:Bind ViewModel.Radar.IsDotMatrixScrubber, Mode=OneWay}"
@@ -807,8 +777,8 @@
                                        HatchLook="{x:Bind ViewModel.Radar.HatchLook}"
                                        ViewModel="{x:Bind ViewModel.ShortRange.Playback}"/>
                 </Grid>
-            </ctl:RadarConsolePlate.ConsoleContent>
-        </ctl:RadarConsolePlate>
+            </Grid>
+        </Grid>
 
         <!-- FULL-SCREEN (bolt-on) — the HINT, ~3 s on entering full screen (FullScreenHintFlash), click-through:
 

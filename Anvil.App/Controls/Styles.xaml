@@ -728,8 +728,12 @@
     <x:Double x:Key="TemporalHeaderMinHeight">264</x:Double>
 
     <!-- A temporal pane's width (TemporalPanes/TemporalPane, in MainWindow's map band). The map-tools rail docks to a left
-         pane's inner edge (MainWindow.MapToolsRailMargin reads the declared pane's Width), so this is the one value. -->
+         pane's inner edge (MainWindow.LayoutRadarStrip reads the declared pane's Width), so this is the one value. -->
     <x:Double x:Key="TemporalPaneWidth">480</x:Double>
+
+    <!-- The TIME STRIP's height (MainWindow.RadarStrip — the bottom of the rail's L). MainWindow.LayoutRadarStrip reads the
+         declared strip's Height for the rail's and the panes' bottom margins, so this is the one value. -->
+    <x:Double x:Key="RadarStripHeight">40</x:Double>
 
     <!-- ───────────────────────────── TextBlock — settings-body labels ─────────────────────────────
 

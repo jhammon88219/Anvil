@@ -17,13 +17,11 @@ using Windows.UI;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The GLOBAL time module of the bottom bar: the clock + age, the segmented scrubber, the frame counter,
-	/// the transport (prev · play/stop · next) and the scan readout. All bound to one <see cref="RadarViewModel"/>.
-	///
-	/// <para>Nothing per-pane lives here any more. The product selector and the tilt combo moved into the
-	/// per-pane notch (<c>Composites/PaneNotchContent</c>); site markers, Inspect and the site itself are on
-	/// the tools tier (MapControlsStrip). What is left is the state every pane shares — one site, one camera, one
-	/// time cursor — which is why none of it multiplies with the pane layout.</para>
+	/// The GLOBAL time module — ONE row in the time strip (scrubber on the window's midpoint). Per-pane
+	/// product/ramp/tilt are Composites/PaneHeader; the site is the top bar's Radar menu (Composites/RadarMenu). Holds the
+	/// clock · age, the scrubber, the transport, the frame counter, check-now and the one-line scan readout, all bound to
+	/// one <see cref="RadarViewModel"/> — the state every pane shares (one site, one camera, one time cursor), which is
+	/// why none of it multiplies with the pane layout.
 	/// </summary>
 	public sealed partial class RadarControls : UserControl
 	{
@@ -124,20 +122,45 @@ namespace Anvil.Controls.Composites
 		// Segoe Fluent glyph for the center button: Stop while playing, Play otherwise.
 		public string PlayStopGlyph(bool isPlaying) => isPlaying ? "" : "";
 
-		// The clock splits CurrentFrameTimeText ("h:mm tt") at its last space: large digits, small AM/PM. A UTC time
-		// ("17:04Z", Settings → Units) splits before its Z; a 24-hour or designator-less one is all digits.
-		public string ClockDigits(string time) => SplitClock(time).Digits;
+		// ===== THE STRIP'S FIXED WIDTHS (see the XAML header) =====
+		// ⚠️ MainWindow.LayoutRadarStrip reads LeftNeed / RightNeed to decide whether a side fits beside a temporal pane,
+		// so these are CONSTANTS — a width that followed the text would make the panes jump as the clock or VCP changed.
+		// ModelConsole uses the SAME numbers (its slots say other things in the same places).
+		public const double ClockBlockWidthPx = 220;
+		public const double FrameCountWidthPx = 56;
+		public const double ScanLineWidthPx = 260;
+		public const double ScrubberWidthPx = 420;
+		public const double BlockGap = 16;   // scrubber ↔ a side block, and a side block ↔ the strip's end
 
-		public string ClockSuffix(string time) => SplitClock(time).Suffix;
+		public double ClockBlockWidth => ClockBlockWidthPx;
+		public double FrameCountWidth => FrameCountWidthPx;
+		public double ScanLineWidth => ScanLineWidthPx;
 
-		internal static (string Digits, string Suffix) SplitClock(string time)
+		/// <summary>How far the strip must reach LEFT of the scrubber: gap + clock block + edge gap.</summary>
+		public static double LeftNeed => BlockGap + ClockBlockWidthPx + BlockGap;
+
+		/// <summary>How far the strip must reach RIGHT of the scrubber: the transport block (its own leading gap included;
+		/// fixed buttons + the reserved count, so its width never changes once laid out) + gap + the reserved scan line +
+		/// edge gap. 0 before layout (the host re-lays on this control's first SizeChanged).</summary>
+		public double RightNeed =>
+			TransportBlock.ActualWidth <= 0 ? 0
+				: TransportBlock.ActualWidth + TransportBlock.Margin.Left + BlockGap + ScanLineWidthPx + BlockGap;
+
+		/// <summary>Where the strip's ends are, measured from the window's edges (MainWindow sets it): the side blocks stay
+		/// inside them while the scrubber stays on the window's midpoint.</summary>
+		public Thickness SideInsets
 		{
-			var cut = time.LastIndexOf(' ');
-			if (cut >= 0) { return (time[..cut], time[(cut + 1)..]); }
-			return time.EndsWith('Z') ? (time[..^1], "Z") : (time, string.Empty);
+			get => (Thickness)GetValue(SideInsetsProperty);
+			set => SetValue(SideInsetsProperty, value);
 		}
 
-		// "N / M" frame counter (1-based) shown under the scrubber. Empty until there's a real multi-frame
+		public static readonly DependencyProperty SideInsetsProperty =
+			DependencyProperty.Register(nameof(SideInsets), typeof(Thickness), typeof(RadarControls), new PropertyMetadata(default(Thickness)));
+
+		// The scan line closes the strip on the right: its right end is the strip's, less the edge gap.
+		public Thickness RightBlockMargin(Thickness insets) => new(BlockGap, 0, insets.Right + BlockGap, 0);
+
+		// "N / M" frame counter (1-based) beside the transport. Empty until there's a real multi-frame
 		// loop (max 0 = 0 or 1 frames, where the scrubber is disabled anyway) so it isn't a misleading "1 / 1".
 		public string FrameCountText(double current, int max) =>
 			max <= 0 ? string.Empty : $"{(int)Math.Round(current) + 1} / {max + 1}";
@@ -171,34 +194,6 @@ namespace Anvil.Controls.Composites
 		private static readonly string[] SchemePrefixes = { "SAILS ×", "MESO-SAILS ×", "MRLE ×" };
 		private const string RescansOffPart = "rescans off";
 		private const string PreSailsPart = "pre-SAILS";
-
-		// The values that mean "no fact here" — drawn DIMMED by the XAML's stand-in TextBlock. "off" and
-		// "pre-SAILS" are facts, but dimmed too (the user's call): no extra sweeps reads as quiet, not as data.
-		private static readonly string[] StandIns = { "—", "?", "none", "n/a", "loading…", "off", PreSailsPart };
-
-		private static bool IsStandIn(string value) => Array.IndexOf(StandIns, value) >= 0;
-
-		// ScanValue split for the two TextBlocks sharing each cell: exactly one of these is non-empty.
-		public string ScanFact(string mode, int line)
-		{
-			var value = ScanValue(mode, line);
-			return IsStandIn(value) ? string.Empty : value;
-		}
-
-		public string ScanStandIn(string mode, int line)
-		{
-			var value = ScanValue(mode, line);
-			return IsStandIn(value) ? value : string.Empty;
-		}
-
-		// ===== Clock column sizing =====
-		// The culture's day-half designators, as invisible width samples for the AM/PM slot (both, so the slot is
-		// the wider one and a noon crossing can't nudge the clock). Empty in a 24-hour culture.
-		public string AmDesignator => System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.AMDesignator;
-		public string PmDesignator => System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.PMDesignator;
-
-		// Cap the age line to the TIME's width, so only the time sizes the clock column (a long replay age trims).
-		private void OnClockTimeSizeChanged(object sender, SizeChangedEventArgs e) => AgeText.MaxWidth = e.NewSize.Width;
 
 		public string ScanValue(string mode, int line)
 		{
@@ -237,61 +232,6 @@ namespace Anvil.Controls.Composites
 					return mode.Contains("0.5°×", StringComparison.Ordinal) ? "none" : "—";
 			}
 		}
-
-		// ===== The PLAY BUTTON is the bar's centre, not the module =====
-		// The bar centres this control, but the clock (left) is narrower than the scan block (right), so the module's
-		// own midpoint is left of play. A one-sided margin on the assembly evens the two halves out: the control's
-		// centre then IS play's centre. The assembly is fixed-width (see the header), so this settles in one pass —
-		// changing a margin doesn't resize the assembly, and a sub-pixel no-op stops the re-fire.
-		private void OnAssemblySizeChanged(object sender, SizeChangedEventArgs e) => CentreOnPlay();
-
-		private void CentreOnPlay()
-		{
-			if (Assembly.ActualWidth <= 0 || PlayStopButton.ActualWidth <= 0)
-			{
-				return;
-			}
-			var play = PlayStopButton.TransformToVisual(Assembly).TransformPoint(default).X + PlayStopButton.ActualWidth / 2;
-			// Left of play vs right of play: pad the short side up to the long one.
-			var skew = Assembly.ActualWidth - 2 * play;
-			var margin = new Thickness(Math.Max(0, skew), 0, Math.Max(0, -skew), 0);
-			if (Math.Abs(margin.Left - Assembly.Margin.Left) > 0.5 || Math.Abs(margin.Right - Assembly.Margin.Right) > 0.5)
-			{
-				Assembly.Margin = margin;
-			}
-		}
-
-		/// <summary>The play button's centre in <paramref name="root"/>'s coordinates — the bar's midpoint, and where the
-		/// tools tier centres its site picker (MainWindow.AlignCentreSection). NaN before layout.</summary>
-		public double PlayCentre(UIElement root) =>
-			PlayStopButton.ActualWidth > 0
-				? PlayStopButton.TransformToVisual(root).TransformPoint(default).X + PlayStopButton.ActualWidth / 2
-				: double.NaN;
-
-		/// <summary>The right end of the LONGEST scan line's TEXT in <paramref name="root"/>'s coordinates — where the
-		/// tools tier's centre section ENDS (MainWindow.AlignCentreSection), so it moves as the VCP / mode text changes.
-		/// The values are LEFT-aligned (ScanValueStyle), so a TextBlock's ActualWidth is its text, not its column; empty
-		/// ones measure 0 and never win. NaN before layout.</summary>
-		public double ScanTextRight(UIElement root)
-		{
-			double edge = double.NaN;
-			foreach (var child in ScanBlock.Children)
-			{
-				if (child is FrameworkElement text && text.Visibility == Visibility.Visible && text.ActualWidth > 0)
-				{
-					var right = text.TransformToVisual(root).TransformPoint(new Point(text.ActualWidth, 0)).X;
-					edge = double.IsNaN(edge) ? right : Math.Max(edge, right);
-				}
-			}
-			return edge;
-		}
-
-		/// <summary>The VISIBLE module's right edge (the scan block's column end) in <paramref name="root"/>'s
-		/// coordinates — excludes the centring margin. NaN before layout.</summary>
-		public double ConsoleRight(UIElement root) =>
-			Assembly.ActualWidth > 0
-				? Assembly.TransformToVisual(root).TransformPoint(new Point(Assembly.ActualWidth, 0)).X
-				: double.NaN;
 
 		// Its tooltip explains THIS site's pattern — words from RadarGlossary (VcpCatalog), never XAML.
 		public string ScanTooltip(string mode) => RadarGlossary.ScanPatternTooltip(mode);

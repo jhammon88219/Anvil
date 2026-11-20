@@ -114,49 +114,22 @@ namespace Anvil.Controls.Composites
 
 		public string PlayStopGlyph(bool isPlaying) => isPlaying ? "" : "";
 
-		// The clock splits "h:mm tt" at its last space, or "17:04Z" before its Z: large digits, small AM/PM / Z
-		// (RadarControls' rule).
-		public string ClockDigits(string time) => RadarControls.SplitClock(time).Digits;
+		// RadarControls' fixed widths, so every slot sits where radar's does (see its XAML header).
+		public double ClockBlockWidth => RadarControls.ClockBlockWidthPx;
+		public double FrameCountWidth => RadarControls.FrameCountWidthPx;
+		public double ScanLineWidth => RadarControls.ScanLineWidthPx;
 
-		public string ClockSuffix(string time) => RadarControls.SplitClock(time).Suffix;
-
-		public string AmDesignator => System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.AMDesignator;
-		public string PmDesignator => System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.PMDesignator;
-
-		/// <summary>The right end of the LONGEST Model / Run / Product line's text in <paramref name="root"/>'s coordinates —
-		/// where the tools tier's centre section ends while this console shows (RadarControls.ScanTextRight, copied).
-		/// NaN before layout.</summary>
-		public double ScanTextRight(UIElement root)
+		/// <summary>The strip's ends from the window's edges — RadarControls.SideInsets, set by the same host.</summary>
+		public Thickness SideInsets
 		{
-			double edge = double.NaN;
-			foreach (var child in ScanBlock.Children)
-			{
-				if (child is FrameworkElement text && text.Visibility == Visibility.Visible && text.ActualWidth > 0)
-				{
-					var right = text.TransformToVisual(root).TransformPoint(new Point(text.ActualWidth, 0)).X;
-					edge = double.IsNaN(edge) ? right : Math.Max(edge, right);
-				}
-			}
-			return edge;
+			get => (Thickness)GetValue(SideInsetsProperty);
+			set => SetValue(SideInsetsProperty, value);
 		}
 
-		// Only the time sizes the clock column; the line under it trims.
-		private void OnClockTimeSizeChanged(object sender, SizeChangedEventArgs e) => WhenText.MaxWidth = e.NewSize.Width;
+		public static readonly DependencyProperty SideInsetsProperty =
+			DependencyProperty.Register(nameof(SideInsets), typeof(Thickness), typeof(ModelConsole), new PropertyMetadata(default(Thickness)));
 
-		// The PLAY BUTTON is the centre (RadarControls.CentreOnPlay, copied): pad the short side so the control's centre
-		// is play's — so this play lands exactly where radar's does.
-		private void OnAssemblySizeChanged(object sender, SizeChangedEventArgs e) => CentreOnPlay();
-
-		private void CentreOnPlay()
-		{
-			if (Assembly.ActualWidth <= 0 || PlayStopButton.ActualWidth <= 0) return;
-			var play = PlayStopButton.TransformToVisual(Assembly).TransformPoint(default).X + PlayStopButton.ActualWidth / 2;
-			var skew = Assembly.ActualWidth - 2 * play;
-			var margin = new Thickness(Math.Max(0, skew), 0, Math.Max(0, -skew), 0);
-			if (Math.Abs(margin.Left - Assembly.Margin.Left) > 0.5 || Math.Abs(margin.Right - Assembly.Margin.Right) > 0.5)
-			{
-				Assembly.Margin = margin;
-			}
-		}
+		public Thickness RightBlockMargin(Thickness insets) =>
+			new(RadarControls.BlockGap, 0, insets.Right + RadarControls.BlockGap, 0);
 	}
 }

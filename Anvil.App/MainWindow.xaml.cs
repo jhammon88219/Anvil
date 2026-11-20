@@ -38,18 +38,63 @@ namespace Anvil
 		/// <summary>DEV-ONLY load-time seeding run. Non-null only in Debug builds; handed to the Dev tab.</summary>
 		public LoadTimeSeedingViewModel? SeedVm { get; }
 
-		// NOTE: the bottom chrome is GONE (2026-11-04, the user's call): its map tools are the vertical MAP-TOOLS RAIL on the
-		// left (MainWindow.xaml, in the TEMPORAL PANES layer), Pane Mode + Isolation are top-menu-bar items, and the floating
-		// console sits SelectorGap above the window bottom (a XAML margin now — there is nothing to measure).
+		// NOTE: the floating console + selectors are GONE (2026-11-20, the user's call — canvas "Pane headers + L strip"): the
+		// time module is the docked TIME STRIP, joined to the MAP-TOOLS RAIL as one L (both in the TEMPORAL PANES layer), and
+		// each map pane wears a full-width HEADER (PANE HEADERS layer). The site picker is the top bar's Radar menu.
 
-		// ===== THE MAP-TOOLS RAIL =====
-		// On the window's left edge, or DOCKED to the left temporal pane's right edge while Now's or Past's pane shows.
-		public Thickness MapToolsRailMargin(bool pastShown, bool nowShown) =>
-			new(pastShown || nowShown ? TemporalPaneLayerLeftPaneWidth : 0, 0, 0, 0);
+		// ===== THE TIME STRIP + THE MAP-TOOLS RAIL (one L) =====
+		// The strip runs from the left temporal pane's edge (or the window's) to the ForeCast pane's edge (or the window's);
+		// its content's SCRUBBER stays on the WINDOW's midpoint. A side whose block (RadarControls.LeftNeed / RightNeed)
+		// doesn't fit between the scrubber and that side's pane runs to the window edge instead, and THAT pane stops on the
+		// strip's top (nothing is ever covered). The rail docks to the left pane (or the window edge) and stops on the
+		// strip's top while the strip shows. CODE, because it reads the window width and which panes show; called on the
+		// layer's size, the strip's visibility, the panes' shown flags and the time module's first layout.
+		private void LayoutRadarStrip()
+		{
+			var width = TemporalPaneLayer.ActualWidth;
+			if (width <= 0)
+			{
+				return;
+			}
 
-		// The left panes' declared width (Styles.xaml TemporalPaneWidth — read off the declared pane, like the old
-		// AlignSideSections did, so the two can't disagree).
-		private double TemporalPaneLayerLeftPaneWidth => TemporalPaneNowCast?.Width ?? 480;
+			var stripShown = RadarStrip.Visibility == Visibility.Visible;
+			var stripHeight = RadarStrip.Height;
+			var leftPane = ViewModel.IsPastPaneShown || ViewModel.IsNowPaneShown ? LeftPaneWidth : 0;
+			var rightPane = ViewModel.IsForePaneShown ? TemporalPaneForeCast.Width : 0;
+			var railWidth = MapToolsRail.Visibility == Visibility.Visible ? MapToolsRail.Width : 0;
+
+			// Room each side of the scrubber (which sits on the window's midpoint) before that side's pane.
+			var half = RadarControls.ScrubberWidthPx / 2;
+			var leftFits = width / 2 - half - leftPane >= RadarControls.LeftNeed;
+			var rightNeed = TimeModule.RightNeed; // 0 before the module's first layout: assume it fits until measured
+			var rightFits = rightNeed <= 0 || width / 2 - half - rightPane >= rightNeed;
+			var stripLeft = leftFits ? leftPane : 0;
+			var stripRight = rightFits ? rightPane : 0;
+
+			// The strip's face spans its ends; the shade / hatch fall on the MAP only (from the rail's right edge to the
+			// ForeCast pane), never on a pane or the rail.
+			RadarStripSurface.Margin = new Thickness(stripLeft, 0, stripRight, 0);
+			RadarStripShade.Margin = new Thickness(leftPane + railWidth, -RadarStripShade.Height, rightPane, 0);
+			EdgeHatchRadarStrip.Margin = new Thickness(leftPane + railWidth, -EdgeHatchRadarStrip.ActualHeight, rightPane, 0);
+			var insets = new Thickness(stripLeft, 0, stripRight, 0);
+			TimeModule.SideInsets = insets;
+			ModelConsole.SideInsets = insets;
+
+			// The rail: docked to the left pane, standing ON the strip.
+			MapToolsRail.Margin = new Thickness(leftPane, 0, 0, stripShown ? stripHeight : 0);
+
+			// A side the strip had to run under: that side's pane stops on the strip's top.
+			var leftPaneBottom = stripShown && !leftFits ? stripHeight : 0;
+			TemporalPanePastCast.Margin = new Thickness(0, 0, 0, leftPaneBottom);
+			TemporalPaneNowCast.Margin = new Thickness(0, 0, 0, leftPaneBottom);
+			TemporalPaneForeCast.Margin = new Thickness(0, 0, 0, stripShown && !rightFits ? stripHeight : 0);
+		}
+
+		// The time module's transport block got its width (RightNeed is 0 until then).
+		private void OnTimeModuleSizeChanged(object sender, SizeChangedEventArgs e) => LayoutRadarStrip();
+
+		// The left panes' declared width (Styles.xaml TemporalPaneWidth — read off the declared pane, so the two can't disagree).
+		private double LeftPaneWidth => TemporalPaneNowCast?.Width ?? 480;
 
 		// EDGE-HATCH (bolt-on): the rail's hatch hangs OFF its map-side edge, like a pane's.
 		public Thickness MapToolsRailHatchMargin(double width) => new(0, 0, -width, 0);
@@ -134,13 +179,13 @@ namespace Anvil
 			TemporalPaneLayer.Margin = new Thickness(0, IsTopBarOverlaid ? 0 : TopChrome.SurfaceHeight, 0, 0);
 
 		// ===== TOP MENU BAR (2026-11-01) =====
-		// Its height moves the temporal panes' top, the floating selectors (single / two across sit under its tab) and
-		// the caption band (the bar IS the caption now).
+		// Its height moves the temporal panes' top, the top row of pane headers (they sit under it) and the caption band
+		// (the bar IS the caption now).
 		private void OnTopChromeSizeChanged(object sender, SizeChangedEventArgs e)
 		{
 			KeepHiddenTopBarHidden(); // FULL-SCREEN (bolt-on)
 			ApplyPaneLayerMargin();
-			PlacePaneSelectors();
+			PlacePaneHeaders();
 			UpdateCaptionBand();
 			UpdateNotchInputRegions();
 		}
@@ -172,60 +217,59 @@ namespace Anvil
 		public string ForePaneAccel(bool canPick) => canPick ? "Ctrl+3" : "Turn on ForeCast first";
 
 
-		// ===== FLOATING PANE SELECTORS — where each sits in its pane's cell (the user's call, 2026-11-01) =====
-		// SINGLE: centred, just under the top bar's tab. TWO ACROSS: against the divider on each side, same height.
-		// QUAD: all four at the CROSSING, each in its pane's inner corner — the top row hangs its shadow UP (Edge Bottom).
-		// In CODE because the top offset is the top bar's MEASURED height (no tab since 2026-11-04);
-		// the elements are declared in XAML (Notch0…3), this only sets their alignment, margin and shadow edge.
-		private const double SelectorGap = 8;
+		// ===== PANE HEADERS — each across the top of its pane's VISIBLE part (the user's call, 2026-11-20) =====
+		// The top row sits under the top bar (its MEASURED height, or the screen top while full screen overlays the bar);
+		// the bottom row on the crossing. Each header's left/right is inset so it starts at the map-tools rail / a left
+		// temporal pane and ends at the ForeCast pane: its CENTRED content centres on what you can see, never under a pane.
+		// The elements are declared in XAML (PaneHeaderPane0…3); this only sets their margins. Compare with radar's corner
+		// labels move under the headers here too.
+		private const double CompareLabelGap = 8;
 
-		// The top bar's PLACE SEARCH is as wide as the pane selector (the user's call, 2026-11-03) — and KEEPS that width
-		// whether or not the selector shows (2026-11-04): a hidden selector is invisible but still laid out (IsNotchShown),
-		// so it is measured from launch. Pane 0's selector in its FULL radar form: Single or two across (only Quad is
-		// compact); while a ForeCast model draws it wears the model form, so the box keeps its last radar-form width.
-		private void OnPaneSelectorSizeChanged(object sender, SizeChangedEventArgs e)
+		// The top bar's PLACE SEARCH is as wide as pane 0's header CONTENT (the old selector's width rule, 2026-11-03) — and
+		// KEEPS it whether or not the header shows: a hidden header is invisible but still laid out (IsNotchShown). Only the
+		// FULL radar form counts (Single or two across; Quad is compact, a drawing model wears the model form).
+		private void OnPaneHeaderContentWidthChanged(object? sender, double width)
 		{
-			if (ViewModel.Radar.PaneLayout != PaneLayout.Quad && !ViewModel.ShortRange.IsDrawing && e.NewSize.Width > 0)
+			if (ViewModel.Radar.PaneLayout != PaneLayout.Quad && !ViewModel.ShortRange.IsDrawing && width > 0)
 			{
-				PlaceSearchBox.Width = e.NewSize.Width;
+				PlaceSearchBox.Width = width;
 			}
 		}
 
-		private void PlacePaneSelectors()
+		private void PlacePaneHeaders()
 		{
-			var layout = ViewModel.Radar.PaneLayout;
-			var top = (IsTopBarOverlaid ? 0 : TopChrome.ActualHeight) + SelectorGap; // FULL-SCREEN (bolt-on): bar overlaid
-			var notches = new[] { Notch0, Notch1, Notch2, Notch3 };
-			for (var i = 0; i < notches.Length; i++)
+			var width = PaneNotchLayer.ActualWidth;
+			if (width <= 0)
 			{
-				var notch = notches[i];
-				var cell = layout.CellOf(i);
-				var leftColumn = cell.Column == 0;
-				switch (layout)
-				{
-					case PaneLayout.Single:
-						notch.HorizontalAlignment = HorizontalAlignment.Center;
-						notch.VerticalAlignment = VerticalAlignment.Top;
-						notch.Edge = BarEdge.Top;
-						notch.Margin = new Thickness(0, top, 0, 0);
-						break;
-					case PaneLayout.TwoAcross:
-						notch.HorizontalAlignment = leftColumn ? HorizontalAlignment.Right : HorizontalAlignment.Left;
-						notch.VerticalAlignment = VerticalAlignment.Top;
-						notch.Edge = BarEdge.Top;
-						notch.Margin = leftColumn ? new Thickness(0, top, SelectorGap, 0) : new Thickness(SelectorGap, top, 0, 0);
-						break;
-					default: // Quad
-						var topRow = cell.Row == 0;
-						notch.HorizontalAlignment = leftColumn ? HorizontalAlignment.Right : HorizontalAlignment.Left;
-						notch.VerticalAlignment = topRow ? VerticalAlignment.Bottom : VerticalAlignment.Top;
-						notch.Edge = topRow ? BarEdge.Bottom : BarEdge.Top;
-						notch.Margin = new Thickness(
-							leftColumn ? 0 : SelectorGap, topRow ? 0 : SelectorGap,
-							leftColumn ? SelectorGap : 0, topRow ? SelectorGap : 0);
-						break;
-				}
+				return;
 			}
+
+			var layout = ViewModel.Radar.PaneLayout;
+			var top = IsTopBarOverlaid ? 0 : TopChrome.SurfaceHeight; // FULL-SCREEN (bolt-on): bar overlaid
+			// The map's visible run: right of the rail (and a left pane), left of the ForeCast pane.
+			var railWidth = MapToolsRail.Visibility == Visibility.Visible ? MapToolsRail.Width : 0;
+			var visibleLeft = (ViewModel.IsPastPaneShown || ViewModel.IsNowPaneShown ? LeftPaneWidth : 0) + railWidth;
+			var visibleRight = width - (ViewModel.IsForePaneShown ? TemporalPaneForeCast.Width : 0);
+
+			var headers = new[] { PaneHeaderPane0, PaneHeaderPane1, PaneHeaderPane2, PaneHeaderPane3 };
+			var columnWidth = (width - PaneLayoutInfo.GutterPx) / 2;
+			for (var i = 0; i < headers.Length; i++)
+			{
+				var cell = layout.CellOf(i);
+				// The cell's x run in the [*, gutter, *] grid (a span of 3 = the whole width).
+				var cellLeft = cell.Column == 0 ? 0 : columnWidth + PaneLayoutInfo.GutterPx;
+				var cellRight = cell.ColumnSpan == 3 || cell.Column == 2 ? width : columnWidth;
+				headers[i].Margin = new Thickness(
+					Math.Max(0, visibleLeft - cellLeft),
+					cell.Row == 0 ? top : 0,
+					Math.Max(0, cellRight - visibleRight),
+					0);
+			}
+
+			// Compare with radar (two across): each corner label just under its pane's header, inside the visible part.
+			var labelTop = top + PaneHeaderPane0.ActualHeight + CompareLabelGap;
+			CompareRadarPaneLabel.Margin = new Thickness(12 + Math.Max(0, visibleLeft), labelTop, 0, 0);
+			CompareModelPaneLabel.Margin = new Thickness(12, labelTop, 0, 0);
 		}
 
 		// (AlignCentreSection is GONE, 2026-11-04: the console's top row it edge-aligned went when Inspect + rings/ruler moved
@@ -262,7 +306,7 @@ namespace Anvil
 		///
 		/// <para>⚠️ HIDDEN = INVISIBLE, NOT COLLAPSED (2026-11-04): a hidden selector stays LAID OUT (Opacity 0, not
 		/// hit-testable), so its width is always measured and the top bar's place search keeps it whether or not the selector
-		/// shows (OnPaneSelectorSizeChanged). Only a pane that isn't in the layout collapses its selector (Visibility).</para>
+		/// shows (OnPaneHeaderContentWidthChanged). Only a pane that isn't in the layout collapses its selector (Visibility).</para>
 		/// </summary>
 		public bool IsNotchShown(bool selectorsVisible, bool hasSite, bool modelDrawing) =>
 			selectorsVisible && (hasSite || modelDrawing);
@@ -294,13 +338,6 @@ namespace Anvil
 		/// <summary>The radar pane's corner label: "KTLX · live radar" ("Live radar" before a site is picked).</summary>
 		public string RadarPaneLabel(RadarOption? site) =>
 			site?.Site is { } s ? $"{s.Id} · live radar" : "Live radar · pick a site";
-
-		/// <summary>
-		/// Whether the notches take their tighter form (no scale numbers under the ramp, shorter ramp).
-		/// Quad only: a quad pane is half the window wide, and the full notch would take a real bite out of
-		/// it. Two-across panes are still wide enough for the numbers.
-		/// </summary>
-		public bool NotchCompact(PaneLayout layout) => layout == PaneLayout.Quad;
 
 		// ===== Pane notches vs the TITLE BAR =====
 		// ⚠️ THE TOP-ROW NOTCHES SIT INSIDE THE WINDOW'S CAPTION. This window sets
@@ -458,8 +495,9 @@ namespace Anvil
 			// tab, selectors and panes are listed too so nothing interactive can ever end up under a caption rect.
 			var rects = new List<RectInt32>(PaneLayoutInfo.MaxPanes + 8);
 			foreach (var notch in new FrameworkElement[]
-				{ MenuBarMenus, PlaceSearchBox, CaptionKey, RadarConsolePlate,
-				  Notch0, Notch1, Notch2, Notch3, TemporalPanePastCast, TemporalPaneNowCast, TemporalPaneForeCast })
+				{ MenuBarMenus, PlaceSearchBox, CaptionKey, RadarStrip,
+				  PaneHeaderPane0, PaneHeaderPane1, PaneHeaderPane2, PaneHeaderPane3,
+				  TemporalPanePastCast, TemporalPaneNowCast, TemporalPaneForeCast })
 			{
 				// A hidden pane selector is invisible but laid out (IsNotchShown) — not hit-testable, so it is no hole either.
 				if (notch.Visibility != Visibility.Visible || !notch.IsHitTestVisible || notch.ActualWidth <= 0 || notch.ActualHeight <= 0)
@@ -746,14 +784,36 @@ namespace Anvil
 			ViewModel.PropertyChanged += (_, e) =>
 			{
 				if (e.PropertyName == nameof(MapViewModel.SelectedTheme)) ApplyAppTheme();
+				// A temporal pane showing / hiding moves the strip's ends, the rail and the headers' visible part.
+				if (e.PropertyName is nameof(MapViewModel.IsPastPaneShown) or nameof(MapViewModel.IsNowPaneShown)
+					or nameof(MapViewModel.IsForePaneShown))
+				{
+					LayoutRadarStrip();
+					PlacePaneHeaders();
+				}
 			};
 
-			// FLOATING PANE SELECTORS: re-placed whenever the pane layout changes (and when the top bar does — its SizeChanged).
+			// PANE HEADERS: re-placed whenever the pane layout changes (and when the top bar does — its SizeChanged).
 			ViewModel.Radar.PropertyChanged += (_, e) =>
 			{
-				if (e.PropertyName == nameof(RadarViewModel.PaneLayout)) PlacePaneSelectors();
+				if (e.PropertyName == nameof(RadarViewModel.PaneLayout)) PlacePaneHeaders();
 			};
-			PlacePaneSelectors();
+			PlacePaneHeaders();
+
+			// THE TIME STRIP + RAIL (LayoutRadarStrip): the window's width, the strip showing / hiding, the rail showing /
+			// hiding (it also moves the headers' visible part) and the hatch's depth.
+			TemporalPaneLayer.SizeChanged += (_, _) =>
+			{
+				LayoutRadarStrip();
+				PlacePaneHeaders();
+			};
+			RadarStrip.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => LayoutRadarStrip());
+			MapToolsRail.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) =>
+			{
+				LayoutRadarStrip();
+				PlacePaneHeaders();
+			});
+			EdgeHatchRadarStrip.SizeChanged += (_, _) => LayoutRadarStrip();
 
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs
@@ -771,7 +831,7 @@ namespace Anvil
 			// window (multi-monitor). The manager watches the coordinator VM's open flags and opens/closes a window
 			// to match; content is a fresh section instance bound to this same VM, rendered headerless (the
 			// window caption is the chrome). Each flag is INDEPENDENT — any combination may be open at once.
-			// The radar console (the floating RadarConsolePlate) is deliberately NOT here.
+			// The time strip is deliberately NOT here.
 			// ⚠️ The panels' usable band ends at the WINDOW BOTTOM: the bottom chrome is gone (2026-11-04) — the map tools
 			// are the left rail — so nothing opaque sits across the window's foot any more.
 			_windows.Initialize(this, ViewModel,

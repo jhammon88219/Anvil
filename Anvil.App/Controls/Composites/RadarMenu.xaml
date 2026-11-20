@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ============================================================================
+     RadarMenu — the top menu bar's LAST item, "Radar" (2026-11-20, canvas "Radar menu (last)"): the radar SITE PICKER
+     (home + favorites). It was the floating console's site tab (RadarConsoleSiteTab); the console became the docked time
+     strip and the site moved here.
+
+       … Pane Mode  Isolation  Radar                       a SectionedComboBox drawn as a MENU TITLE (IsMenuTitle) —
+                             ┌──────────────────────────┐  the Isolation item's pattern: flat words, lit on hover/open
+                             │ ⌂ KTLX  Oklahoma City  ● │  ← PINNED: the site on the map now (SelectedSites)
+                             │──────────────────────────│
+                             │ ⌂ KTLX  Oklahoma City  ● │  ← home first, then the favorites (PinnedSites), so the list
+                             │ ★ KINX  Tulsa          ● │    never reshuffles on a switch; ● = availability
+                             │ ☐ Show only these on the map │
+                             │ Unload KTLX              │  ← only while a site is loaded
+                             │ Open Atlas               │
+                             └──────────────────────────┘
+
+     ⚠️ A pick ACTS through ItemPicked, NOT SelectedItem: picking the site already loaded must still fly back to it, and
+     that changes no property. SelectedItem is ONE-WAY from LoadedSite and re-asserted after the pick.
+     ⚠️ DISABLED in PastCast (a pick would re-target the replay); the tooltip sits on a WRAPPER so it still explains itself.
+     ⚠️ A SectionedComboBox (commits only on ItemClick), never a ComboBox — a ComboBox cycles on the wheel.
+     ⚠️ Windowed dropdown like every top-bar flyout (SectionedComboBox's own rule), so owned panel windows can't cover it.
+     Glyphs E80F / E735 are NOT verified. Host contract: ViewModel (MapViewModel).
+     ============================================================================ -->
+<UserControl x:Class="Anvil.Controls.Composites.RadarMenu"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:vm="using:Anvil.ViewModels"
+             xmlns:conv="using:Anvil.Converters"
+             xmlns:comp="using:Anvil.Controls.Composites"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <conv:SiteAvailabilityToBrushConverter x:Key="AvailabilityToBrush"/>
+
+        <!-- One site ROW (both sections): pin mark, id, name, availability dot. -->
+        <DataTemplate x:Key="SiteRowTemplate" x:DataType="vm:RadarSiteRow">
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"
+                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                          Glyph="{x:Bind comp:RadarMenu.PinGlyph(IsHome, IsFavorite), Mode=OneWay}"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind Id}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind Name}" FontSize="{StaticResource CaptionFontSize}" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                <Ellipse Grid.Column="3" Width="8" Height="8" VerticalAlignment="Center"
+                         Fill="{x:Bind Availability, Converter={StaticResource AvailabilityToBrush}, Mode=OneWay}"/>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <!-- The wrapper carries the tooltip (a disabled control shows none); Transparent so it hit-tests. -->
+    <Grid Background="Transparent"
+          ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">
+        <prim:SectionedComboBox x:Name="RadarMenuSitePicker"
+                                IsMenuTitle="True"
+                                PlaceholderText="Radar"
+                                DropDownPlacement="BottomEdgeAlignedLeft"
+                                DropDownWidth="300"
+                                VerticalAlignment="Stretch"
+                                PinnedItemsSource="{x:Bind ViewModel.SiteFavorites.SelectedSites, Mode=OneWay}"
+                                ItemsSource="{x:Bind ViewModel.SiteFavorites.PinnedSites, Mode=OneWay}"
+                                SelectedItem="{x:Bind ViewModel.SiteFavorites.LoadedSite, Mode=OneWay}"
+                                ItemTemplate="{StaticResource SiteRowTemplate}"
+                                IsEnabled="{x:Bind ViewModel.SiteFavorites.CanPickSites, Mode=OneWay}"
+                                ItemPicked="OnSitePicked">
+            <prim:SectionedComboBox.FooterContent>
+                <StackPanel Spacing="4">
+                    <TextBlock Margin="11,2,11,2"
+                               Text="Set a home site or star favorites in the Atlas to list them here."
+                               TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                               Visibility="{x:Bind ViewModel.SiteFavorites.IsEmpty, Mode=OneWay}"/>
+                    <!-- FAVORITES ONLY — the SAME property as Settings → Radar → Radar site keys (two switches, one value). -->
+                    <CheckBox Margin="11,0,11,0"
+                              Content="Show only these on the map"
+                              IsChecked="{x:Bind ViewModel.SiteFavorites.ShowOnlyFavoritesOnMap, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Hide every other radar site on the map. The loaded site always shows."/>
+                    <Button x:Name="RadarMenuUnloadButton"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                            Background="Transparent" BorderThickness="0" Padding="11,6"
+                            Content="{x:Bind UnloadText(ViewModel.SiteFavorites.LoadedSite), Mode=OneWay}"
+                            Visibility="{x:Bind UnloadVisibility(ViewModel.SiteFavorites.LoadedSite), Mode=OneWay}"
+                            Click="OnUnloadClick"/>
+                    <Button x:Name="RadarMenuOpenAtlasButton"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                            Background="Transparent" BorderThickness="0" Padding="11,6"
+                            Content="Open Atlas"
+                            Click="OnOpenAtlasClick"/>
+                </StackPanel>
+            </prim:SectionedComboBox.FooterContent>
+        </prim:SectionedComboBox>
+    </Grid>
+</UserControl>
