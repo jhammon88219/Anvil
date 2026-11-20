@@ -16,6 +16,7 @@
 // ⚠️ The cursor LEAVING the map (onto the chrome) keeps the last set — reaching for the bar must not wipe the
 //    map. The ring hides; the keys stay until the cursor is back.
 // ⚠️ Visibility is pushed only when the SET changes, not per mousemove: applyVisibility touches every key.
+// ⚠️ Tracks the DOM mousemove (MapLibre's map mousemove goes silent during a drag-pan) + every camera 'move'.
 
 import * as Geo from './geo.js';
 import * as Templates from './templates.js';
@@ -68,8 +69,16 @@ function update() {
 }
 function queue() { if (!raf) raf = requestAnimationFrame(update); }
 
-function onMove(e) { lastPoint = e.point; queue(); }
-function onZoom() { if (lastPoint) queue(); }  // the wheel zooms under a still cursor — the ring rescales
+// ⚠️ The RAW DOM mousemove, not MapLibre's map 'mousemove': MapLibre fires no map mousemove while a drag-pan
+// runs, so the ring stuck where the drag began and snapped back to the cursor on release. The point is in the
+// canvas container's frame, like MapLibre's own e.point (what unproject expects).
+function onMove(e) {
+    const r = map.getCanvasContainer().getBoundingClientRect();
+    lastPoint = { x: e.clientX - r.left, y: e.clientY - r.top };
+    queue();
+}
+// Any camera change (pan, wheel zoom, fly) moves the map under a still cursor — re-scale the ring, re-pick sites.
+function onCamera() { if (lastPoint) queue(); }
 function onLeave() { if (ring) ring.style.display = 'none'; }
 
 /** Turn the reveal on or off. `radarSites` = the radar-sites.js module (it owns the keys and their coords). */
@@ -77,8 +86,8 @@ export function setEnabled(primaryMap, on, radarSites) {
     if (on && map) return;
     if (!on) {
         if (map) {
-            map.off('mousemove', onMove);
-            map.off('zoom', onZoom);
+            map.getCanvasContainer().removeEventListener('mousemove', onMove);
+            map.off('move', onCamera);
             map.getCanvasContainer().removeEventListener('mouseleave', onLeave);
         }
         if (raf) cancelAnimationFrame(raf);
@@ -93,7 +102,7 @@ export function setEnabled(primaryMap, on, radarSites) {
     ensureRing();
     // Until the cursor first moves over the map, only the loaded site shows (an empty set, not null).
     sites.setRevealed([]);
-    map.on('mousemove', onMove);
-    map.on('zoom', onZoom);
+    map.getCanvasContainer().addEventListener('mousemove', onMove);
+    map.on('move', onCamera);
     map.getCanvasContainer().addEventListener('mouseleave', onLeave);
 }
