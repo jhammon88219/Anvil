@@ -173,14 +173,18 @@ namespace Anvil.Controls.Primitives
 		// ── Closed-state face ────────────────────────────────────────────────────────────────────
 		public string LabelOf(object? item) => item?.ToString() ?? string.Empty;
 
-		public Visibility ShowsLabel(object? item, DataTemplate? face) =>
-			item is null || face is not null ? Visibility.Collapsed : Visibility.Visible;
+		// ⚠️ WHICH TEXT SHOWS is decided HERE, for the menu title too — never by a FaceStates setter (docs/bugs.md): these
+		// OneWay binds re-run whenever SelectedItem changes, and a setter-written Visibility was overwritten by them, so a
+		// menu title whose pick landed AFTER load (the Radar menu's home site, ~1 s in) showed the item's ToString()
+		// ("Anvil.ViewModels.RadarSiteRow") until a hover re-applied the state. A MENU TITLE always shows its PlaceholderText.
+		public Visibility ShowsLabel(object? item, DataTemplate? face, bool menuTitle) =>
+			menuTitle || item is null || face is not null ? Visibility.Collapsed : Visibility.Visible;
 
-		public Visibility ShowsFace(object? item, DataTemplate? face) =>
-			item is null || face is null ? Visibility.Collapsed : Visibility.Visible;
+		public Visibility ShowsFace(object? item, DataTemplate? face, bool menuTitle) =>
+			menuTitle || item is null || face is null ? Visibility.Collapsed : Visibility.Visible;
 
-		public Visibility NoSelection(object? item) =>
-			item is null ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility NoSelection(object? item, bool menuTitle) =>
+			menuTitle || item is null ? Visibility.Visible : Visibility.Collapsed;
 
 		// ── Dropdown ─────────────────────────────────────────────────────────────────────────────
 		private void OnTapped(object sender, TappedRoutedEventArgs e) => OpenDropDown();

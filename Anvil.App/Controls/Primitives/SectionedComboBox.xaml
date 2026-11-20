@@ -134,9 +134,6 @@
                     <VisualState.Setters>
                         <Setter Target="Box.Background" Value="Transparent"/>
                         <Setter Target="Box.BorderThickness" Value="0"/>
-                        <Setter Target="SelectedLabel.Visibility" Value="Collapsed"/>
-                        <Setter Target="Face.Visibility" Value="Collapsed"/>
-                        <Setter Target="Placeholder.Visibility" Value="Visible"/>
                         <Setter Target="Placeholder.Margin" Value="12,0"/>
                         <Setter Target="Placeholder.FontSize" Value="13"/>
                         <Setter Target="Placeholder.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
@@ -148,9 +145,6 @@
                     <VisualState.Setters>
                         <Setter Target="Box.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
                         <Setter Target="Box.BorderThickness" Value="0"/>
-                        <Setter Target="SelectedLabel.Visibility" Value="Collapsed"/>
-                        <Setter Target="Face.Visibility" Value="Collapsed"/>
-                        <Setter Target="Placeholder.Visibility" Value="Visible"/>
                         <Setter Target="Placeholder.Margin" Value="12,0"/>
                         <Setter Target="Placeholder.FontSize" Value="13"/>
                         <Setter Target="Placeholder.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
@@ -162,9 +156,6 @@
                     <VisualState.Setters>
                         <Setter Target="Box.Background" Value="Transparent"/>
                         <Setter Target="Box.BorderThickness" Value="0"/>
-                        <Setter Target="SelectedLabel.Visibility" Value="Collapsed"/>
-                        <Setter Target="Face.Visibility" Value="Collapsed"/>
-                        <Setter Target="Placeholder.Visibility" Value="Visible"/>
                         <Setter Target="Placeholder.Margin" Value="12,0"/>
                         <Setter Target="Placeholder.FontSize" Value="13"/>
                         <Setter Target="Placeholder.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
@@ -191,7 +182,7 @@
                    VerticalAlignment="Center"
                    TextTrimming="CharacterEllipsis"
                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-                   Visibility="{x:Bind ShowsLabel(SelectedItem, FaceTemplate), Mode=OneWay}"
+                   Visibility="{x:Bind ShowsLabel(SelectedItem, FaceTemplate, IsMenuTitle), Mode=OneWay}"
                    Text="{x:Bind LabelOf(SelectedItem), Mode=OneWay}">
             <TextBlock.RenderTransform>
                 <TranslateTransform x:Name="SelectedLabelLift"/>
@@ -206,7 +197,7 @@
                           IsHitTestVisible="False"
                           HorizontalContentAlignment="Stretch"
                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-                          Visibility="{x:Bind ShowsFace(SelectedItem, FaceTemplate), Mode=OneWay}"
+                          Visibility="{x:Bind ShowsFace(SelectedItem, FaceTemplate, IsMenuTitle), Mode=OneWay}"
                           Content="{x:Bind SelectedItem, Mode=OneWay}"
                           ContentTemplate="{x:Bind FaceTemplate, Mode=OneWay}">
             <ContentPresenter.RenderTransform>
@@ -223,7 +214,7 @@
                    VerticalAlignment="Center"
                    TextTrimming="CharacterEllipsis"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                   Visibility="{x:Bind NoSelection(SelectedItem), Mode=OneWay}"
+                   Visibility="{x:Bind NoSelection(SelectedItem, IsMenuTitle), Mode=OneWay}"
                    Text="{x:Bind PlaceholderText, Mode=OneWay}">
             <TextBlock.RenderTransform>
                 <TranslateTransform x:Name="PlaceholderLift"/>
