@@ -155,8 +155,19 @@ namespace Anvil
 		// The time module's transport block got its width (RightNeed is 0 until then).
 		private void OnTimeModuleSizeChanged(object sender, SizeChangedEventArgs e) => LayoutRadarStrip();
 
-		// The left panes' declared width (Styles.xaml TemporalPaneWidth — read off the declared pane, so the two can't disagree).
-		private double LeftPaneWidth => TemporalPaneNowCast?.Width ?? 480;
+		// The LEFT pane's width, read off the pane that shows (Past excludes Now): Styles.xaml TemporalPaneWidth, or 40 while
+		// it is MINIMIZED to its keys (TemporalPane owns its Width — so the two can't disagree).
+		private double LeftPaneWidth =>
+			(ViewModel.IsPastPaneShown ? TemporalPanePastCast?.Width : TemporalPaneNowCast?.Width) ?? 480;
+
+		// A pane minimized / restored changes its WIDTH: everything docked to it moves (strip ends, rail, headers, map frame).
+		private void OnTemporalPaneSizeChanged(object sender, SizeChangedEventArgs e)
+		{
+			if (e.PreviousSize.Width == e.NewSize.Width) { return; }
+			LayoutRadarStrip();
+			PlacePaneHeaders();
+			UpdateNotchInputRegions();
+		}
 
 
 		// ===== PANE MODE (top menu bar) =====
@@ -995,6 +1006,9 @@ namespace Anvil
 			TemporalPanePastCast.Shown += OnTemporalPaneShown;
 			TemporalPaneNowCast.Shown += OnTemporalPaneShown;
 			TemporalPaneForeCast.Shown += OnTemporalPaneShown;
+			TemporalPanePastCast.SizeChanged += OnTemporalPaneSizeChanged;
+			TemporalPaneNowCast.SizeChanged += OnTemporalPaneSizeChanged;
+			TemporalPaneForeCast.SizeChanged += OnTemporalPaneSizeChanged;
 			// SPC's forecast discussion, opened from either outlook section's "Discussion." button (one window:
 			// Past excludes Fore, so it reads whichever outlook mode runs). Center, like Settings and the Atlas.
 			_windows.Register(

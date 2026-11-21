@@ -72,6 +72,12 @@ namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 		// Short Range's box: the same one-way contract. Ticking it may turn NowCast off (MapViewModel's NowCast ⇄ MODEL).
 		private void OnShortRangeHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.ShortRange.ToggleShown();
 
+		/// <summary>The layer list — the MINIMIZED pane's keys are its layers (TemporalPane; ghosts excluded).</summary>
+		internal DragMoveLayerExpanders.DragMoveLayerExpanderHost LayerHost => DragMoveLayerExpanderHost;
+
+		/// <summary>The name row — its › minimizes the pane, and the key column's ‹ stands level with it.</summary>
+		internal TemporalPaneHeader HeaderRow => TemporalPaneHeader;
+
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel
 		{

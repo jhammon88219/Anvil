@@ -70,5 +70,24 @@ namespace Anvil.Controls.TemporalPanes
 		}
 		public static readonly DependencyProperty ReadoutProperty =
 			DependencyProperty.Register(nameof(Readout), typeof(object), typeof(TemporalPaneHeader), new PropertyMetadata(null));
+
+		/// <summary>This header's pane sits on the window's RIGHT (ForeCast): the minimize button goes first and points ›.</summary>
+		public bool IsRightPane
+		{
+			get => (bool)GetValue(IsRightPaneProperty);
+			set => SetValue(IsRightPaneProperty, value);
+		}
+		public static readonly DependencyProperty IsRightPaneProperty =
+			DependencyProperty.Register(nameof(IsRightPane), typeof(bool), typeof(TemporalPaneHeader), new PropertyMetadata(false));
+
+		/// <summary>The minimize button was clicked (TemporalPane minimizes its pane).</summary>
+		public event RoutedEventHandler? MinimizeClick;
+
+		private void OnMinimizeClick(object sender, RoutedEventArgs e) => MinimizeClick?.Invoke(this, e);
+
+		// The button stands on the MAP side and points the way the pane will MOVE (the bar tabs' rule).
+		public int MinimizeColumn(bool rightPane) => rightPane ? 0 : 4;
+		public Thickness MinimizeMargin(bool rightPane) => rightPane ? new Thickness(0, 0, 12, 0) : new Thickness(12, 0, 0, 0);
+		public string MinimizeGlyph(bool rightPane) => rightPane ? "" : "";
 	}
 }

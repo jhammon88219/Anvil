@@ -682,6 +682,15 @@ namespace Anvil.Services
 		private bool _foreCastPaneHidden;
 		public bool ForeCastPaneHidden { get => _foreCastPaneHidden; set => SetProperty(ref _foreCastPaneHidden, value); }
 
+		// A temporal pane MINIMIZED to its key column (the ‹ in its header; 2026-11-21). Independent of the mode and of
+		// hidden: a minimized pane that shows, shows as keys.
+		private bool _pastCastPaneMinimized;
+		public bool PastCastPaneMinimized { get => _pastCastPaneMinimized; set => SetProperty(ref _pastCastPaneMinimized, value); }
+		private bool _nowCastPaneMinimized;
+		public bool NowCastPaneMinimized { get => _nowCastPaneMinimized; set => SetProperty(ref _nowCastPaneMinimized, value); }
+		private bool _foreCastPaneMinimized;
+		public bool ForeCastPaneMinimized { get => _foreCastPaneMinimized; set => SetProperty(ref _foreCastPaneMinimized, value); }
+
 		// ── The TOP BAR (MainWindow's menu bar) and the floating pane selectors (View → Pane selectors) ──
 		private bool _menuBarVisible = true;
 		public bool MenuBarVisible { get => _menuBarVisible; set => SetProperty(ref _menuBarVisible, value); }

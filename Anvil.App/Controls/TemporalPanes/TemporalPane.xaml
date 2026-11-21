@@ -37,6 +37,23 @@
      Inside the body the three Contents keep OneTime x:Load on Mode — Mode is set in XAML before the body realizes
      and never changes. Don't make the body's x:Load go false (it would throw the live widgets away).
 
+     MINIMIZED (2026-11-21 — MapViewModel.Is*PaneMinimized, the header's ‹ / the column's ›): the pane is 40 px wide and
+     shows only TemporalPanes/TemporalPaneKeyColumn — no header, no activity expander, one icon key per layer.
+
+       full (480)                         minimized (40)
+       ┌──────────────────────────┐       ┌────┐
+       │ ▓ NowCast   │ 5:42 PM  ‹ │       │ [›]│  ← level with the ‹
+       │ …tiles / timeframe…      │       │    │
+       │ ⠿ › [x] Storm cells ───  │       │[◇] │  ← the first key ON the first row; then the rows' pitch with
+       │ ⠿ ⌄ [x] Warnings    ───  │       │[◇] │    every section CLOSED (an open body leaves no gap)
+       │     …open body…          │       │[◇] │
+       │ ⠿ › [x] Watches     ───  │       │    │
+       └──────────────────────────┘       └────┘
+     ⚠️ The BODY keeps its FULL width (TemporalPaneWidth) at all times, so minimizing never re-lays it out narrow: on
+     minimize it goes invisible, the keys are placed from its last layout (TemporalPane.PlaceKeys — the host's
+     unscrolled top, the header's middle), then it collapses. A pane that STARTS minimized lays its body out once,
+     invisible, to measure. The pane's own Width (480 ⇄ 40) is what MainWindow's layout reads.
+
      ⚠️ THIS PANE CANNOT OUTLIVE ITS MODE: MapViewModel.OnTemporalModesChanged hides it when the mode stops, so nothing
      in these Contents needs to check whether its mode runs. ⚠️ A CONTENT NEVER STARTS ITS MODE — that is the bar key's job. -->
 <UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPane"
@@ -51,7 +68,8 @@
 
     <!-- Dark surface fills the whole pane. -->
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
-        <Grid x:Name="TemporalPaneBody" x:Load="{x:Bind IsRealized}" Loaded="OnBodyLoaded">
+        <Grid x:Name="TemporalPaneBody" x:Load="{x:Bind IsRealized}" Loaded="OnBodyLoaded"
+              Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>    <!-- the Content: NO bottom margin — its list scrolls under the expander's shade -->
                 <RowDefinition Height="Auto"/> <!-- TemporalPaneActivityExpander: full width, its height by state -->
@@ -76,6 +94,11 @@
             <tp:TemporalPaneActivityExpander x:Name="TemporalPaneActivityExpander" Grid.Row="1" Activity="{x:Bind PaneActivity}"
                                              IsRightPane="{x:Bind IsFore}"/>
         </Grid>
+
+        <!-- MINIMIZED: the expand chevron + the layer keys (filled and placed by the code-behind's PlaceKeys). -->
+        <tp:TemporalPaneKeyColumn x:Name="TemporalPaneKeyColumn" Visibility="Collapsed"
+                                  IsRightPane="{x:Bind IsFore}"
+                                  ExpandRequested="OnExpandRequested"/>
 
         <!-- (The pane's MAP-SIDE edge effect is the MAP FRAME's since 2026-11-20 — MainWindow's MapEdgeFrame — so it
              turns into the header's and the strip's at the corners. The pane draws none of its own.) -->

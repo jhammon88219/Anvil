@@ -266,6 +266,15 @@ namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 			if (!_dragging) { VisualStateManager.GoToState(this, "Normal", false); }
 		}
 
+		/// <summary>The MINIMIZED pane's key for this layer was clicked: exactly what a click on the header box does
+		/// (the same <see cref="CheckBoxClick"/> → VM), so the key and the box can never disagree. Nothing while the box
+		/// is hidden or greyed.</summary>
+		internal void ToggleFromKey()
+		{
+			if (!ShowCheckBox || !IsCheckBoxEnabled || IsGhost) { return; }
+			CheckBoxClick?.Invoke(this, new RoutedEventArgs());
+		}
+
 		private void OnHeaderBoxClick(object sender, RoutedEventArgs e)
 		{
 			CheckBoxClick?.Invoke(this, e);

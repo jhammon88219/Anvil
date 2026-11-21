@@ -823,6 +823,42 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		// ===== MINIMIZED PANES (2026-11-21) =====
+		// A pane's header ‹ shrinks it to a KEY COLUMN (one icon key per layer: click = show/hide, right-click = opacity);
+		// its › brings the full pane back. Persisted per pane, read straight from settings — nothing else changes it, and it
+		// says nothing about whether the pane SHOWS (that is still Is*PaneShown).
+
+		/// <summary>The PastCast pane is minimized to its keys.</summary>
+		public bool IsPastPaneMinimized => _settingsService.Settings.PastCastPaneMinimized;
+		/// <summary>The NowCast pane is minimized to its keys.</summary>
+		public bool IsNowPaneMinimized => _settingsService.Settings.NowCastPaneMinimized;
+		/// <summary>The ForeCast pane is minimized to its keys.</summary>
+		public bool IsForePaneMinimized => _settingsService.Settings.ForeCastPaneMinimized;
+
+		/// <summary>Minimize (true) or restore (false) <paramref name="which"/> mode's pane.</summary>
+		public void SetPaneMinimized(TemporalMode which, bool minimized)
+		{
+			var s = _settingsService.Settings;
+			switch (which)
+			{
+				case TemporalMode.Past:
+					if (s.PastCastPaneMinimized == minimized) { return; }
+					s.PastCastPaneMinimized = minimized;
+					OnPropertyChanged(nameof(IsPastPaneMinimized));
+					break;
+				case TemporalMode.Now:
+					if (s.NowCastPaneMinimized == minimized) { return; }
+					s.NowCastPaneMinimized = minimized;
+					OnPropertyChanged(nameof(IsNowPaneMinimized));
+					break;
+				default:
+					if (s.ForeCastPaneMinimized == minimized) { return; }
+					s.ForeCastPaneMinimized = minimized;
+					OnPropertyChanged(nameof(IsForePaneMinimized));
+					break;
+			}
+		}
+
 		/// <summary>The PastCast pane is up (PastCast runs, not held — see the region note).</summary>
 		public bool IsPastPaneShown { get => _isPastPaneShown; private set => SetProperty(ref _isPastPaneShown, value); }
 

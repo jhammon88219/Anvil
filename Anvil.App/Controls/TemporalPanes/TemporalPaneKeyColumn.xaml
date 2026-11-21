@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TemporalPaneKeyColumn — a MINIMIZED temporal pane (the ‹ in its header, 2026-11-21): the pane shrinks to 40 px and
+     shows only this — NO header, NO activity expander, just the way back and one icon key per layer.
+
+       40 px (a 32 px key + 4 each side)
+      ┌──────┐
+      │      │
+      │ [ › ]│  ← ExpandTop: level with the full pane's ‹ (centred on its header row), so the click lands in one spot
+      │      │     both ways. Points the way the pane will MOVE: › for the left panes, ‹ for ForeCast.
+      │      │
+      │      │  (empty — where the header / tiles / timeframe block stood)
+      │      │
+      │ [◇]  │  ← KeysTop: the full pane's FIRST LAYER ROW, list scrolled to the top
+      │ [◇]  │  ┐ one TemporalPaneKeyColumnKey per layer, in the pane's z-order (top of list = top of map),
+      │ [◇]  │  │ 30 tall, Spacing 8 = the rows' pitch WITH EVERY SECTION CLOSED: an open section in the full
+      │ [◇]  │  │ pane leaves NO gap here (the user's rule, 2026-11-21)
+      │ [◇]  │  ┘ ghost rows are not keys (they are the other mode's)
+      │      │
+      └──────┘
+
+     ⚠️ NO RE-ORDERING here (the user's call): the order is shown, never dragged — the full pane does that.
+     ⚠️ The keys are DATA (Items = TemporalPaneKeyColumnItem, built by TemporalPane from the layer host); each key is
+     declared once, in the ItemTemplate below. -->
+<UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPaneKeyColumn"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:tp="using:Anvil.Controls.TemporalPanes"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid>
+        <Button x:Name="TemporalPaneKeyColumnExpandButton"
+                Width="32" Height="28" MinWidth="0" MinHeight="0" Padding="0"
+                HorizontalAlignment="Center" VerticalAlignment="Top"
+                Margin="{x:Bind TopMargin(ExpandTop), Mode=OneWay}"
+                CornerRadius="4" BorderThickness="0"
+                Background="{ThemeResource SectionHeaderBackground}"
+                AutomationProperties.Name="Expand the pane"
+                ToolTipService.ToolTip="Expand the pane"
+                Click="OnExpandClick">
+            <FontIcon Glyph="{x:Bind ExpandGlyph(IsRightPane), Mode=OneWay}" FontSize="10"
+                      Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+        </Button>
+
+        <ItemsRepeater x:Name="TemporalPaneKeyColumnKeys"
+                       HorizontalAlignment="Center" VerticalAlignment="Top"
+                       Margin="{x:Bind TopMargin(KeysTop), Mode=OneWay}"
+                       ItemsSource="{x:Bind Items, Mode=OneWay}">
+            <ItemsRepeater.Layout>
+                <StackLayout Orientation="Vertical" Spacing="8"/>
+            </ItemsRepeater.Layout>
+            <ItemsRepeater.ItemTemplate>
+                <DataTemplate x:DataType="tp:TemporalPaneKeyColumnItem">
+                    <tp:TemporalPaneKeyColumnKey Item="{x:Bind}"/>
+                </DataTemplate>
+            </ItemsRepeater.ItemTemplate>
+        </ItemsRepeater>
+    </Grid>
+</UserControl>

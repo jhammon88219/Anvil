@@ -3,11 +3,15 @@
      control, three uses (one per TemporalPane<Mode>Content): only the CONTENTS differ — the status colour,
      the title, the subline and the Readout.
 
-      ┌──┬──────────────────────────┬┬─────────────────┐
-      │▓▓│ NowCast                  ││  3:42 PM        │  ← title 30 SemiLight · Readout (the mode's own control)
-      │▓▓│ Thursday Oct 16          ││                 │  ← subline 13 secondary
-      └──┴──────────────────────────┴┴─────────────────┘
-       │                             │
+      ┌──┬──────────────────────────┬┬─────────────────┬────┐
+      │▓▓│ NowCast                  ││  3:42 PM        │ ‹  │  ← title 30 SemiLight · Readout (the mode's own control)
+      │▓▓│ Thursday Oct 16          ││                 │    │  ← subline 13 secondary
+      └──┴──────────────────────────┴┴─────────────────┴────┘
+       │                             │                   │
+       │                             │                   └ MINIMIZE (28 × 28, 2026-11-21): on the MAP side — after the
+       │                             │                     Readout for the left panes; ForeCast (IsRightPane) has it
+       │                             │                     FIRST, before the status block, pointing › . Points the way
+       │                             │                     the pane will MOVE. Raises MinimizeClick (TemporalPane).
        │                             └ hairline: the Readout's left edge
        └ status block, 22 wide, outer corners rounded; StatusFill is DATA (literal colours), never themed
 
@@ -33,16 +37,30 @@
 
     <Grid MinHeight="60">
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/> <!-- minimize, ForeCast (the map is on its left) -->
             <ColumnDefinition Width="22"/>   <!-- status block -->
             <ColumnDefinition Width="*"/>    <!-- title over subline -->
             <ColumnDefinition Width="Auto"/> <!-- hairline · Readout -->
+            <ColumnDefinition Width="Auto"/> <!-- minimize, the left panes (the map is on their right) -->
         </Grid.ColumnDefinitions>
 
-        <Border x:Name="StatusBlock" Grid.Column="0" CornerRadius="5,0,0,5"
+        <Button x:Name="TemporalPaneHeaderMinimizeButton" Grid.Column="{x:Bind MinimizeColumn(IsRightPane), Mode=OneWay}"
+                Width="28" Height="28" MinWidth="0" MinHeight="0" Padding="0"
+                Margin="{x:Bind MinimizeMargin(IsRightPane), Mode=OneWay}"
+                VerticalAlignment="Center" CornerRadius="4" BorderThickness="0"
+                Background="{ThemeResource SectionHeaderBackground}"
+                AutomationProperties.Name="Minimize the pane to its layer keys"
+                ToolTipService.ToolTip="Minimize to layer keys"
+                Click="OnMinimizeClick">
+            <FontIcon Glyph="{x:Bind MinimizeGlyph(IsRightPane), Mode=OneWay}" FontSize="10"
+                      Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+        </Button>
+
+        <Border x:Name="StatusBlock" Grid.Column="1" CornerRadius="5,0,0,5"
                 Background="{x:Bind StatusFill, Mode=OneWay}"
                 ToolTipService.ToolTip="{x:Bind StatusToolTip, Mode=OneWay}"/>
 
-        <StackPanel Grid.Column="1" Margin="12,0,12,0" Spacing="2" VerticalAlignment="Center">
+        <StackPanel Grid.Column="2" Margin="12,0,12,0" Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontSize="{StaticResource TitleFontSize}" FontWeight="SemiLight"
                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
             <TextBlock Text="{x:Bind Subtitle, Mode=OneWay}" FontSize="{StaticResource BodyFontSize}"
@@ -50,7 +68,7 @@
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </StackPanel>
 
-        <Border Grid.Column="2" BorderThickness="1,0,0,0" Padding="12,0,0,0"
+        <Border Grid.Column="3" BorderThickness="1,0,0,0" Padding="12,0,0,0"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
             <ContentPresenter Content="{x:Bind Readout, Mode=OneWay}" VerticalAlignment="Center"/>
         </Border>

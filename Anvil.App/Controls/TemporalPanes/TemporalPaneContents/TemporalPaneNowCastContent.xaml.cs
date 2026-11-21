@@ -91,6 +91,12 @@ namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 			TemporalPaneHeader.Subtitle = Anvil.Models.UnitFormat.Date(now, "dddd") + " " + Anvil.Models.UnitFormat.DateShort(now);
 		}
 
+		/// <summary>The layer list — the MINIMIZED pane's keys are its layers (TemporalPane).</summary>
+		internal DragMoveLayerExpanders.DragMoveLayerExpanderHost LayerHost => DragMoveLayerExpanderHost;
+
+		/// <summary>The name row — its ‹ minimizes the pane, and the key column's › stands level with it.</summary>
+		internal TemporalPaneHeader HeaderRow => TemporalPaneHeader;
+
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel
 		{

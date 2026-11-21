@@ -126,7 +126,7 @@
              / nothing shown = PastCast's blue (OutlookViewModel.NoAreasFill). Its tooltip names the category.
              ⚠️ Margin LEFT 0 / RIGHT 4 = the section stack's edges — PastCast's + NowCast's rule; change together.
              No TemporalHeaderMinHeight: there are no tiles or card under it to line up. -->
-        <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Margin="0,12,4,12"
+        <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Margin="0,12,4,12" IsRightPane="True"
                                    Title="ForeCast"
                                    StatusFill="{x:Bind ViewModel.Outlook.HeaderSquareFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
                                    StatusToolTip="{x:Bind ViewModel.Outlook.HeaderSquareTip, Mode=OneWay}"

@@ -48,6 +48,32 @@ namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 
 		private IEnumerable<DragMoveLayerExpander> Expanders => Children.Cast<DragMoveLayerExpander>();
 
+		/// <summary>The layers a MINIMIZED pane shows as keys, top first: every visible expander but the ghost rows
+		/// (another mode's layers are that mode's keys).</summary>
+		internal IReadOnlyList<DragMoveLayerExpander> KeyLayers =>
+			Expanders.Where(x => !x.IsGhost && x.Visibility == Visibility.Visible).ToList();
+
+		/// <summary>Where this list's FIRST row sits in <paramref name="root"/> with the list scrolled to the top — the
+		/// scroller's own top plus this host's top margin. A minimized pane's first key goes here (the rows' places with
+		/// every section closed). Null before layout, or outside a PanelScroller.</summary>
+		internal double? UnscrolledTop(UIElement root) =>
+			Scroller is { ActualHeight: > 0 } scroller
+				? scroller.TransformToVisual(root).TransformPoint(new Point(0, 0)).Y + Margin.Top
+				: null;
+
+		/// <summary>The PanelScroller this list scrolls in (its size moves the list's top when the block above grows).</summary>
+		internal FrameworkElement? Scroller
+		{
+			get
+			{
+				for (var d = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(this); d is not null; d = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(d))
+				{
+					if (d is Anvil.Controls.Primitives.PanelScroller scroller) { return scroller; }
+				}
+				return null;
+			}
+		}
+
 		private List<DragMoveLayerExpander> VisibleExpanders() =>
 			Expanders.Where(x => x.Visibility == Visibility.Visible).ToList();
 

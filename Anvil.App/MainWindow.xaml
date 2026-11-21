@@ -652,7 +652,8 @@
                ┌─────────────────────────── top menu bar ────────────────────────┐
                ├──────────┬──┬────────────────────────────────────────┬──────────┤
                │ PastCast │▤ │                                        │ ForeCast │  each 480 wide (Styles.xaml
-               │    or    │⛶ │           …the map…                    │          │  TemporalPaneWidth), flush to
+               │    or    │⛶ │           …the map…                    │          │  TemporalPaneWidth; 40 MINIMIZED to
+               │          │  │                                        │          │  its keys — IsMinimized), flush to
                │ NowCast  │↻ │                                        │          │  its edge and the TOP BAR's foot,
                │ (left)   │◍ │                                        │ (right)  │  down to the WINDOW BOTTOM (no
                │          │⊚ │                                        │          │  bottom chrome since 2026-11-04)
@@ -671,14 +672,17 @@
             <tp:TemporalPane x:Name="TemporalPanePastCast" Mode="Past"
                              Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left"
                              Visibility="{x:Bind PaneVisibility(ViewModel.IsPastPaneShown), Mode=OneWay}"
+                             IsMinimized="{x:Bind ViewModel.IsPastPaneMinimized, Mode=OneWay}"
                              ViewModel="{x:Bind ViewModel}"/>
             <tp:TemporalPane x:Name="TemporalPaneNowCast" Mode="Now"
                              Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left"
                              Visibility="{x:Bind PaneVisibility(ViewModel.IsNowPaneShown), Mode=OneWay}"
+                             IsMinimized="{x:Bind ViewModel.IsNowPaneMinimized, Mode=OneWay}"
                              ViewModel="{x:Bind ViewModel}"/>
             <tp:TemporalPane x:Name="TemporalPaneForeCast" Mode="Fore"
                              Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Right"
                              Visibility="{x:Bind PaneVisibility(ViewModel.IsForePaneShown), Mode=OneWay}"
+                             IsMinimized="{x:Bind ViewModel.IsForePaneMinimized, Mode=OneWay}"
                              ViewModel="{x:Bind ViewModel}"/>
 
             <!-- ===== THE MAP-TOOLS RAIL (the user's call, 2026-11-04 — it replaced the horizontal bottom tools strip) =====

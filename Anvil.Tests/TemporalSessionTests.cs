@@ -51,6 +51,36 @@ namespace Anvil.Tests
 			Assert.True(vm.IsNowPaneShown);      // …with its pane, while the reports are still loading
 		}
 
+		// ── MINIMIZED PANES (2026-11-21) ──
+
+		[Fact]
+		public void Minimizing_a_pane_is_per_pane_persisted_and_leaves_it_shown()
+		{
+			var settings = new AppSettings { ForeCastPaneMinimized = true }; // the last session left ForeCast minimized
+			var vm = New(settings);
+			vm.RestoreTemporalSession();
+			Assert.True(vm.IsForePaneMinimized);
+			Assert.False(vm.IsNowPaneMinimized || vm.IsPastPaneMinimized);
+
+			vm.ToggleTemporalMode(TemporalMode.Now);
+			var raised = new System.Collections.Generic.List<string?>();
+			vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+			vm.SetPaneMinimized(TemporalMode.Now, true);
+			Assert.True(vm.IsNowPaneMinimized && settings.NowCastPaneMinimized);
+			Assert.True(vm.IsNowPaneShown);                       // minimized is NOT hidden: the keys still show
+			Assert.Contains(nameof(MapViewModel.IsNowPaneMinimized), raised);
+			Assert.False(vm.IsPastPaneMinimized);                 // per pane (Past shares Now's edge, not its state)
+
+			raised.Clear();
+			vm.SetPaneMinimized(TemporalMode.Now, true);          // no change, no notification
+			Assert.Empty(raised);
+
+			vm.SetPaneMinimized(TemporalMode.Now, false);
+			Assert.False(vm.IsNowPaneMinimized || settings.NowCastPaneMinimized);
+			Assert.True(vm.IsForePaneMinimized);
+		}
+
 		// ── A PANE FOLLOWS ITS MODE ──
 
 		[Fact]
