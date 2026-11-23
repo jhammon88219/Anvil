@@ -130,8 +130,10 @@
     <ProjectReference Include="..\Anvil.Core\Anvil.Core.csproj" />
     <!-- The native C# map renderer, referenced from its own repo beside this one (not copied), so a fix made while
          working in Anvil lands in the library. Brings NativeMaps.Core with it. Sits alongside the MapLibre/WebView2
-         map while the two map stacks are switchable. -->
-    <ProjectReference Include="..\..\NativeMaps.Core\NativeMaps.WinUI\NativeMaps.WinUI.csproj" />
+         map while the two map stacks are switchable.
+         SetPlatform pins it to ONE build: it is an AnyCPU library outside Anvil.slnx, so without this VS built it once
+         plain (bin\Debug) and once as x64 (bin\x64\Debug) and MSIX packaging failed with APPX1101 (two NativeMaps.WinUI.pdb). -->
+    <ProjectReference Include="..\..\NativeMaps.Core\NativeMaps.WinUI\NativeMaps.WinUI.csproj" SetPlatform="Platform=AnyCPU" />
   </ItemGroup>
   <ItemGroup>
     <Content Update="Assets\Map\map.html">
