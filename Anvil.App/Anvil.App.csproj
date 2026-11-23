@@ -1,7 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <!-- net10 + Windows SDK 26100 because NativeMaps.WinUI (referenced below) targets exactly that; Core, Tests and
+         TiltCheck stay plain net8.0 on purpose (a net10 app references a net8 library fine, and TiltCheck is inside
+         the sealed radar-engine fence). -->
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>Anvil</RootNamespace>
     <AssemblyName>Anvil</AssemblyName>
@@ -114,8 +117,9 @@
     <PackageReference Include="Serilog.Sinks.Async" Version="1.5.0" />
     <PackageReference Include="Serilog.Sinks.Debug" Version="2.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.1839" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.1.3" />
+    <!-- These two must stay at or above NativeMaps.WinUI's versions, or NuGet refuses the restore (package downgrade). -->
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2957" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.6.5" />
   </ItemGroup>
 
   <ItemGroup>
@@ -124,6 +128,10 @@
          service implementations (LocationService, SettingsService, WinUiDispatcher). SharpCompress moved
          to Core with Level2Format and arrives transitively. -->
     <ProjectReference Include="..\Anvil.Core\Anvil.Core.csproj" />
+    <!-- The native C# map renderer, referenced from its own repo beside this one (not copied), so a fix made while
+         working in Anvil lands in the library. Brings NativeMaps.Core with it. Sits alongside the MapLibre/WebView2
+         map while the two map stacks are switchable. -->
+    <ProjectReference Include="..\..\NativeMaps.Core\NativeMaps.WinUI\NativeMaps.WinUI.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Update="Assets\Map\map.html">
