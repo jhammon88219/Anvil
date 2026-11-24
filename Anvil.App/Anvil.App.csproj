@@ -120,6 +120,10 @@
     <!-- These two must stay at or above NativeMaps.WinUI's versions, or NuGet refuses the restore (package downgrade). -->
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2957" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.6.5" />
+    <!-- The native C# map renderer (brings NativeMaps.Core), taken BY VERSION from LocalPackages in this repo (nuget.config),
+         not from the NativeMaps repo, so Anvil builds on its own. Sits alongside the MapLibre/WebView2 map while the two
+         map stacks are switchable. A newer NativeMaps = a newer version number here; see CLAUDE.md "Map engine". -->
+    <PackageReference Include="NativeMaps.WinUI" Version="0.1.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -128,13 +132,6 @@
          service implementations (LocationService, SettingsService, WinUiDispatcher). SharpCompress moved
          to Core with Level2Format and arrives transitively. -->
     <ProjectReference Include="..\Anvil.Core\Anvil.Core.csproj" />
-    <!-- The native C# map renderer, referenced from its own repo beside this one (not copied), so a fix made while
-         working in Anvil lands in the library. Brings NativeMaps.Core with it. Sits alongside the MapLibre/WebView2
-         map while the two map stacks are switchable.
-         ⚠️ NativeMaps.Core + NativeMaps.WinUI must stay IN Anvil.slnx (its NativeMaps folder): outside it the solution
-         gives the library no configuration of its own, so VS built it twice (bin\Debug and bin\x64\Debug → APPX1101,
-         two NativeMaps.WinUI.pdb) and a Release build compiled it as Debug (→ PRI252, no NativeMaps.WinUI.pri). -->
-    <ProjectReference Include="..\..\NativeMaps.Core\NativeMaps.WinUI\NativeMaps.WinUI.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Update="Assets\Map\map.html">

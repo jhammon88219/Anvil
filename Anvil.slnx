@@ -4,10 +4,6 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Folder Name="/NativeMaps/">
-    <Project Path="../NativeMaps.Core/NativeMaps.Core/NativeMaps.Core.csproj" />
-    <Project Path="../NativeMaps.Core/NativeMaps.WinUI/NativeMaps.WinUI.csproj" />
-  </Folder>
   <Project Path="Anvil.Core/Anvil.Core.csproj" />
   <Project Path="Anvil.Tests/Anvil.Tests.csproj" />
   <Project Path="tools/TiltCheck/TiltCheck.csproj" />
