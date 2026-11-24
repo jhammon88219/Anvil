@@ -547,6 +547,13 @@ namespace Anvil.Services
 		/// <summary>Animates the map to the given center and zoom.</summary>
 		Task FlyToAsync(double longitude, double latitude, double zoom);
 
+		/// <summary>NATIVE-MAP (bolt-on): reads the PRIMARY pane's camera, or null before the page has a map.</summary>
+		Task<MapCameraState?> GetCameraAsync();
+
+		/// <summary>NATIVE-MAP (bolt-on): puts the PRIMARY pane's camera exactly there, no animation (the other panes follow
+		/// the camera sync). Used when the map engine switches back to MapLibre.</summary>
+		Task JumpToAsync(MapCameraState camera);
+
 		/// <summary>
 		/// Places (or moves) the user-location marker at the given coordinates. <paramref name="label"/>
 		/// is the marker tooltip (e.g. the resolved place name or "Device location").

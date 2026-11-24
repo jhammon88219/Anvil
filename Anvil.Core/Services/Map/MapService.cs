@@ -381,6 +381,13 @@ namespace Anvil.Services
 		public Task FlyToAsync(double longitude, double latitude, double zoom) =>
 			_mapView.RunScriptAsync(Call("flyTo", longitude, latitude, zoom));
 
+		// NATIVE-MAP (bolt-on): the camera handed across when the map engine switches (MainWindow.NativeMap.cs).
+		public async Task<MapCameraState?> GetCameraAsync() =>
+			MapCameraState.Parse(await _mapView.RunScriptAsync("(window.getCamera?window.getCamera():null)"));
+
+		public Task JumpToAsync(MapCameraState camera) =>
+			_mapView.RunScriptAsync(Call("jumpCamera", camera.Longitude, camera.Latitude, camera.Zoom, camera.Bearing, camera.Pitch));
+
 		public Task ShowUserLocationAsync(double longitude, double latitude, string label) =>
 			_mapView.RunScriptAsync(Call("showUserLocation", longitude, latitude, label));
 

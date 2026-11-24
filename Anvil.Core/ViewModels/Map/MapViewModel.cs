@@ -344,6 +344,9 @@ namespace Anvil.ViewModels
 		/// <summary>EDGE-HATCH (experimental bolt-on): Settings → Edges, and the hatch bands at the chrome's map edges.</summary>
 		public EdgeHatchViewModel EdgeHatch { get; }
 
+		/// <summary>NATIVE-MAP (bolt-on, dev switch): MapLibre or NativeMaps draws the main map. Settings → Dev → Map engine.</summary>
+		public MapEngineViewModel MapEngine { get; } = new();
+
 		/// <summary>Settings → Basemap, and the map setup window shown before launch (<see cref="BasemapSetupViewModel"/>).</summary>
 		public BasemapSetupViewModel BasemapSetup { get; }
 

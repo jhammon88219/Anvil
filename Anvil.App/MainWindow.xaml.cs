@@ -945,6 +945,9 @@ namespace Anvil
 			// FULL-SCREEN (bolt-on): F11 / Esc / the map's forwarded keys / the probe timer (MainWindow.FullScreen.cs).
 			InitFullScreen();
 
+			// NATIVE-MAP (bolt-on): the dev map-engine switch's hand-over (MainWindow.NativeMap.cs).
+			InitNativeMap();
+
 			// Hide the system caption buttons — they moved to the bar (see the CAPTION BAND block above).
 			AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
 

@@ -697,6 +697,18 @@ try {
     // play, so the panes stay locked without four animations fighting each other.
     window.flyTo = function (lng, lat, zoom) { primary().flyTo({ center: [lng, lat], zoom: zoom }); };
 
+    // NATIVE-MAP (bolt-on): the camera handed across when the host switches the map engine (MapService.GetCameraAsync /
+    // JumpToAsync). Primary only, like flyTo: the other panes follow it.
+    window.getCamera = function () {
+        var m = primary();
+        if (!m) return null;
+        var c = m.getCenter();
+        return [c.lng, c.lat, m.getZoom(), m.getBearing(), m.getPitch()];
+    };
+    window.jumpCamera = function (lng, lat, zoom, bearing, pitch) {
+        primary().jumpTo({ center: [lng, lat], zoom: zoom, bearing: bearing, pitch: pitch });
+    };
+
     // Level II radar shims — delegate to RadarLayer (radar.js). None of them take a map: RadarLayer
     // holds ONE loop rendered through N views, so the loop commands are pane-agnostic and the only
     // pane-addressed one is setRadarProduct.

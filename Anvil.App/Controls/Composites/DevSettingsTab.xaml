@@ -43,6 +43,17 @@
        │   what it does…                                      │
        │   Step [Choose        ⌄]  ( Show )                   │  ← BasemapSetupHost; the step is the shared VM's
        │   [ ] Next launch: start as a new user               │  ← AppSettings.DevPretendNoMap (clears at launch)
+       │  ────────────────────────────────────────────────    │
+       │  ⌄  Live source timing  …                            │
+       │  ────────────────────────────────────────────────    │
+       │  ⌄  Map engine                                       │  ← NATIVE-MAP (bolt-on), MapViewModel.MapEngine
+       │   [ MapLibre (WebView) | NativeMaps ]  what it does… │  ← swaps the main map NOW; not saved
+       │   ┌────────────────────────────────────────────┐     │
+       │   │ NativeMaps is drawing usa_full.pmtiles.    │     │  ← MapEngine.Status (set by MainWindow.NativeMap.cs)
+       │   └────────────────────────────────────────────┘     │
+       │   WHAT NATIVEMAPS DRAWS SO FAR                       │
+       │   ● Basemap + themes  ● Place + road labels  ○ Radar │  ← MapEngine.Layers, 3 across; ● drawn, ○ not yet
+       │   ○ Rings + ruler     ○ …                            │
        └──────────────────────────────────────────────────────┘
 
      The first two are the two halves of one loop: the sweep is DISCOVERY over live data (it harvests
@@ -79,6 +90,7 @@
             <RowDefinition Height="Auto"/> <!-- Frame cap experiment section -->
             <RowDefinition Height="Auto"/> <!-- Map setup window section -->
             <RowDefinition Height="Auto"/> <!-- Live source timing section -->
+            <RowDefinition Height="Auto"/> <!-- Map engine section (NATIVE-MAP bolt-on) -->
         </Grid.RowDefinitions>
 
         <!-- ===== Section 1: automated site sweep (SiteSweepViewModel). ===== -->
@@ -388,6 +400,66 @@
                     <Button Content="Start" Click="OnTimingStartClick" IsEnabled="{x:Bind ViewModel.LiveData.Timing.IsIdle, Mode=OneWay}"/>
                     <Button Content="Stop" Click="OnTimingStopClick" IsEnabled="{x:Bind ViewModel.LiveData.Timing.IsRunning, Mode=OneWay}"/>
                 </StackPanel>
+            </Grid>
+        </prim:SettingsExpander>
+
+        <!-- ===== Map engine (NATIVE-MAP bolt-on, MapEngineViewModel): MapLibre or NativeMaps draws the main map, swapped
+             live, plus the coverage list of what NativeMaps draws of Anvil so far. Not saved — every launch is MapLibre. ===== -->
+        <prim:SettingsExpander Grid.Row="7" Header="Map engine" IsExpanded="True">
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- the picker + what it does -->
+                    <RowDefinition Height="Auto"/> <!-- status -->
+                    <RowDefinition Height="Auto"/> <!-- coverage heading -->
+                    <RowDefinition Height="Auto"/> <!-- coverage list -->
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <prim:SegmentedPicker x:Name="MapEnginePicker" Grid.Column="0" Width="300"
+                                          ItemsSource="{x:Bind ViewModel.MapEngine.EngineLabels}"
+                                          SelectedIndex="{x:Bind ViewModel.MapEngine.EngineIndex, Mode=TwoWay}"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" FontSize="{StaticResource CaptionFontSize}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Text="Swaps the main map now. The camera, the theme and the map file carry over; the MapLibre map keeps running underneath, so its overlays are all still there when you switch back. Not saved."/>
+                </Grid>
+
+                <Border Grid.Row="1" CornerRadius="6" Padding="10,7"
+                        Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                    <TextBlock TextWrapping="Wrap" FontSize="{StaticResource BodyFontSize}" FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                               Text="{x:Bind ViewModel.MapEngine.Status, Mode=OneWay}"/>
+                </Border>
+
+                <TextBlock Grid.Row="2" Text="WHAT NATIVEMAPS DRAWS SO FAR" FontSize="{StaticResource CaptionFontSize}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                <ItemsControl Grid.Row="3" ItemsSource="{x:Bind ViewModel.MapEngine.Layers}" IsTabStop="False">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VariableSizedWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="3" ItemWidth="230" ItemHeight="26"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:MapEngineLayer">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <!-- Drawn: a filled accent check. Not yet: a hollow ring, dimmed name. The word says it too. -->
+                                <FontIcon Glyph="&#xEC61;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                          Visibility="{x:Bind IsDrawn}"/>
+                                <FontIcon Glyph="&#xEA3A;" FontSize="14" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                          Visibility="{x:Bind IsNotDrawn}"/>
+                                <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}"/>
+                                <TextBlock Text="drawn" VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}"
+                                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Visibility="{x:Bind IsDrawn}"/>
+                                <TextBlock Text="not yet" VerticalAlignment="Center" FontSize="{StaticResource CaptionFontSize}"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" Visibility="{x:Bind IsNotDrawn}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </Grid>
         </prim:SettingsExpander>
     </Grid>
