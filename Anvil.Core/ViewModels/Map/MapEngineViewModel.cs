@@ -64,7 +64,7 @@ namespace Anvil.ViewModels
 			new("County names", false),
 			new("Location + place pins", false),
 			new("Double / Quad panes", false),
-			new("Online tiles", false),
+			new("Online tiles", true),
 		];
 	}
 

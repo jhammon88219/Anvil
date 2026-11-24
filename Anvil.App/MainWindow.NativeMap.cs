@@ -13,8 +13,9 @@
 //   while NativeMaps is up, acceptable for a Debug-only dev switch.
 // • HANDED ACROSS: the camera (window.getCamera → the view on load; the view's last camera → window.jumpCamera on the way
 //   back), the basemap THEME (Anvil's five style ids map 1:1 onto NativeMaps' five Protomaps themes, live), and the
-//   offline MAP FILE (opened as a PMTiles archive; re-opened live when Settings → Storage changes the map in use).
-//   NativeMaps reads offline files only, so with online tiles on it still draws the offline file and says so.
+//   basemap SOURCE: online tiles when MapLibre is online (a TileJSON URL or a {z}/{x}/{y} template, as UrlTileSource),
+//   otherwise the offline map file (a PMTiles archive). Re-opened live when Settings changes either. A remote PMTiles
+//   URL isn't readable yet, so then the offline file is drawn and the status says so.
 // • What NativeMaps draws of Anvil so far is MapEngineViewModel.Layers (the Dev page's coverage list) — tick a layer
 //   there in the same change that ports it.
 //
@@ -24,6 +25,7 @@
 using System;
 using System.ComponentModel;
 using System.IO;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Anvil.Models;
 using Anvil.Services;
@@ -32,6 +34,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using NativeMaps.Core.Meshes;
 using NativeMaps.Core.Pmtiles;
+using NativeMaps.Core.Sources;
 using NativeMaps.Core.Themes.Protomaps;
 using NativeMapStyle = NativeMaps.Core.Styles.MapStyle;
 using NativeMapView = NativeMaps.WinUI.MapView;
@@ -40,8 +43,13 @@ namespace Anvil
 {
 	public sealed partial class MainWindow
 	{
-		// The archive the native view is drawing, and the camera it last showed (handed back to the WebView map).
-		private PmtilesArchive? _nativeArchive;
+		// One HTTP client for every online source the native view opens, so connections are shared across re-opens.
+		private static readonly HttpClient NativeTileHttp = UrlTileSource.CreateHttpClient();
+
+		// The source the native view is drawing (an offline archive or online tiles), which open is the newest, and the
+		// camera it last showed (handed back to the WebView map).
+		private ITileSource? _nativeSource;
+		private int _nativeSourceVersion;
 		private MapCameraState? _nativeCamera;
 		private bool _nativeTileFailureReported;
 
@@ -112,7 +120,7 @@ namespace Anvil
 				}
 				view.CameraChanged += OnNativeCameraChanged;
 
-				await OpenNativeMapFileAsync(view);
+				await OpenNativeSourceAsync(view);
 				_logger.LogInformation("Map engine: NativeMaps ready. {Status}", ViewModel.MapEngine.Status);
 			}
 			catch (Exception ex)
@@ -128,8 +136,9 @@ namespace Anvil
 			view.CameraChanged -= OnNativeCameraChanged;
 			view.TileFailed -= OnNativeTileFailed;
 			view.RemoveSource(ProtomapsTheme.SourceName);
-			_nativeArchive?.Dispose();
-			_nativeArchive = null;
+			(_nativeSource as IDisposable)?.Dispose();
+			_nativeSource = null;
+			_nativeSourceVersion++; // an open still in flight disposes what it opens
 		}
 
 		private void OnNativeCameraChanged(object? sender, EventArgs e)
@@ -147,54 +156,83 @@ namespace Anvil
 			DispatcherQueue.TryEnqueue(() => ViewModel.MapEngine.Status += " A tile failed to load (see the log).");
 		}
 
-		// The map in use changed (Settings → Storage): the native view re-opens it, like the WebView's live switch.
+		// The basemap source changed (Settings → Storage's map in use, or the online tiles switch / URL): the native view
+		// re-opens it, like the WebView's live switch.
 		private void OnNativeMapFileSettingChanged(object? sender, PropertyChangedEventArgs e)
 		{
-			if (e.PropertyName is not (nameof(AppSettings.BasemapFilePath) or nameof(AppSettings.MapDataFolder))) return;
+			if (e.PropertyName is not (nameof(AppSettings.BasemapFilePath) or nameof(AppSettings.MapDataFolder)
+				or nameof(AppSettings.UseOnlineTiles) or nameof(AppSettings.OnlineTilesUrl))) return;
 			DispatcherQueue.TryEnqueue(async () =>
 			{
-				if (NativeMapHost.View is { } view) await OpenNativeMapFileAsync(view);
+				if (NativeMapHost.View is { } view) await OpenNativeSourceAsync(view);
 			});
 		}
 
-		private async Task OpenNativeMapFileAsync(NativeMapView view)
+		// Online when MapLibre is online (the same IsOnlineTilesActive rule), otherwise the offline file. Status lines
+		// never show the online URL: it carries the API key.
+		private async Task OpenNativeSourceAsync(NativeMapView view)
 		{
-			var file = _settingsService.MapDataFileName;
-			var path = Path.Combine(_settingsService.MapDataFolder, file);
-			if (!File.Exists(path))
-			{
-				view.RemoveSource(ProtomapsTheme.SourceName);
-				ViewModel.MapEngine.Status = $"NativeMaps has no map to draw: {path} is missing. It reads offline map files only.";
-				return;
-			}
-
-			PmtilesArchive archive;
+			var version = ++_nativeSourceVersion;
+			ITileSource source;
+			string drawing;
 			try
 			{
-				archive = await PmtilesArchive.OpenFileAsync(path);
+				if (ViewModel.IsOnlineTilesActive && OpenOnlineSourceAsync(ViewModel.OnlineTilesUrl) is { } online)
+				{
+					source = await online;
+					drawing = "online tiles";
+				}
+				else
+				{
+					var file = _settingsService.MapDataFileName;
+					var path = Path.Combine(_settingsService.MapDataFolder, file);
+					if (!File.Exists(path))
+					{
+						if (version != _nativeSourceVersion) return;
+						view.RemoveSource(ProtomapsTheme.SourceName);
+						ViewModel.MapEngine.Status = $"NativeMaps has no map to draw: {path} is missing.";
+						return;
+					}
+					source = await PmtilesArchive.OpenFileAsync(path);
+					drawing = ViewModel.IsOnlineTilesActive
+						? $"{file}. MapLibre is on remote PMTiles, which NativeMaps can't read yet"
+						: file;
+				}
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "NativeMaps could not open {Path}", path);
-				ViewModel.MapEngine.Status = $"NativeMaps could not open {file}: {ex.Message}";
+				_logger.LogError(ex, "NativeMaps could not open its basemap source");
+				if (version == _nativeSourceVersion)
+					ViewModel.MapEngine.Status = $"NativeMaps could not open its map: {ex.Message}";
 				return;
 			}
 
-			// The view was switched away while the file opened: don't leak the archive.
-			if (!ReferenceEquals(NativeMapHost.View, view))
+			// The view was switched away, or a newer open started, while this one opened: don't leak the source.
+			if (!ReferenceEquals(NativeMapHost.View, view) || version != _nativeSourceVersion)
 			{
-				archive.Dispose();
+				(source as IDisposable)?.Dispose();
 				return;
 			}
 
-			var previous = _nativeArchive;
-			view.AddSource(ProtomapsTheme.SourceName, archive); // replaces the previous archive under the same name
-			_nativeArchive = archive;
-			previous?.Dispose();
+			var previous = _nativeSource;
+			view.AddSource(ProtomapsTheme.SourceName, source); // replaces the previous source under the same name
+			_nativeSource = source;
+			(previous as IDisposable)?.Dispose();
 
-			ViewModel.MapEngine.Status = ViewModel.IsOnlineTilesActive
-				? $"NativeMaps is drawing {file}. MapLibre is on online tiles; NativeMaps reads the offline file only."
-				: $"NativeMaps is drawing {file}.";
+			ViewModel.MapEngine.Status = $"NativeMaps is drawing {drawing}.";
+			_logger.LogInformation("NativeMaps basemap source: {Kind}", source.GetType().Name);
+		}
+
+		// Anvil's one online URL setting has three forms, told apart the way map.js's tileSourceFor does: a remote PMTiles
+		// archive (not readable by NativeMaps yet: null, so the offline file is drawn), a TileJSON document (the Protomaps
+		// API default), or a raw {z}/{x}/{y} template (the Protomaps basemap tops out at z15, as in map.js).
+		private static Task<UrlTileSource>? OpenOnlineSourceAsync(string url)
+		{
+			if (url.StartsWith("pmtiles://", StringComparison.OrdinalIgnoreCase)) return null;
+			var path = url.Split('?')[0];
+			if (path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+				return UrlTileSource.FromTileJsonAsync(url, NativeTileHttp);
+			return Task.FromResult(new UrlTileSource(url, 0, 15, NativeTileHttp));
 		}
 
 		// Anvil's style ids (StyleProvider) → the matching NativeMaps theme. An imported style has no native twin, so it
