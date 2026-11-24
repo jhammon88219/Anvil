@@ -60,10 +60,32 @@ namespace Anvil
 			_settingsService.Settings.PropertyChanged += OnNativeMapFileSettingChanged;
 		}
 
-		// Back to MapLibre: put the WebView map where the native one was looking. (x:Load drops the native view itself.)
+		// To NativeMaps: x:Load builds the view; this only reports whether it did. Back to MapLibre: put the WebView map
+		// where the native one was looking. (x:Load drops the native view itself.)
 		private void OnMapEnginePropertyChanged(object? sender, PropertyChangedEventArgs e)
 		{
-			if (e.PropertyName != nameof(MapEngineViewModel.IsNativeMaps) || ViewModel.MapEngine.IsNativeMaps) return;
+			if (e.PropertyName != nameof(MapEngineViewModel.IsNativeMaps)) return;
+			if (ViewModel.MapEngine.IsNativeMaps)
+			{
+				_logger.LogInformation("Map engine: switching to NativeMaps");
+				ViewModel.MapEngine.Status = "Starting NativeMaps...";
+				// The x:Load binding runs in this same change notification, so by the next dispatcher turn the view is
+				// either built or it never will be. If it isn't, say so instead of leaving the old status up.
+				DispatcherQueue.TryEnqueue(() =>
+				{
+					if (!ViewModel.MapEngine.IsNativeMaps) return;
+					if (NativeMapView is null)
+					{
+						_logger.LogWarning("Map engine: x:Load did not create NativeMapView");
+						ViewModel.MapEngine.Status = "NativeMaps view was not created (x:Load did not build it). See the log.";
+					}
+					else
+					{
+						_logger.LogInformation("Map engine: NativeMapView created, loaded={Loaded}", NativeMapView.IsLoaded);
+					}
+				});
+				return;
+			}
 			if (_nativeCamera is { } camera) _ = _mapService.JumpToAsync(camera);
 			ViewModel.MapEngine.Status = "MapLibre is drawing the map.";
 			_logger.LogInformation("Map engine: MapLibre");
@@ -72,24 +94,35 @@ namespace Anvil
 		private async void OnNativeMapViewLoaded(object sender, RoutedEventArgs e)
 		{
 			var view = (NativeMapView)sender;
-			_nativeTileFailureReported = false;
-			view.MapStyle = NativeStyleFor(ViewModel.SelectedStyle);
-			view.TileFailed += OnNativeTileFailed;
-
-			// Start where the WebView map is looking (its primary pane).
-			_nativeCamera = await _mapService.GetCameraAsync();
-			if (_nativeCamera is { } camera)
+			_logger.LogInformation("Map engine: NativeMapView loaded, {Width}x{Height}", view.ActualWidth, view.ActualHeight);
+			// Every step is logged and any failure lands on the Dev page: an async void handler otherwise fails silently.
+			try
 			{
-				view.CenterLongitude = camera.Longitude;
-				view.CenterLatitude = camera.Latitude;
-				view.Zoom = camera.Zoom;
-				view.Bearing = camera.Bearing;
-				view.Pitch = camera.Pitch;
-			}
-			view.CameraChanged += OnNativeCameraChanged;
+				_nativeTileFailureReported = false;
+				view.MapStyle = NativeStyleFor(ViewModel.SelectedStyle);
+				view.TileFailed += OnNativeTileFailed;
 
-			await OpenNativeMapFileAsync(view);
-			_logger.LogInformation("Map engine: NativeMaps");
+				// Start where the WebView map is looking (its primary pane).
+				_nativeCamera = await _mapService.GetCameraAsync();
+				_logger.LogInformation("Map engine: camera from MapLibre {Camera}", _nativeCamera);
+				if (_nativeCamera is { } camera)
+				{
+					view.CenterLongitude = camera.Longitude;
+					view.CenterLatitude = camera.Latitude;
+					view.Zoom = camera.Zoom;
+					view.Bearing = camera.Bearing;
+					view.Pitch = camera.Pitch;
+				}
+				view.CameraChanged += OnNativeCameraChanged;
+
+				await OpenNativeMapFileAsync(view);
+				_logger.LogInformation("Map engine: NativeMaps ready. {Status}", ViewModel.MapEngine.Status);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Map engine: NativeMaps failed to start");
+				ViewModel.MapEngine.Status = $"NativeMaps failed to start: {ex.GetType().Name}: {ex.Message}";
+			}
 		}
 
 		private void OnNativeMapViewUnloaded(object sender, RoutedEventArgs e)
