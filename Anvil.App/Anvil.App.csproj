@@ -131,11 +131,10 @@
     <!-- The native C# map renderer, referenced from its own repo beside this one (not copied), so a fix made while
          working in Anvil lands in the library. Brings NativeMaps.Core with it. Sits alongside the MapLibre/WebView2
          map while the two map stacks are switchable.
-         ⚠️ NativeMaps.Core + NativeMaps.WinUI belong IN Anvil.slnx (a NativeMaps folder): outside it the solution gives the
-         library no configuration of its own, so VS built it twice (bin\Debug and bin\x64\Debug → APPX1101, two
-         NativeMaps.WinUI.pdb) and a Release build compiled it as Debug (→ PRI252, no NativeMaps.WinUI.pri in bin\Release).
-         SetPlatform is a STOPGAP that fixes the Debug case only; once the projects are in the solution, delete it. -->
-    <ProjectReference Include="..\..\NativeMaps.Core\NativeMaps.WinUI\NativeMaps.WinUI.csproj" SetPlatform="Platform=AnyCPU" />
+         ⚠️ NativeMaps.Core + NativeMaps.WinUI must stay IN Anvil.slnx (its NativeMaps folder): outside it the solution
+         gives the library no configuration of its own, so VS built it twice (bin\Debug and bin\x64\Debug → APPX1101,
+         two NativeMaps.WinUI.pdb) and a Release build compiled it as Debug (→ PRI252, no NativeMaps.WinUI.pri). -->
+    <ProjectReference Include="..\..\NativeMaps.Core\NativeMaps.WinUI\NativeMaps.WinUI.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Update="Assets\Map\map.html">
