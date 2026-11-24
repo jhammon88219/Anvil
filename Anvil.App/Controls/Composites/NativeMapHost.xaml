@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NATIVE-MAP (bolt-on, dev switch: Settings → Dev → Map engine) — NativeMapHost, the NativeMaps renderer's slot over the
+     WebView map in MainWindow.
+
+       IsActive false:  ┌ empty Grid, no background ┐   clicks fall through to the WebView map
+                        └───────────────────────────┘
+       IsActive true:   ┌ NativeMapView (MapView)   ┐   built by x:Load, fills the slot
+                        └───────────────────────────┘
+
+     WHY A USERCONTROL: x:Load directly inside a Window never builds the element (tried 2026-11-24: the binding fired and
+     the view was never created), because a Window is not a FrameworkElement. Inside a UserControl it works as everywhere
+     else. The view's Loaded / Unloaded are passed out as MapViewLoaded / MapViewUnloaded; MainWindow.NativeMap.cs does
+     the hand-over work. -->
+<UserControl x:Class="Anvil.Controls.Composites.NativeMapHost"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:nativemaps="using:NativeMaps.WinUI"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid>
+        <nativemaps:MapView x:Name="NativeMapView"
+                            x:Load="{x:Bind IsActive, Mode=OneWay}"
+                            Loaded="OnNativeMapViewLoaded" Unloaded="OnNativeMapViewUnloaded"/>
+    </Grid>
+</UserControl>

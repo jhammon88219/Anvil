@@ -90,7 +90,6 @@
     xmlns:ctl="using:Anvil.Controls.Primitives"
     xmlns:comp="using:Anvil.Controls.Composites"
     xmlns:tp="using:Anvil.Controls.TemporalPanes"
-    xmlns:nativemaps="using:NativeMaps.WinUI"
     mc:Ignorable="d"
     Title="Anvil">
 
@@ -158,12 +157,13 @@
         </controls:WebView2>
 
         <!-- NATIVE-MAP (bolt-on, dev switch: Settings → Dev → Map engine) — the NativeMaps renderer, drawn OVER the WebView
-             map while picked and not built at all otherwise (x:Load). The WebView keeps running underneath, so every overlay
-             keeps its state and switching back is instant; MainWindow.NativeMap.cs hands the camera, theme and map file across.
-             Declared straight after the WebView so all the chrome below still sits on top of it. -->
-        <nativemaps:MapView x:Name="NativeMapView" Grid.Row="0" Grid.RowSpan="2"
-                            x:Load="{x:Bind ViewModel.MapEngine.IsNativeMaps, Mode=OneWay}"
-                            Loaded="OnNativeMapViewLoaded" Unloaded="OnNativeMapViewUnloaded"/>
+             map while picked and not built at all otherwise (x:Load, inside NativeMapHost: x:Load straight in a Window never
+             builds). The WebView keeps running underneath, so every overlay keeps its state and switching back is instant;
+             MainWindow.NativeMap.cs hands the camera, theme and map file across. Declared straight after the WebView so all
+             the chrome below still sits on top of it. -->
+        <comp:NativeMapHost x:Name="NativeMapHost" Grid.Row="0" Grid.RowSpan="2"
+                            IsActive="{x:Bind ViewModel.MapEngine.IsNativeMaps, Mode=OneWay}"
+                            MapViewLoaded="OnNativeMapViewLoaded" MapViewUnloaded="OnNativeMapViewUnloaded"/>
 
         <!-- ===== PANE HEADERS (the user's call, 2026-11-20 — canvas "Pane headers + L strip") =====
              One per pane: Composites/PaneHeader, a RAISED bar across the top of its pane that FLOWS INTO the temporal panes

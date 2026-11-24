@@ -6,8 +6,9 @@
 //                     │                              │                            │   drawn OVER the WebView map,    │
 //                     └──────────────────────────────┘                            └ which keeps running underneath ──┘
 //
-// • NativeMapView is declared straight after the WebView in MainWindow.xaml behind x:Load = MapEngine.IsNativeMaps, so it
-//   is only BUILT while picked, and all the chrome declared after it (headers, rail, strip, panes) still sits on top.
+// • NativeMapHost (Controls/Composites) is declared straight after the WebView in MainWindow.xaml; its MapView sits behind
+//   x:Load = IsActive = MapEngine.IsNativeMaps, so it is only BUILT while picked, and all the chrome declared after it
+//   (headers, rail, strip, panes) still sits on top. (x:Load straight in a Window never builds: hence the UserControl.)
 // • The WebView map never stops: every overlay keeps its state, so switching back is instant. The cost is two renderers
 //   while NativeMaps is up, acceptable for a Debug-only dev switch.
 // • HANDED ACROSS: the camera (window.getCamera → the view on load; the view's last camera → window.jumpCamera on the way
@@ -17,7 +18,7 @@
 // • What NativeMaps draws of Anvil so far is MapEngineViewModel.Layers (the Dev page's coverage list) — tick a layer
 //   there in the same change that ports it.
 //
-// BACK OUT = delete this file, MapEngineViewModel.cs, MapCameraState.cs and every block tagged NATIVE-MAP (bolt-on) in
+// BACK OUT = delete this file, NativeMapHost.xaml(.cs), MapEngineViewModel.cs, MapCameraState.cs and every block tagged NATIVE-MAP (bolt-on) in
 // MainWindow.xaml(.cs), MapViewModel.cs, IMapService.cs, MapService.cs, map.js and DevSettingsTab.xaml.
 
 using System;
@@ -44,17 +45,13 @@ namespace Anvil
 		private MapCameraState? _nativeCamera;
 		private bool _nativeTileFailureReported;
 
-		// x:Load on an element of a WINDOW: the generated code realizes NativeMapView with this.FindName(...), which Window
-		// (unlike UserControl) doesn't have, so it is forwarded to the window's content, whose name scope holds the element.
-		internal object? FindName(string name) => (Content as FrameworkElement)?.FindName(name);
-
 		// Called once from the constructor, after InitializeComponent.
 		private void InitNativeMap()
 		{
 			ViewModel.MapEngine.PropertyChanged += OnMapEnginePropertyChanged;
 			ViewModel.PropertyChanged += (_, e) =>
 			{
-				if (e.PropertyName == nameof(MapViewModel.SelectedStyle) && NativeMapView is { } view)
+				if (e.PropertyName == nameof(MapViewModel.SelectedStyle) && NativeMapHost.View is { } view)
 					view.MapStyle = NativeStyleFor(ViewModel.SelectedStyle);
 			};
 			_settingsService.Settings.PropertyChanged += OnNativeMapFileSettingChanged;
@@ -74,14 +71,14 @@ namespace Anvil
 				DispatcherQueue.TryEnqueue(() =>
 				{
 					if (!ViewModel.MapEngine.IsNativeMaps) return;
-					if (NativeMapView is null)
+					if (NativeMapHost.View is not { } view)
 					{
 						_logger.LogWarning("Map engine: x:Load did not create NativeMapView");
 						ViewModel.MapEngine.Status = "NativeMaps view was not created (x:Load did not build it). See the log.";
 					}
 					else
 					{
-						_logger.LogInformation("Map engine: NativeMapView created, loaded={Loaded}", NativeMapView.IsLoaded);
+						_logger.LogInformation("Map engine: NativeMapView created, loaded={Loaded}", view.IsLoaded);
 					}
 				});
 				return;
@@ -156,7 +153,7 @@ namespace Anvil
 			if (e.PropertyName is not (nameof(AppSettings.BasemapFilePath) or nameof(AppSettings.MapDataFolder))) return;
 			DispatcherQueue.TryEnqueue(async () =>
 			{
-				if (NativeMapView is { } view) await OpenNativeMapFileAsync(view);
+				if (NativeMapHost.View is { } view) await OpenNativeMapFileAsync(view);
 			});
 		}
 
@@ -184,7 +181,7 @@ namespace Anvil
 			}
 
 			// The view was switched away while the file opened: don't leak the archive.
-			if (!ReferenceEquals(NativeMapView, view))
+			if (!ReferenceEquals(NativeMapHost.View, view))
 			{
 				archive.Dispose();
 				return;
